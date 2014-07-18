@@ -1,0 +1,85 @@
+#!/bin/bash
+
+#
+# configures and submits script to spit fastq file into chunks
+#
+
+QUEUE=pqcgi
+
+USAGE="USAGE: qsplitfastq -i <path_to_fastq> -o <path_to_output_directory> -r <reads_per_chunk>"
+
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+GROUP_VOL_CGI=/groupvol/cgi
+PATH_SCRIPTS_DIR=$PWD
+
+SPLITFASTQ_WALLTIME_HOURS=72
+SPLITFASTQ_THREADS=4
+
+while getopts "i:o:c:h" option; do
+    case "$option" in
+	
+	i) INPUT_PATH="$OPTARG";;
+	o) OUTPUT_DIR="$OPTARG";;
+	c) READS_PER_CHUNK="$OPTARG";;
+	h) echo "$USAGE"; exit 0;;
+	[?]) echo "$USAGE"; exit 1;;
+
+esac
+done
+
+if [ -z $INPUT_PATH ]
+
+    then
+    echo "Required input argument <path_to_fastq> (-i) missing."
+    echo "$USAGE"
+    exit 1
+
+fi
+
+if [ -z $OUTPUT_DIR ]
+
+    then
+    echo "Required input argument <path_to_output_directory> (-o) missing."
+    echo "$USAGE"
+    exit 1
+
+fi
+
+if [ -z $READS_PER_CHUNK ]
+
+    then
+    echo "Required input argument <reads_per_chunk> (-c) missing."
+    echo "$USAGE"
+    exit 1
+
+fi
+
+INPUT_FASTQ=`basename $INPUT_PATH`
+
+#calculate required temp space
+FILE_SIZE_KB=`du $INPUT_PATH | cut -f1`
+
+if [[ "$FILE_SIZE_KB" -ne "0" ]]
+then
+	FILE_SIZE_MB=$(( $FILE_SIZE_KB / 1024 ))
+	TMP_SPACE_MB=$(( $FILE_SIZE_KB * 2 ))
+fi
+
+SCRIPT_PATH=$PATH_SCRIPTS_DIR/split.$INPUT_FASTQ.sh
+cp $BASEDIR/splitFastq.sh $SCRIPT_PATH
+chmod 770 $SCRIPT_PATH
+
+#set variables 
+sed -i -e "s/#walltimeHours/$SPLITFASTQ_WALLTIME_HOURS/" $SCRIPT_PATH  
+sed -i -e "s/#threads/$SPLITFASTQ_THREADS/" $SCRIPT_PATH
+sed -i -e "s/#tmpSpace/$TMP_SPACE_MB/" $SCRIPT_PATH
+sed -i -e "s/#inputFastq/${INPUT_PATH//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#outputDir/${OUTPUT_DIR//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#readsPerChunk/$READS_PER_CHUNK/" $SCRIPT_PATH
+
+LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+
+echo qsub -q $QUEUE -o $LOG_PATH $SCRIPT_PATH
+JOB_ID=`qsub -q $QUEUE -o $LOG_PATH $SCRIPT_PATH` 
+echo $JOB_ID
+

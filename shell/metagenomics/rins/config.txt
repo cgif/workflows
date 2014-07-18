@@ -1,0 +1,62 @@
+###########################################################################
+#
+# Configuration file for RINS command line run
+#
+# Please give the Whole Path of a file, and do not include space in file names
+#
+# example as follows
+#
+# Please fill all the required parameters
+#
+###########################################################################
+
+
+# file format and names
+# file format can be either "fasta" or "fastq"
+file_format = fastq
+
+# if pair-end then "pair_end = 1", else, "pair_end = 0"
+# if pair-end, privide file names for both ends, and leave singlelane_filename as NA
+# else, provide file name of the single end and leave rightlane/leftlane_filename as NA
+pair_end = 1
+leftlane_filename = #tmpRead1
+rightlane_filename = #tmpRead2
+
+# email notification
+mailto = cgi@imperial.ac.uk
+
+# reference files
+blat_reference = $TMPDIR/#tmpFastaViral
+bowtie_index_human = $TMPDIR/#tmpBowtieIndexHost
+
+# scripts and executable directories
+scripts_directory = #baseDir
+blat_bin = /apps/blat/#blatVersion/bin/blat
+
+bowtie_bin = $BOWTIE_HOME/bowtie
+bowtie_build_bin = $BOWTIE_HOME/bowtie-build
+bowtie_threads = #threadsPerRun
+bowtie_mismatch = 3
+
+trinity_script = $TRINITY_HOME/Trinity.pl
+paired_fragment_length = #pairedFragmentLength
+min_contig_length = #readLength
+trinity_threads =  #threadsPerRun
+
+blastn_bin = /apps/ncbi-blast/#blastVersion/bin/blastn
+blastn_index_human = $TMPDIR/#tmpBlastIndexHost
+blastn_index_non_human = $TMPDIR/#tmpBlastIndexViral
+blastn_evalue_thrd = 1e-05
+
+# similarity_thrd shoud between 0.8 - 1.0
+similarity_thrd = 1.0 
+
+# modifiable parameters
+iteration = 2
+raw_read_length = #readLength
+chop_read_length = 25
+minIdentity = 80
+compress_ratio_thrd = 0.5
+
+
+

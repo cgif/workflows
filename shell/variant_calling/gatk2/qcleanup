@@ -1,0 +1,110 @@
+#!/bin/bash
+
+# removes intermediate files after GATK run
+# need to provide analysis date and project as variables
+
+# analysis directory path structure 
+# /groupvol/cgi/analysis/<project>/gatk2/<analysis_date>
+
+#e.g /groupvol/cgi/analysis/aitman_raremendelian/gatk2/2014-02-18
+
+# results analysis structure
+# /groupvol/cgi/results/<project>/gatk2/<analysis_date>
+
+#e.g /groupvol/cgi/results/aitman_raremendelian/gatk2/2014-02-18
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+
+GROUP_VOL_CGI=/groupvol/cgi
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+
+#path to text file containing usage information
+USAGE="$BASEDIR/qcleanup.usage"
+
+
+#parse command line args
+while getopts "p:hd:" OPTION;
+do
+
+    case "$OPTION" in
+	p) PROJECT_TAG="$OPTARG";;
+	d) RUN_DATE="$OPTARG";;
+	h) cat $USAGE
+	   exit;;
+	[?]) cat $USAGE
+	     exit;;
+
+esac
+done
+
+echo ""
+
+#check if all required arguments are present...
+if [[ -z $PROJECT_TAG ]]
+then
+        #...if not print usage and exit
+		echo "`$NOW`ERROR: required input argument project tag (-p) missing."
+        cat $USAGE
+        exit 1
+fi
+
+if [[ -z $RUN_DATE ]]
+then
+        #...if not print usage and exit
+		echo "`$NOW`ERROR: required input argument run date (-d) missing."
+        cat $USAGE
+        exit 1
+fi
+
+ANALYSIS_DIR="/groupvol/cgi/analysis/$PROJECT_TAG/gatk2/$RUN_DATE"
+RESULTS_DIR="/groupvol/cgi/results/$PROJECT_TAG/gatk2/$RUN_DATE"
+
+#check that directories exist
+if [[ ! -e $ANALYSIS_DIR ]]
+then
+        echo "`$NOW`ERROR: analysis directory does not exist: $ANALYSIS_DIR"
+        exit 1
+fi
+
+if [[ ! -e $RESULTS_DIR ]]
+then
+        echo "`$NOW`ERROR: results directory does not exist: $RESULTS_DIR"
+        exit 1
+fi
+
+
+CLEANUP_LOG=$ANALYSIS_DIR/multisample/run/cleanup.${RUN_DATE}.log
+##redirect stdout and stderr to terminal and log file
+exec > >(tee $CLEANUP_LOG)
+exec 2>&1
+
+#create job script
+SCRIPT_DIR=$ANALYSIS_DIR/multisample/run
+SCRIPT_PATH=$SCRIPT_DIR/cleanup.${RUN_DATE}.sh
+cp $BASEDIR/cleanup.sh $SCRIPT_PATH
+
+chmod 770 $SCRIPT_PATH
+
+sed -i -e "s/#analysisDir/${ANALYSIS_DIR//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
+
+#run script
+#no submission to nodes required, because only rm commands are being run
+echo "`$NOW`removing intermediate files"
+
+source $SCRIPT_PATH
+
+echo "`$NOW`finished running cleanup script"
+
+#change permissions for the remaining files
+
+echo "`$NOW`changing permissions of remaining files"
+
+chmod -R 770 $ANALYSIS_DIR
+chmod -R 770 $RESULTS_DIR
+
+echo "`$NOW`done"
+
+

@@ -1,0 +1,203 @@
+#!/bin/bash
+
+# sets up directory structure and generates, configures and submits
+# scripts to run CREST algorithm for detecting genomic structural variations at base-pair resolution
+
+#CONFIGURATION
+##############
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+GROUP_VOL_CGI=/ax3-cgi
+DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
+DEPLOYMENT_BASE_DIR=/www/html/report
+
+QUEUE=pqcgi
+WALLTIME_HOURS_PER_RUN=30
+
+# default values
+REFERENCE=/ax3-cgi/resources/reference/eukaryote/human/hs37d5/hs37d5
+READ_LENGTH=150
+MIN_SC_READS=3
+SENSITIVE=no
+PORT=20010
+
+USAGE="USAGE: qcrest -i <input_path> -n <project_name> -r <reference_no_extension [/ax3-cgi/resources/reference/eukaryote/human/hs37d5/hs37d5]> -l <read_length, [150]> -m  <min_sc_reads, [3]> -f <sensitive, [no], allowed values: yes, no>"
+
+
+#COMMAND LINE ARGS
+##################
+
+while getopts "i:n:r:l:m:f:h" option; do
+    case "$option" in
+	
+	i) INPUT_PATH="$OPTARG";;
+	n) PROJECT="$OPTARG";;
+	r) REFERENCE="$OPTARG";;
+	l) READ_LENGTH="$OPTARG";;
+	m) MIN_SC_READS="$OPTARG";;
+	f) SENSITIVE="$OPTARG";;
+	h) echo "$USAGE";;
+	[?]) echo "$USAGE";;
+
+esac
+done
+
+if [ -z $INPUT_PATH ] || [ -z $PROJECT ]
+    then
+    echo $USAGE
+    exit 1
+fi
+
+
+#FUNCTIONS
+##########
+
+#creates job scripts
+function submitJobs {
+    PATH_SAMPLE_DIR=$1
+    PATH_REFERENCE=$2
+    PATH_ANALYSIS_DIR=$3
+    PATH_RESULT_DIR=$4
+    CREST_READ_LENGTH=$5
+    CREST_MIN_SC_READS=$6
+    CREST_SENSITIVE=$7
+    BLAT_PORT=$8
+    DEPLOYMENT_SERVER=$9
+    DEPLOYMENT_PATH=${10}
+
+    REFERENCE_FASTA=${PATH_REFERENCE}.fa
+    REFERENCE_2BIT=${PATH_REFERENCE}.2bit
+
+    PATH_SCRIPTS_DIR=$PATH_ANALYSIS_DIR/run 
+    mkdir -p $PATH_SCRIPTS_DIR
+    chmod -R 770 $PATH_SCRIPTS_DIR
+
+    SETUP_LOG=$PATH_SCRIPTS_DIR/setup.log
+    echo -n "" > $SETUP_LOG
+
+    echo "`$NOW`setting up CREST run(s)..."
+    echo "`$NOW`(see $SETUP_LOG for details)"
+
+    echo "`$NOW`setting up CREST run(s)" >> $SETUP_LOG
+    echo "`$NOW`BAM input: $PATH_SAMPLE_DIR" >> $SETUP_LOG
+    echo "`$NOW`reference file: $PATH_REFERENCE" >> $SETUP_LOG
+    echo "`$NOW`result directory: $PATH_RESULT_DIR" >> $SETUP_LOG
+    echo "`$NOW`creating and submitting job scripts:" >> $SETUP_LOG
+
+    #foreach bam file
+    for INPUT_BAM in `ls --color=never $PATH_SAMPLE_DIR/*.bam`
+    do	
+  
+        BLAT_PORT=`expr $BLAT_PORT + 1` 
+        BAM_NAME=`basename $INPUT_BAM .bam`
+
+        SCRIPT_PATH=$PATH_SCRIPTS_DIR/${BAM_NAME}.crest.sh
+        cp $BASEDIR/crest.sh $SCRIPT_PATH
+        chmod 770 $SCRIPT_PATH
+
+        LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+
+        #set variables
+        sed -i -e "s/walltimeHours/$WALLTIME_HOURS_PER_RUN/" $SCRIPT_PATH  
+        sed -i -e "s/inputBam/${INPUT_BAM//\//\\/}/" $SCRIPT_PATH
+        sed -i -e "s/referenceFasta/${REFERENCE_FASTA//\//\\/}/" $SCRIPT_PATH
+        sed -i -e "s/reference2bit/${REFERENCE_2BIT//\//\\/}/" $SCRIPT_PATH
+        sed -i -e "s/resultsFolder/${PATH_RESULT_DIR//\//\\/}/" $SCRIPT_PATH
+        sed -i -e "s/readLength/$CREST_READ_LENGTH/" $SCRIPT_PATH
+        sed -i -e "s/minScReads/$CREST_MIN_SC_READS/" $SCRIPT_PATH
+        sed -i -e "s/sensitive/$CREST_SENSITIVE/" $SCRIPT_PATH
+        sed -i -e "s/serverPort/$BLAT_PORT/" $SCRIPT_PATH
+        sed -i -e "s/deploymentServer/${DEPLOYMENT_SERVER//\//\\/}/" $SCRIPT_PATH
+        sed -i -e "s/deploymentPath/${DEPLOYMENT_PATH//\//\\/}/" $SCRIPT_PATH
+
+	qsub -o $LOG_OUTPUT_PATH $SCRIPT_PATH
+        echo "`$NOW`done" >> $SETUP_LOG
+
+    done
+}
+
+######################
+
+if [ -d $INPUT_PATH ]; then
+
+    #create and set permissions for analysis project parent directory
+    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/translocation_mapping
+    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/translocation_mapping
+
+    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/translocation_mapping/$TODAY
+    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/translocation_mapping/$TODAY
+
+    #create and set permissions for results project parent directory
+    mkdir -p $GROUP_VOL_CGI/results/$PROJECT/translocation_mapping
+    chmod 770 $GROUP_VOL_CGI/results/$PROJECT/translocation_mapping
+
+    mkdir -p $GROUP_VOL_CGI/results/$PROJECT/translocation_mapping/$TODAY
+    chmod 770 $GROUP_VOL_CGI/results/$PROJECT/translocation_mapping/$TODAY
+
+    #for each sample directory...
+    for SAMPLE in `ls --color=never $INPUT_PATH`
+    do
+
+        SAMPLE_DIR=$INPUT_PATH/$SAMPLE
+
+        if [ -d $SAMPLE_DIR ]; then
+
+	    #count bam files in directory		
+	    BAM_COUNT=`ls --color=never $SAMPLE_DIR/*.bam | wc -l`
+
+	    if [ $BAM_COUNT -gt 0 ]; then
+
+    	        echo "`$NOW`processing directory $SAMPLE..."
+
+	        #create and set permissions for analysis sample directory
+	        mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/translocation_mapping/$TODAY/$SAMPLE
+	        chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/translocation_mapping/$TODAY/$SAMPLE
+
+ 	        #create and set permissions for results sample directory
+   	        mkdir -p $GROUP_VOL_CGI/results/$PROJECT/translocation_mapping/$TODAY/$SAMPLE
+    	        chmod 770 $GROUP_VOL_CGI/results/$PROJECT/translocation_mapping/$TODAY/$SAMPLE
+
+	        PATH_RUN_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/translocation_mapping/$TODAY/$SAMPLE
+	        PATH_OUT_DIR=$GROUP_VOL_CGI/results/$PROJECT/translocation_mapping/$TODAY/$SAMPLE
+
+                DEPLOYMENT_PATH=$DEPLOYMENT_BASE_DIR/project/$PROJECT/translocation_mapping/$TODAY
+                ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $DEPLOYMENT_PATH" > /dev/null 2>&1
+
+	        #create, configure and submit job scripts
+	        submitJobs $SAMPLE_DIR \
+                           $REFERENCE \
+                           $PATH_RUN_DIR \
+                           $PATH_OUT_DIR \
+                           $READ_LENGTH \
+                           $MIN_SC_READS \
+	                   $SENSITIVE \
+                           $PORT \
+                           $DEPLOYMENT_SERVER \
+                           $DEPLOYMENT_PATH
+
+                PORT=`expr $PORT + 10`   
+	    
+            else
+
+	        echo "`$NOW`directory $SAMPLE does not contain any bam files"	
+
+            fi
+
+        fi
+
+    done
+
+else
+
+    echo "`$NOW`Error: Input path is not a directory."
+    exit 1
+
+fi
+
+

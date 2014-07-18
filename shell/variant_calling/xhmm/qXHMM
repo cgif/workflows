@@ -1,0 +1,283 @@
+#!/bin/bash
+
+# sets up directory structure and scripts for calling CNVs with XHMM
+
+GROUP_VOL_CGI=/groupvol/cgi
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+QUEUE=pqcgi
+
+GATK_VERSION=2.6-5
+JAVA_VERSION=jdk-7u25
+XHMM_VERSION=2013-11-13
+R_VERSION=3.0.1
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+#TODAY=2014-05-23
+
+USAGE="./qXHMM -i <list_of_bam_files> -p <ped_file> -n <project_name> -t <target_intervals, default /groupvol/cgi/resources/annotations/Agilent_SureSelect_Human_All_Exon_V4+UTRs.targets.int> -r <reference_fasta, default /groupvol/cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.fa> -m <HMM_parameters, default /groupvol/cgi/src/variant_calling/xhmm/params.xhmm> -X <compare_chrX_targets_against_same_sex_individuals>"
+
+REFERENCE_FASTA=$GROUP_VOL_CGI/resources/reference/eukaryote/human/hs37d5/hs37d5.fa
+TARGET_INTERVALS=$GROUP_VOL_CGI/resources/annotations/Agilent_SureSelect_Human_All_Exon_V4+UTRs.targets.int
+PARAMS=$BASEDIR/params.xhmm
+R_SCRIPT=$BASEDIR/make_XHMM_plots.R
+CHROM_X=F
+
+while getopts "i:p:n:r:t:m:Xh" OPTION;
+do
+    case "$OPTION" in
+	i) BAM_LIST="$OPTARG";;
+	p) PED_FILE="$OPTARG";;
+        n) PROJECT="$OPTARG";;
+	t) TARGET_INTERVALS="$OPTARG";;
+	r) REFERENCE_FASTA="$OPTARG";;
+        m) PARAMS="$OPTARG";;
+	X) CHROM_X=T;;
+	h) cat $USAGE;;
+	[?]) cat $USAGE;;
+esac
+done
+
+#check if all required arguments are present...
+if [[ -z $BAM_LIST ]] || \
+   [[ -z $PROJECT ]] || \
+   [[ -z $TARGET_INTERVALS ]] || \
+   [[ -z $REFERENCE_FASTA ]] || \
+   [[ -z $PARAMS ]]
+then
+
+        #...if not print usage and exit
+        echo $USAGE
+        exit 1
+
+fi
+
+#######################
+
+#set up results directory
+mkdir -p $GROUP_VOL_CGI/results/$PROJECT/XHMM
+chmod 770 $GROUP_VOL_CGI/results/$PROJECT/XHMM
+
+mkdir -p $GROUP_VOL_CGI/results/$PROJECT/XHMM/$TODAY
+chmod 770 $GROUP_VOL_CGI/results/$PROJECT/XHMM/$TODAY
+
+mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/XHMM
+chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/XHMM
+
+mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/XHMM/$TODAY
+chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/XHMM/$TODAY
+
+DEPENDENCY="depend=afterok"
+DEPTHS_LIST=""
+DEPTHS_LIST_AUT=""
+DEPTHS_LIST_F=""
+DEPTHS_LIST_M=""
+
+#run GATK depthOfCoverage for each sample
+while read LINE         
+do           
+    #copy path to bam file 
+    BAM_NAME=`basename ${LINE%%.*}`
+    BAM_PATH=$LINE
+
+    echo "setting up script that calculates depthOfCoverage for sample $BAM_NAME"
+
+    #set up analysis directory
+    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/XHMM/$TODAY/$BAM_NAME
+    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/XHMM/$TODAY/$BAM_NAME
+
+    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/XHMM/$TODAY/$BAM_NAME/run
+    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/XHMM/$TODAY/$BAM_NAME/run
+    ANALYSIS_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/XHMM/$TODAY/$BAM_NAME/run
+
+    mkdir -p $GROUP_VOL_CGI/results/$PROJECT/XHMM/$TODAY/$BAM_NAME
+    chmod 770 $GROUP_VOL_CGI/results/$PROJECT/XHMM/$TODAY/$BAM_NAME
+    RESULTS_DIR=$GROUP_VOL_CGI/results/$PROJECT/XHMM/$TODAY/$BAM_NAME
+
+    #create and configuring job script
+    SCRIPT_PATH=$ANALYSIS_DIR/depthOfCoverage.$BAM_NAME.sh
+    cp $BASEDIR/depthOfCoverage.sh $SCRIPT_PATH
+    chmod 770 $SCRIPT_PATH
+
+    sed -i -e "s/#gatkVersion/$GATK_VERSION/" $SCRIPT_PATH
+    sed -i -e "s/#javaVersion/$JAVA_VERSION/" $SCRIPT_PATH
+    sed -i -e "s/#bamPath/${BAM_PATH//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#targetIntervals/${TARGET_INTERVALS//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#chromX/$CHROM_X/" $SCRIPT_PATH
+	
+    #submit job and save job ID to dependency variable
+    echo "`$NOW`submitting job script $SCRIPT_PATH..."
+		
+    LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+    JOB_ID=`qsub -o $LOG_PATH -q $QUEUE $SCRIPT_PATH`
+    echo "`$NOW`$JOB_ID"
+
+    DEPENDENCY="$DEPENDENCY:$JOB_ID"
+
+    DEPTHS_LIST="--GATKdepths $RESULTS_DIR/${BAM_NAME}.counts.sample_interval_summary ${DEPTHS_LIST}"
+    DEPTHS_LIST_AUT="--GATKdepths $RESULTS_DIR/${BAM_NAME}.autosomes_counts.sample_interval_summary ${DEPTHS_LIST_AUT}"
+
+    GENDER=`awk -v BAM_NAME=$BAM_NAME '{if ($2 == BAM_NAME) print $5}' $PED_FILE`
+
+    if [ "$GENDER" == "2" ];then
+
+	DEPTHS_LIST_F="--GATKdepths $RESULTS_DIR/${BAM_NAME}.chromX_counts.sample_interval_summary ${DEPTHS_LIST_F}"
+
+    elif [ "$GENDER" == "1" ];then
+
+	DEPTHS_LIST_M="--GATKdepths $RESULTS_DIR/${BAM_NAME}.chromX_counts.sample_interval_summary ${DEPTHS_LIST_M}"
+
+    fi
+
+done < $BAM_LIST
+
+#######################
+echo "setting up script for CNV calling"
+
+mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/XHMM/$TODAY/multisample
+chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/XHMM/$TODAY/multisample
+
+mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/XHMM/$TODAY/multisample/run
+chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/XHMM/$TODAY/multisample/run
+ANALYSIS_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/XHMM/$TODAY/multisample/run
+
+mkdir -p $GROUP_VOL_CGI/results/$PROJECT/XHMM/$TODAY/multisample
+chmod 770 $GROUP_VOL_CGI/results/$PROJECT/XHMM/$TODAY/multisample
+RESULTS_DIR=$GROUP_VOL_CGI/results/$PROJECT/XHMM/$TODAY/multisample
+
+
+if [ "$CHROM_X" == "F" ];then
+
+    #submit HHMM job 
+    SCRIPT_PATH=$ANALYSIS_DIR/XHMM.sh
+    cp $BASEDIR/XHMM.sh $SCRIPT_PATH
+    chmod 770 $SCRIPT_PATH
+
+    R_SCRIPT=$ANALYSIS_DIR/make_XHMM_plots.R
+    cp $BASEDIR/make_XHMM_plots.R $R_SCRIPT
+    chmod 770 $R_SCRIPT
+
+    sed -i -e "s/#gatkVersion/$GATK_VERSION/" $SCRIPT_PATH
+    sed -i -e "s/#javaVersion/$JAVA_VERSION/" $SCRIPT_PATH
+    sed -i -e "s/#xhmmVersion/$XHMM_VERSION/" $SCRIPT_PATH
+    sed -i -e "s/#rVersion/$R_VERSION/" $SCRIPT_PATH
+    sed -i -e "s/#depthsList/${DEPTHS_LIST//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#params/${PARAMS//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#targetIntervals/${TARGET_INTERVALS//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#Rscript/${R_SCRIPT//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#chrom//" $SCRIPT_PATH
+
+    sed -i -e "s/#baseDir/${BASEDIR//\//\\/}/" $R_SCRIPT
+    sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $R_SCRIPT
+
+    echo "`$NOW`submitting job script $SCRIPT_PATH..."
+    LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+    qsub -o $LOG_PATH -q $QUEUE -W $DEPENDENCY $SCRIPT_PATH
+
+elif [ "$CHROM_X" == "T" ];then
+    
+    mkdir $RESULTS_DIR/AUT
+    chmod 770 $RESULTS_DIR/AUT
+    RESULTS_DIR_AUT=$RESULTS_DIR/AUT
+    mkdir $RESULTS_DIR/CHROMX_M
+    chmod 770 $RESULTS_DIR/CHROMX_M
+    RESULTS_DIR_CHROMX_M=$RESULTS_DIR/CHROMX_M
+    mkdir $RESULTS_DIR/CHROMX_F
+    chmod 770 $RESULTS_DIR/CHROMX_F
+    RESULTS_DIR_CHROMX_F=$RESULTS_DIR/CHROMX_F
+
+    #submit job for autosomes
+    SCRIPT_PATH=$ANALYSIS_DIR/XHMM.autosomes.sh
+    cp $BASEDIR/XHMM.sh $SCRIPT_PATH
+    chmod 770 $SCRIPT_PATH
+
+    R_SCRIPT=$ANALYSIS_DIR/make_XHMM_plots.autosomes.R
+    cp $BASEDIR/make_XHMM_plots.R $R_SCRIPT
+    chmod 770 $R_SCRIPT
+
+    sed -i -e "s/#gatkVersion/$GATK_VERSION/" $SCRIPT_PATH
+    sed -i -e "s/#javaVersion/$JAVA_VERSION/" $SCRIPT_PATH
+    sed -i -e "s/#xhmmVersion/$XHMM_VERSION/" $SCRIPT_PATH
+    sed -i -e "s/#rVersion/$R_VERSION/" $SCRIPT_PATH
+    sed -i -e "s/#depthsList/${DEPTHS_LIST_AUT//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#params/${PARAMS//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#targetIntervals/${TARGET_INTERVALS//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#resultsDir/${RESULTS_DIR_AUT//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#Rscript/${R_SCRIPT//\//\\/}/" $SCRIPT_PATH
+
+    sed -i -e "s/#baseDir/${BASEDIR//\//\\/}/" $R_SCRIPT
+    sed -i -e "s/#resultsDir/${RESULTS_DIR_AUT//\//\\/}/" $R_SCRIPT
+
+    echo "`$NOW`submitting job script $SCRIPT_PATH..."		
+    LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+    qsub -o $LOG_PATH -q $QUEUE -W $DEPENDENCY $SCRIPT_PATH
+#    qsub -o $LOG_PATH -q $QUEUE $SCRIPT_PATH
+
+
+    #submit job for X chrom for subset of female samples
+    SCRIPT_PATH=$ANALYSIS_DIR/XHMM.chromX_F.sh
+    cp $BASEDIR/XHMM.sh $SCRIPT_PATH
+    chmod 770 $SCRIPT_PATH
+
+    R_SCRIPT=$ANALYSIS_DIR/make_XHMM_plots.chromX_F.R
+    cp $BASEDIR/make_XHMM_plots.R $R_SCRIPT
+    chmod 770 $R_SCRIPT
+
+    sed -i -e "s/#gatkVersion/$GATK_VERSION/" $SCRIPT_PATH
+    sed -i -e "s/#javaVersion/$JAVA_VERSION/" $SCRIPT_PATH
+    sed -i -e "s/#xhmmVersion/$XHMM_VERSION/" $SCRIPT_PATH
+    sed -i -e "s/#rVersion/$R_VERSION/" $SCRIPT_PATH
+    sed -i -e "s/#depthsList/${DEPTHS_LIST_F//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#params/${PARAMS//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#targetIntervals/${TARGET_INTERVALS//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#resultsDir/${RESULTS_DIR_CHROMX_F//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#Rscript/${R_SCRIPT//\//\\/}/" $SCRIPT_PATH
+
+    sed -i -e "s/#baseDir/${BASEDIR//\//\\/}/" $R_SCRIPT
+    sed -i -e "s/#resultsDir/${RESULTS_DIR_CHROMX_F//\//\\/}/" $R_SCRIPT
+
+    echo "`$NOW`submitting job script $SCRIPT_PATH..."		
+    LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+    qsub -o $LOG_PATH -q $QUEUE -W $DEPENDENCY $SCRIPT_PATH
+#    qsub -o $LOG_PATH -q $QUEUE $SCRIPT_PATH
+
+
+    #submit job for X chrom for subset of male samples
+    SCRIPT_PATH=$ANALYSIS_DIR/XHMM.chromX_M.sh
+    cp $BASEDIR/XHMM.sh $SCRIPT_PATH
+    chmod 770 $SCRIPT_PATH
+
+    R_SCRIPT=$ANALYSIS_DIR/make_XHMM_plots.chromX_M.R
+    cp $BASEDIR/make_XHMM_plots.R $R_SCRIPT
+    chmod 770 $R_SCRIPT
+
+    sed -i -e "s/#gatkVersion/$GATK_VERSION/" $SCRIPT_PATH
+    sed -i -e "s/#javaVersion/$JAVA_VERSION/" $SCRIPT_PATH
+    sed -i -e "s/#xhmmVersion/$XHMM_VERSION/" $SCRIPT_PATH
+    sed -i -e "s/#rVersion/$R_VERSION/" $SCRIPT_PATH
+    sed -i -e "s/#depthsList/${DEPTHS_LIST_M//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#params/${PARAMS//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#targetIntervals/${TARGET_INTERVALS//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#resultsDir/${RESULTS_DIR_CHROMX_M//\//\\/}/" $SCRIPT_PATH
+    sed -i -e "s/#Rscript/${R_SCRIPT//\//\\/}/" $SCRIPT_PATH
+
+    sed -i -e "s/#baseDir/${BASEDIR//\//\\/}/" $R_SCRIPT
+    sed -i -e "s/#resultsDir/${RESULTS_DIR_CHROMX_M//\//\\/}/" $R_SCRIPT
+
+    echo "`$NOW`submitting job script $SCRIPT_PATH..."		
+    LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+    qsub -o $LOG_PATH -q $QUEUE -W $DEPENDENCY $SCRIPT_PATH
+#    qsub -o $LOG_PATH -q $QUEUE $SCRIPT_PATH
+
+fi
+	

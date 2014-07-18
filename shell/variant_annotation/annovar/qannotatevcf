@@ -1,0 +1,304 @@
+#!/bin/bash
+
+#
+# splits VCF file by sample and submits annotation job
+# for each sample, and submit job for combining all samples into one table
+#
+
+module load gatk/2.6-5
+module load java/jdk-7u25
+
+GROUP_VOL_CGI=/ax3-cgi
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+
+ANNOVAR_DATE=2014-03-06
+HGMD_RELEASE=2013_4
+GI_BED_FILE=CCDS_genic_intolerance_noNA.bed
+
+REFERENCE_FASTA=/groupvol/cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.fa
+
+
+# now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+# default values
+BUILD=hg19
+EXTRA_PROTOCOL=""
+EXTRA_OPERATION=""
+EXTRA_ARG=""
+
+
+#path to text file containing usage information
+USAGE="$BASEDIR/qannotatevcf.usage"
+ 
+#parse command line args
+while getopts "i:chs:p:o:m:a:d:f:" option; do
+    case "$option" in
+	
+	i) INPUT_VCF="$OPTARG";;
+	c) IS_PROJECT_DIR=T;;
+	s) SAMPLE_LIST="$OPTARG";;
+	m) HGMD_RELEASE="$OPTARG";;
+	p) EXTRA_PROTOCOL="$OPTARG";;
+	o) EXTRA_OPERATION="$OPTARG";;
+	a) EXTRA_ARG="$OPTARG";;
+	d) ANNOVAR_DATE="$OPTARG";;
+	f) CONFIG_FILE="$OPTARG";;
+	h) cat "$USAGE";;
+	[?]) echo "$USAGE";;
+
+esac
+done
+
+ANNOVAR_PATH=$GROUP_VOL_CGI/resources/annovar/$ANNOVAR_DATE
+ANNOVAR_DB=$ANNOVAR_PATH/db/hg19
+HGMD_VCF=HGMD_PRO_$HGMD_RELEASE.vcf
+
+if [ -z $CONFIG_FILE ]
+    then CONFIG_FILE=$ANNOVAR_PATH/annovar.$ANNOVAR_DATE.config
+fi
+
+echo "configuration file: $CONFIG_FILE"
+
+if [ -z $INPUT_VCF ]
+    then
+    #...if not print usage and exit
+    echo "ERROR: Required input argument missing."
+    cat $USAGE
+    exit 1
+fi
+
+if [[ "$EXTRA_PROTOCOL" != "" ]] && \
+	[[ "$EXTRA_OPERATION" == "" || "$EXTRA_ARG" == "" ]]
+then
+	echo "ERROR: options -o and -a need to be provided when -p is used"
+    cat $USAGE
+    exit 1
+fi
+
+if [[ "$EXTRA_PROTOCOL" == "" ]] && \
+	[[ "$EXTRA_OPERATION" != "" || "$EXTRA_ARG" != "" ]]
+then
+	echo "ERROR: option -p needs to be provided when -o or -a are used"
+    cat $USAGE
+    exit 1
+fi
+
+
+
+#check if input directory exists
+if [[ ! -e $INPUT_VCF ]]
+then
+        echo "`$NOW`ERROR: Input VCF file does not exist: $INPUT_PATH"
+        exit 1
+fi
+
+if [[ "$IS_PROJECT_DIR" == "T" ]]
+then
+
+	# get project name from vcf path
+	PROJECT=`echo ${INPUT_VCF} | \
+	    perl -e '$inputVcf=<>; \
+	    @tokens=split(/\//,$inputVcf); \
+	    $idx=@tokens-6; \
+	    print $tokens[$idx];'`
+
+	CALLER=`echo ${INPUT_VCF} | \
+	    perl -e '$inputVcf=<>; \
+	    @tokens=split(/\//,$inputVcf); \
+	    $idx=@tokens-2; \
+	    print $tokens[$idx];'`
+
+	DATE=`echo ${INPUT_VCF} | \
+	    perl -e '$inputVcf=<>; \
+	    @tokens=split(/\//,$inputVcf); \
+	    $idx=@tokens-4; \
+	    print $tokens[$idx];'`
+
+	echo "$PROJECT $CALLER $DATE"
+
+	ANALYSIS_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/annovar/$TODAY
+	RESULTS_DIR=$GROUP_VOL_CGI/results/$PROJECT/annovar/$TODAY
+
+	#construct ouput file prefix
+	#remove gz extension
+	OUTPUT_PREFIX=`basename $INPUT_VCF .gz`
+	#remove vcf extension
+	OUTPUT_PREFIX=`basename $OUTPUT_PREFIX .vcf`
+	#append date
+	OUTPUT_PREFIX=$OUTPUT_PREFIX.$CALLER.$DATE
+	
+	echo $ANALYSIS_DIR
+	echo $RESULTS_DIR
+	echo $OUTPUT_PREFIX
+
+else
+
+	echo "Input directory not a CGI GATK2 project directory. This is currently not supported."
+
+fi
+
+
+IS_GZIP=`echo $INPUT_VCF | perl -e '$filename=<>; if($filename =~ /gz|gzip/){ print "1"; } else { print "0";}'`
+
+# create directory structure
+SCRIPT_DIR=$ANALYSIS_DIR/run
+
+echo "`$NOW`creating directory structure"
+mkdir -m 770 -p $RESULTS_DIR
+mkdir -m 770 -p $ANALYSIS_DIR
+mkdir -m 770 -p $SCRIPT_DIR
+chmod -R 770 $GROUP_VOL_CGI/analysis/$PROJECT/annovar
+
+#select variants
+if [[ ! -z $SAMPLE_LIST ]] 
+then
+
+	if [[ -e $SAMPLE_LIST ]]
+	then
+
+		echo "`$NOW`extracting samples specified in $SAMPLE_LIST from input VCF file..."
+		java -jar $GATK_HOME/GenomeAnalysisTK.jar \
+   			-R $REFERENCE_FASTA \
+   			-T SelectVariants \
+   			--variant $INPUT_VCF \
+   			--sample_file $SAMPLE_LIST \
+   			--excludeNonVariants \
+   			-o $ANALYSIS_DIR/$OUTPUT_PREFIX.vcf
+	
+	else	
+		echo "`$NOW`ERROR: Sample list file does not exist: $SAMPLE_LIST"
+		exit 1
+	fi
+
+else
+
+	if [[ $IS_GZIP == "1" ]]
+	then
+
+		echo "`$NOW`uncompressing VCF file..."
+		gzip -cd $INPUT_VCF > $ANALYSIS_DIR/$OUTPUT_PREFIX.vcf
+
+	else
+	
+		cp $INPUT_VCF $ANALYSIS_DIR/$OUTPUT_PREFIX.vcf
+
+	fi
+
+fi	
+
+#split VCF file	
+echo "`$NOW`splitting VCF file by sample..."
+#mkdir $ANALYSIS_DIR/avinput
+#$ANNOVAR_PATH/convert2annovar.pl -format vcf4 $ANALYSIS_DIR/$OUTPUT_PREFIX.vcf -outfile $ANALYSIS_DIR/avinput/$OUTPUT_PREFIX -allsample
+$ANNOVAR_PATH/convert2annovar.pl -format vcf4 $ANALYSIS_DIR/$OUTPUT_PREFIX.vcf -outfile $ANALYSIS_DIR/$OUTPUT_PREFIX -allsample
+
+
+#remove input VCF file
+#rm $ANALYSIS_DIR/$OUTPUT_PREFIX.vcf
+
+#get anotation list from the configuration file
+
+read PROTOCOL OPERATION ARGUMENT < "$CONFIG_FILE"
+if [[ $ARGUMENT == "none" ]]; then ARGUMENT=""; fi
+{
+	read
+	while read PROT OP ARG
+	do
+		PROTOCOL=$PROTOCOL,$PROT
+		OPERATION=$OPERATION,$OP
+		if [[ $ARG == "none" ]]; then
+			ARGUMENT=$ARGUMENT,
+		else ARGUMENT=$ARGUMENT,$ARG
+		fi
+	done
+} < "$CONFIG_FILE"
+
+#create job script for annotating 
+echo "`$NOW`creating and submitting job scripts to annotate variants..." 
+
+#we store input paths in file rather than variable
+#to avoid problems with string replacement with very
+#long strings in case of long sample lists
+COMBINE_ANNOVAR_TABLE_INPUT="$SCRIPT_DIR/combine_annovar_table_input.txt"
+#COMBINE_ANNOVAR_TABLE_INPUT=""
+
+#initialise file
+echo -n "" > $COMBINE_ANNOVAR_TABLE_INPUT
+
+ANNOVAR_DEPENDENCY="afterok"
+for AVINPUT in `ls $ANALYSIS_DIR/*.avinput`
+#for AVINPUT in `ls $ANALYSIS_DIR/avinput/*.avinput`
+do
+
+	SAMPLE=`echo $AVINPUT | \
+	    perl -e '$filename=<>; \
+	    @tokens=split(/\./,$filename); \
+	    $idx=@tokens-2; \
+	    print $tokens[$idx];'`
+
+	SCRIPT_PATH=$SCRIPT_DIR/annotateVCF.${SAMPLE}.sh
+	cp $BASEDIR/annotateVcf.sh $SCRIPT_PATH
+	chmod 660 $SCRIPT_PATH
+
+	sed -i -e "s/#avInput/${AVINPUT//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/#analysisDir/${ANALYSIS_DIR//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/#annovarPath/${ANNOVAR_PATH//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/#annovarDb/${ANNOVAR_DB//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/#build/$BUILD/" $SCRIPT_PATH
+	sed -i -e "s/#outputPrefix/$OUTPUT_PREFIX/" $SCRIPT_PATH
+	sed -i -e "s/#sample/$SAMPLE/" $SCRIPT_PATH
+	sed -i -e "s/#extraProtocol/$EXTRA_PROTOCOL/" $SCRIPT_PATH
+	sed -i -e "s/#exraOperation/$EXTRA_OPERATION/" $SCRIPT_PATH
+	sed -i -e "s/extraArg/$EXTRA_ARG/" $SCRIPT_PATH
+	sed -i -e "s/#hgmdVcf/$HGMD_VCF/" $SCRIPT_PATH
+	sed -i -e "s/#giBed/$GI_BED_FILE/" $SCRIPT_PATH
+	sed -i -e "s/#protocol/$PROTOCOL/" $SCRIPT_PATH
+	sed -i -e "s/#operation/$OPERATION/" $SCRIPT_PATH
+	sed -i -e "s/annovarArgument/$ARGUMENT/" $SCRIPT_PATH
+
+
+	#submit job 
+	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+	JOB_ID=`qsub -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+	echo "`$NOW`$SAMPLE: $JOB_ID"
+	ANNOVAR_DEPENDENCY="$ANNOVAR_DEPENDENCY:$JOB_ID"
+             
+        #append input path to file 
+        echo "$RESULTS_DIR/$SAMPLE/$OUTPUT_PREFIX.$BUILD.$SAMPLE.multianno.txt.gz" >> $COMBINE_ANNOVAR_TABLE_INPUT
+
+	#COMBINE_ANNOVAR_TABLE_INPUT="$COMBINE_ANNOVAR_TABLE_INPUT $RESULTS_DIR/$SAMPLE/$OUTPUT_PREFIX.$BUILD.$SAMPLE.multianno.txt.gz"
+
+
+done
+
+echo "`$NOW`creating and submitting job script to create multi-sample annotation table..." 
+
+mkdir -p -m 770 $RESULTS_DIR/multisample
+
+COMBINE_ANNOVAR_TABLE_OUPTUT=$RESULTS_DIR/multisample/$OUTPUT_PREFIX.$BUILD.multianno.txt
+COMBINE_ANNOVAR_TABLE_EXONIC_OUPTUT=$RESULTS_DIR/multisample/$OUTPUT_PREFIX.$BUILD.multianno.exonic.txt
+	
+SCRIPT_PATH=$SCRIPT_DIR/combineTableAnnovar.sh
+cp $BASEDIR/combineTableAnnovar.sh $SCRIPT_PATH
+chmod 660 $SCRIPT_PATH
+
+sed -i -e "s/#annovarAnnotations/${COMBINE_ANNOVAR_TABLE_INPUT//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#annovarDb/${ANNOVAR_DB//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#baseDir/${BASEDIR//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#outputPathExonic/${COMBINE_ANNOVAR_TABLE_EXONIC_OUPTUT//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#outputPath/${COMBINE_ANNOVAR_TABLE_OUPTUT//\//\\/}/" $SCRIPT_PATH
+	
+LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+JOB_ID=`qsub -W depend=$ANNOVAR_DEPENDENCY -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+echo "`$NOW`$JOB_ID"
+
+chmod -R 770 $GROUP_VOL_CGI/analysis/$PROJECT/annovar
+	
+echo "`$NOW`done"
+	
+	

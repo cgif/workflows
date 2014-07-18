@@ -1,0 +1,89 @@
+#!/bin/bash
+
+# creates and submits scripts to remove unmapped, unpaired, duplicated and low quality reads from bam files
+
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+GROUP_VOL_CGI=/groupvol/cgi
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+QUEUE=pqcgi
+
+USAGE="USAGE: qfastqc -i <input_path> -n <project_name>"
+
+while getopts "i:n:h" option; do
+    case "$option" in
+	
+	i) INPUT_PATH="$OPTARG";;
+	n) PROJECT="$OPTARG";;
+	h) echo $USAGE;;
+	[?]) echo $USAGE;;
+
+    esac
+done
+
+#check if required arguments are missing
+if [ -z $INPUT_PATH ] || [ -z $PROJECT ]
+then
+
+    echo $USAGE
+    exit 1
+
+fi
+
+mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/mergetag/$TODAY
+chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/mergetag/$TODAY
+
+mkdir -p $GROUP_VOL_CGI/results/$PROJECT/mergetag/$TODAY
+chmod 770 $GROUP_VOL_CGI/results/$PROJECT/mergetag/$TODAY
+
+for SAMPLE in `ls --color=never $INPUT_PATH`
+do
+
+    if [ "$SAMPLE" != "multisample" ] && [ -d $INPUT_PATH/$SAMPLE ]
+    then
+
+	echo "`${NOW}`processing sample $SAMPLE..."
+
+	mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/mergetag/$TODAY/$SAMPLE
+	chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/mergetag/$TODAY/$SAMPLE
+
+	mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/mergetag/$TODAY/$SAMPLE/run
+	chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/mergetag/$TODAY/$SAMPLE/run
+	PATH_RUN_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/mergetag/$TODAY/$SAMPLE/run
+
+	mkdir -p $GROUP_VOL_CGI/results/$PROJECT/mergetag/$TODAY/$SAMPLE/
+	chmod 770 $GROUP_VOL_CGI/results/$PROJECT/mergetag/$TODAY/$SAMPLE/
+	RESULTS_DIR=$GROUP_VOL_CGI/results/$PROJECT/mergetag/$TODAY/$SAMPLE/
+
+        for BAM_PATH in `ls --color=never $INPUT_PATH/$SAMPLE/*.bam`
+	do
+
+	    BAM_NAME=`basename $BAM_PATH .bam`
+        
+	    SCRIPT_PATH=$PATH_RUN_DIR/nonDup.$BAM_NAME.sh
+            cp $BASEDIR/nonDup.sh $SCRIPT_PATH
+	    chmod 770 $SCRIPT_PATH
+
+            sed -i -e "s/#bamPath/${BAM_PATH//\//\\/}/" $SCRIPT_PATH
+            sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
+
+	    LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
+	    echo "`${NOW}`creating and submiting job script $SCRIPT_PATH "
+
+	    JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+	    echo "`${NOW}`job ID: $JOB_ID"
+
+	 done
+
+    fi
+
+done
+
+
+
+ 

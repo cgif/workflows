@@ -1,0 +1,5 @@
+bowtie human
+blat human | -fastMap
+blat human
+blast human maxEval=1e-15 | -word_size 32
+blast nt maxEval=1e-05 | -max_target_seqs 200

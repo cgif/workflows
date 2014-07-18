@@ -1,0 +1,36 @@
+<P>
+CUSTOM_AMPLICON_SET: The name of the amplicon set used in this metrics collection run<BR>
+GENOME_SIZE: The number of bases in the reference genome used for alignment.<BR>
+AMPLICON_TERRITORY: The number of unique bases covered by the intervals of all amplicons in the amplicon set<BR>
+TARGET_TERRITORY: The number of unique bases covered by the intervals of all targets that should be covered<BR>
+TOTAL_READS: The total number of reads in the SAM or BAM file examined.<BR>
+PF_READS: The number of reads that pass the vendor's filter.<BR>
+PF_BASES: The number of bases in the SAM or BAM file to be examined<BR>
+PF_UNIQUE_READS: The number of PF reads that are not marked as duplicates.<BR>
+PCT_PF_READS: PF reads / total reads. The percent of reads passing filter.<BR>
+PCT_PF_UQ_READS: PF unique Reads / total reads. The percent of unique reads passing filter.<BR>
+PF_UQ_READS_ALIGNED: The number of PF unique reads that are aligned with mapping score > 0 to the reference genome.<BR>
+PF_SELECTED_PAIRS: Tracks the number of read pairs that we see that are PF (used to calculate library size)<BR>
+PF_SELECTED_UNIQUE_PAIRS: Tracks the number of unique PF reads pairs we see (used to calculate library size)<BR>
+PCT_PF_UQ_READS_ALIGNED: PF reads aligned / PF reads. The percent of unique reads passing filter that are aligned.<BR>
+PF_UQ_BASES_ALIGNED: The number of PF unique bases that are aligned with mapping score > 0 to the reference genome.<BR>
+ON_AMPLICON_BASES: The number of PF aligned amplified that mapped to an amplified region of the genome.<BR>
+NEAR_AMPLICON_BASES: The number of PF aligned bases that mapped to within a fixed interval of an amplified region, but not on a baited region.<BR>
+OFF_AMPLICON_BASES: The number of PF aligned bases that mapped to neither on or near an amplicon.<BR>
+ON_TARGET_BASES: The number of PF aligned bases that mapped to a targeted region of the genome.<BR>
+ON_TARGET_FROM_PAIR_BASES: The number of PF aligned bases that are mapped in pair to a targeted region of the genome.<BR>
+PCT_AMPLIFIED_BASES: On+Near Amplicon Bases / PF Bases Aligned. The percent of amplicon bases on or near target.<BR>
+PCT_OFF_AMPLICON: The percentage of aligned PF bases that mapped neither on nor near an amplicon.<BR>
+ON_AMPLICON_VS_SELECTED: The percentage of on+near amplicon bases that are on as opposed to near.<BR>
+MEAN_AMPLICON_COVERAGE: The mean coverage of all amplicons in the experiment.<BR>
+MEAN_TARGET_COVERAGE: The mean coverage of targets that recieved at least coverage depth = 2 at one base.<BR>
+FOLD_ENRICHMENT: The fold by which the amplicon region has been amplified above genomic background.<BR>
+ZERO_CVG_TARGETS_PCT: The number of targets that did not reach coverage depth >= 2 over any base.<BR>
+FOLD_80_BASE_PENALTY: The fold over-coverage necessary to raise 80% of bases in "non-zero-cvg" targets to the mean coverage level in those targets.<BR>
+PCT_TARGET_BASES_2X:  The percentage of ALL target bases achieving  2X or greater coverage.<BR>
+PCT_TARGET_BASES_10X: The percentage of ALL target bases achieving 10X or greater coverage.<BR>
+PCT_TARGET_BASES_20X: The percentage of ALL target bases achieving 20X or greater coverage.<BR>
+PCT_TARGET_BASES_30X: The percentage of ALL target bases achieving 30X or greater coverage.<BR>
+AT_DROPOUT: A measure of how undercovered <= 50% GC regions are relative to the mean. For each GC bin [0..50] we calculate a = % of target territory, and b = % of aligned reads aligned to these targets. AT DROPOUT is then abs(sum(a-b when a-b < 0)). E.g. if the value is 5% this implies that 5% of total reads that should have mapped to GC<=50% regions mapped elsewhere.<BR>
+GC_DROPOUT: A measure of how undercovered >= 50% GC regions are relative to the mean. For each GC bin [50..100] we calculate a = % of target territory, and b = % of aligned reads aligned to these targets. GC DROPOUT is then abs(sum(a-b when a-b < 0)). E.g. if the value is 5% this implies that 5% of total reads that should have mapped to GC>=50% regions mapped elsewhere.<BR>
+

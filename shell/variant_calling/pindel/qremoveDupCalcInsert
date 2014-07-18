@@ -1,0 +1,76 @@
+#!/bin/bash
+
+# remove duplicates from recalibrated bam file with duplicates flagged and calculate insert size metrics (for pindel analysis)
+
+# input needed: 
+# bam file, project, sample
+
+BASEDIR=`dirname $0`
+PATH_PLACE_HOLDER=forwardSlash
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+USAGE="USAGE: qremoveDupCalcInsert -i <bam_file_path> -p <project> -s <sample>"
+
+#parse command line args
+while getopts "i:s:p:" option; do
+    case "$option" in
+	
+	i) BAM_FILE="$OPTARG";;
+	p) PROJECT="$OPTARG";;
+	s) SAMPLE="$OPTARG";;
+	[?]) echo "$USAGE";;
+
+esac
+done
+
+
+if [ -z $BAM_FILE ] || \
+    [ -z $PROJECT ] || \
+    [ -z $SAMPLE ]
+    then
+    echo $USAGE
+    exit 1
+fi
+
+#create directory structure
+ANALYSIS_DIR=/ax3-cgi/analysis/${PROJECT}/pindel/${SAMPLE}/${TODAY}
+RUN_DIR=$ANALYSIS_DIR/run
+RESULTS_DIR=/ax3-cgi/results/${PROJECT}/pindel/${SAMPLE}/${TODAY}
+
+mkdir -p $ANALYSIS_DIR
+mkdir -p $RUN_DIR
+mkdir -p $RESULTS_DIR
+
+echo "`$NOW`creating and submitting job script"
+ 
+SCRIPT_PATH=$RUN_DIR/${SAMPLE}_removeDupCalcInsert.sh
+cp $BASEDIR/removeDupCalcInsert.sh $SCRIPT_PATH
+
+#replace forward slashes in path with place holder as it
+#causes problems with Perl inline replacement
+#(will be converted back in the target script)
+
+BAM_FILE=`echo $BAM_FILE | perl -pe "s/\//$PATH_PLACE_HOLDER/g"`
+ANALYSIS_DIR=`echo $ANALYSIS_DIR | perl -pe "s/\//$PATH_PLACE_HOLDER/g"`
+RESULTS_DIR=`echo $RESULTS_DIR | perl -pe "s/\//$PATH_PLACE_HOLDER/g"`
+
+perl -i -pe "s/inputBam/$BAM_FILE/" $SCRIPT_PATH
+perl -i -pe "s/analysisDir/$ANALYSIS_DIR/" $SCRIPT_PATH
+perl -i -pe "s/sample/$SAMPLE/" $SCRIPT_PATH
+perl -i -pe "s/resultsDir/$RESULTS_DIR/" $SCRIPT_PATH 
+
+#convert path place holder back to forward shlash
+perl -i -pe "s/$PATH_PLACE_HOLDER/\//g" $SCRIPT_PATH
+
+#submit job
+LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+echo "`$NOW`$SCRIPT_PATH"
+
+qsub -o $LOG_OUTPUT_PATH $SCRIPT_PATH
+
+echo "`$NOW`done"

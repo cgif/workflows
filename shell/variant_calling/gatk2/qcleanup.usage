@@ -1,0 +1,14 @@
+
+USAGE
+
+    cleanup -p <project_tag>
+            -d <analysis_date>
+
+DESCRIPTION
+
+    -p  The projec tag.
+
+    -d  The analysis date.
+    
+    -h  Display help and exit.
+    

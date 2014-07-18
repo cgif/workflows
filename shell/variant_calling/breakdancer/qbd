@@ -1,0 +1,151 @@
+#!/bin/bash
+
+# sets up directory structure and generates, configures and submits
+# scripts to run BreakDancer algorithm for detecting genomic structural variations
+
+#CONFIGURATION
+##############
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+USAGE="USAGE: qbd -i <input_path> -n <project_name>"
+
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+GROUP_VOL_CGI=/ax3-cgi
+
+
+#COMMAND LINE ARGS
+##################
+
+while getopts "i:n:h" option; do
+    case "$option" in
+	
+	i) INPUT_PATH="$OPTARG";;
+	n) PROJECT="$OPTARG";;
+	h) echo "$USAGE";;
+	[?]) echo "$USAGE";;
+
+esac
+done
+
+if [ -z $INPUT_PATH ] || [ -z $PROJECT ]
+    then
+    echo $USAGE
+    exit 1
+fi
+
+
+#FUNCTIONS
+##########
+
+#creates job scripts
+function submitJobs {
+    PATH_SAMPLE_DIR=$1
+    PATH_ANALYSIS_DIR=$2
+    PATH_RESULT_DIR=$3
+
+    PATH_SCRIPTS_DIR=$PATH_ANALYSIS_DIR/run 
+    mkdir -p $PATH_SCRIPTS_DIR
+    chmod -R 770 $PATH_SCRIPTS_DIR
+
+    mkdir -p $PATH_RESULT_DIR
+    chmod -R 770 $PATH_RESULT_DIR
+
+    echo "`$NOW`setting up BreakDancer run(s)..."
+    echo "`$NOW`BAM input: $PATH_SAMPLE_DIR"
+    echo "`$NOW`result directory: $PATH_RESULT_DIR"
+    echo "`$NOW`creating and submitting job scripts:"
+
+    #foreach bam file
+    for INPUT_BAM in `ls --color=never $PATH_SAMPLE_DIR/*.bam`
+    do	
+  
+        BAM_NAME=`basename $INPUT_BAM .bam`
+
+        SCRIPT_PATH=$PATH_SCRIPTS_DIR/${BAM_NAME}.bd.sh
+        cp $BASEDIR/bd.sh $SCRIPT_PATH
+        chmod 770 $SCRIPT_PATH
+
+        LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+
+        #set variables  
+        sed -i -e "s/#inputBam/${INPUT_BAM//\//\\/}/" $SCRIPT_PATH
+        sed -i -e "s/#resultsFolder/${PATH_RESULT_DIR//\//\\/}/" $SCRIPT_PATH
+
+        JOB_ID=`qsub -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+        echo "`$NOW`JOB_ID: $JOB_ID"
+
+    done
+}
+
+######################
+
+#if the input path is a CGI project directory...
+if [ -d $INPUT_PATH ]
+then
+
+    #create and set permissions for analysis project parent directory
+    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/translocation_mapping
+    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/translocation_mapping
+
+    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/translocation_mapping/$TODAY
+    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/translocation_mapping/$TODAY
+
+    #create and set permissions for results project parent directory
+    mkdir -p $GROUP_VOL_CGI/results/$PROJECT/translocation_mapping
+    chmod 770 $GROUP_VOL_CGI/results/$PROJECT/translocation_mapping
+
+    mkdir -p $GROUP_VOL_CGI/results/$PROJECT/translocation_mapping/$TODAY
+    chmod 770 $GROUP_VOL_CGI/results/$PROJECT/translocation_mapping/$TODAY
+
+    #for each sample directory...
+    for SAMPLE in `ls --color=never $INPUT_PATH`
+    do
+
+        SAMPLE_DIR=$INPUT_PATH/$SAMPLE
+
+        if [ -d $SAMPLE_DIR ]; then
+
+	    #count bam files in directory		
+	    BAM_COUNT=`ls --color=never $SAMPLE_DIR/*.bam | wc -l`
+
+	    if [ $BAM_COUNT -gt 0 ]; then
+
+    	        echo "`$NOW`processing directory $SAMPLE..."
+
+	        #create and set permissions for analysis sample parent directory
+	        mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/translocation_mapping/$TODAY/$SAMPLE
+	        chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/translocation_mapping/$TODAY/$SAMPLE
+
+ 	        #create and set permissions for results sample parent directory
+   	        mkdir -p $GROUP_VOL_CGI/results/$PROJECT/translocation_mapping/$TODAY/$SAMPLE
+    	        chmod 770 $GROUP_VOL_CGI/results/$PROJECT/translocation_mapping/$TODAY/$SAMPLE
+
+                #...create output directory
+	        PATH_RUN_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/translocation_mapping/$TODAY/$SAMPLE
+	        PATH_OUT_DIR=$GROUP_VOL_CGI/results/$PROJECT/translocation_mapping/$TODAY/$SAMPLE
+
+	        #create, configure and submit job scripts
+	        submitJobs $SAMPLE_DIR \
+                           $PATH_RUN_DIR \
+                           $PATH_OUT_DIR \
+  	    
+            else
+	        echo "`$NOW`directory $SAMPLE does not contain any bam files"	
+            fi
+
+        fi
+
+    done
+
+else
+
+    echo "There is no directory  $INPUT_PATH"
+
+fi
+
+

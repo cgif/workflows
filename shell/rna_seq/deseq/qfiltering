@@ -1,0 +1,111 @@
+#!/bin/bash
+
+# configures scripts for DESeq run on foltered data
+
+#CONFIGURATION
+###################
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+#returns absolute path to DESeq directory, not changing your current directory
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+
+GROUP_VOL_CGI=/groupvol/cgi
+WALLTIME_HOURS_PER_RUN=72
+USAGE=$BASEDIR/filtering.usage
+ANALYSIS_NAME=DESeq
+HTSEQ=F
+DISPERSION=maximum
+SUBFOLDER=""
+FILTERING_STATS=max
+FILTERING_CUTOFF=0.4
+GFF_PATH="/groupvol/cgi/resources/annotations/bowtie2_indexed/Homo_sapiens.GRCh37.74.gff"
+GO_PATH="/groupvol/cgi/resources/annotations/Homo_sapiens.GRCh37.75.GOterms.txt"
+GENE_GCCONT="/groupvol/cgi/resources/annotations/Homo_sapiens.GRCh37.74.gene_GCcontent.txt"
+GENE_LENGTH="/groupvol/cgi/resources/annotations/Homo_sapiens.GRCh37.74.gene_length.txt"
+
+#COMMAND LINE ARGS
+####################
+while getopts "i:f:tn:o:d:s:u:a:g:c:l:h" option; do
+    case "$option" in
+	
+	i) COUNTS_TABLE="$OPTARG";;
+	f) DESIGN_FILE="$OPTARG";;
+	t) HTSEQ=T;;
+        n) PROJECT="$OPTARG";;
+	o) SUBFOLDER="$OPTARG";;
+	d) DISPERSION="$OPTARG";;
+	s) FILTERING_STATS="$OPTARG";;
+	u) FILTERING_CUTOFF="$OPTARG";;
+	a) GFF_PATH="$OPTARG";;
+	g) GO_PATH="$OPTARG";;
+	c) GENE_GCCONT="$OPTARG";;
+	l) GENE_LENGTH="$OPTARG";;
+	h) cat $USAGE;;
+	[?]) cat $USAGE;;
+
+esac
+done
+
+if [ -z $COUNTS_TABLE ] || \
+   [ -z $DESIGN_FILE ] || \
+   [ -z $PROJECT ]
+    then
+    cat $USAGE
+    exit 1
+fi
+
+if [ $DISPERSION != 'maximum' ] && [ $DISPERSION != 'gene' ] && [ $DISPERSION != 'fit' ]
+then
+    echo "Wrong choice of dispertion mode."
+    exit 1
+fi
+
+if [ $FILTERING_STATS != 'max' ] && [ $FILTERING_STATS != 'min' ] && [ $FILTERING_STATS != 'mean' ] && [ $FILTERING_STATS != 'sd' ]
+then
+    echo "Wrong choice of dispertion modefiltering statistics."
+    exit 1
+fi
+
+#create and set permissions for analysis project parent directory
+SCRIPTS_DIR="$GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/run/$SUBFOLDER"."filt"
+mkdir -p $SCRIPTS_DIR
+chmod 770 $SCRIPTS_DIR
+
+#create and set permissions for results project parent directory
+RESULTS_DIR="$GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY/$SUBFOLDER"."filt"
+mkdir -p $RESULTS_DIR
+chmod 770 $RESULTS_DIR
+
+#create and edit scripts for running DESeq
+SHELL_SCRIPT_PATH=$SCRIPTS_DIR/filtering.sh
+cp $BASEDIR/filtering.sh $SHELL_SCRIPT_PATH
+chmod 770 $SHELL_SCRIPT_PATH
+
+R_SCRIPT_PATH=$SCRIPTS_DIR/filtering.R
+cp $BASEDIR/filtering.R $R_SCRIPT_PATH
+chmod 770 $R_SCRIPT_PATH
+
+sed -i -e "s/#walltimeHours/$WALLTIME_HOURS_PER_RUN/" $SHELL_SCRIPT_PATH
+sed -i -e "s/#rScript/${R_SCRIPT_PATH//\//\\/}/" $SHELL_SCRIPT_PATH
+sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $SHELL_SCRIPT_PATH
+sed -i -e "s/#gffPath/${GFF_PATH//\//\\/}/" $SHELL_SCRIPT_PATH
+sed -i -e "s/#goPath/${GO_PATH//\//\\/}/" $SHELL_SCRIPT_PATH
+
+sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $R_SCRIPT_PATH
+sed -i -e "s/#countsTable/${COUNTS_TABLE//\//\\/}/" $R_SCRIPT_PATH
+sed -i -e "s/#designFile/${DESIGN_FILE//\//\\/}/" $R_SCRIPT_PATH
+sed -i -e "s/#htSeq/$HTSEQ/" $R_SCRIPT_PATH
+sed -i -e "s/#dispertionMode/$DISPERSION/" $R_SCRIPT_PATH
+sed -i -e "s/#filteringStats/$FILTERING_STATS/" $R_SCRIPT_PATH
+sed -i -e "s/#filteringCutoff/$FILTERING_CUTOFF/" $R_SCRIPT_PATH
+sed -i -e "s/#CGcontent/${GENE_GCCONT//\//\\/}/" $R_SCRIPT_PATH
+sed -i -e "s/#geneLength/${GENE_LENGTH//\//\\/}/" $R_SCRIPT_PATH
+
+#submit job
+LOG_PATH=`echo $SHELL_SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+echo "`$NOW`$SHELL_SCRIPT_PATH"
+JOB_ID=`qsub -o $LOG_PATH -q pqcgi $SHELL_SCRIPT_PATH`
+echo "$JOB_ID"
+

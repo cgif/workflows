@@ -1,0 +1,237 @@
+#!/bin/bash
+
+# sets up directory structure and configures scripts  for rins run
+
+
+#CONFIGURATION
+###################
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+#returns absolute path to qfastqc directory, not changing your current directory
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+GROUP_VOL_CGI=/ax3-cgi
+WALLTIME_HOURS_PER_RUN=72
+THREADS_PER_RUN=6
+USAGE="$BASEDIR/qrins.usage"
+ANALYSIS_NAME=rins
+
+BLAST_VERSION=2.2.28
+BLAT_VERSION=34
+TRINITY_VERSION=2011-08-20
+BOWTIE_VERSION=0.12.5
+
+PATTERN_READ_1='_R1_'
+PATTERN_READ_2='_R2_'
+
+FASTA_VIRAL=/ax3-cgi/resources/reference/viral/virus.ICTV.fa
+BLASTN_INDEX_VIRAL=/ax3-cgi/resources/reference/viral/virus.ICTV.fa
+BOWTIE_INDEX_HOST=/ax3-cgi/resources/reference/eukaryote/human/hs37d5/bowtie_indexed/hs37d5
+BLASTN_INDEX_HOST=/ax3-cgi/resources/reference/eukaryote/human/hs37d5/blast_indexed/hs37d5
+
+PAIRED_FRAGMENT_LENGTH=500
+READ_LENGTH=100
+
+
+#COMMAND LINE ARGS
+####################
+while getopts "i:t:p:n:v:V:o:O:l:r:h" option; do
+    case "$option" in
+	
+	i) INPUT_PATH="$OPTARG";;
+	t) PATTERN_READ_1="$OPTARG";;
+	p) PATTERN_READ_2="$OPTARG";;
+        n) PROJECT="$OPTARG";;
+        v) FASTA_VIRAL="$OPTARG";;
+	V) BLASTN_INDEX_VIRAL="$OPTARG";;
+	o) BOWTIE_INDEX_HOST="$OPTARG";;
+	O) BLASTN_INDEX_HOST="$OPTARG";;
+	l) PAIRED_FRAGMENT_LENGTH="$OPTARG";;
+	r) READ_LENGTH="$OPTARG";;
+	h) cat $USAGE;;
+	[?]) cat $USAGE;;
+
+esac
+done
+
+if [ -z $INPUT_PATH ] || \
+    [ -z $PROJECT ]
+    then
+    cat $USAGE
+    exit 1
+fi
+
+
+#FUNCTIONS
+####################
+
+#creates job scripts
+function submitJobs {
+	local path_reads_directory=$1
+	local pattern_read_1=$2
+	local pattern_read_2=$3
+	local path_analysis_dir=$4
+	local path_results_dir=$5
+	local fasta_viral=$6
+	local blastn_index_viral=$7
+	local bowtie_index_host=$8
+	local blastn_index_host=$9
+	local paired_fragment_length=${10}
+	local read_length=${11}
+
+	local path_scripts_dir=$path_analysis_dir/run  
+	mkdir -m 770 -p $path_scripts_dir
+	mkdir -m 770 -p $path_results_dir
+
+	setup_log=$path_scripts_dir/setup.log
+	echo -n "" > $setup_log
+
+	echo "`$NOW`setting up $ANALYSIS_NAME mapping run... "
+	echo "`$NOW`(see $setup_log for details)"
+
+	echo "`$NOW`setting up $ANALYSIS_NAME run" >> $setup_log
+	echo "`$NOW`read directory: $path_reads_directory" >> $setup_log
+	echo "`$NOW`pattern mate pair 1 reads: $pattern_read_1" >> $setup_log
+	echo "`$NOW`pattern mate pair 2 reads: $pattern_read_2" >> $setup_log
+	echo "`$NOW`viral reference: $fasta_viral" >> $setup_log
+	echo "`$NOW`blast index for viral reference: $blastn_index_viral" >> $setup_log
+	echo "`$NOW`bowtie index for host reference: $bowtie_index_host" >> $setup_log
+	echo "`$NOW`blast index for host reference: $blastn_index_host" >> $setup_log
+	echo "`$NOW`script directory: $path_scripts_dir" >> $setup_log
+	echo "`$NOW`result directory: $path_results_dir" >> $setup_log
+	echo "`$NOW`creating and submitting job scripts:" >> $setup_log
+
+
+	local sample=`basename $path_reads_directory`
+	local virus_db=`basename $blastn_index_viral`
+        local prefix=$sample.vs.$virus_db
+
+	#set up script and variables
+	local result_path=$path_results_dir/$prefix.results.txt
+	local config_path=$path_scripts_dir/config.$prefix.txt
+	cp $BASEDIR/config.txt $config_path
+	chmod 660 $config_path
+
+	sed -i -e "s/#baseDir/${BASEDIR//\//\\/}/" $config_path
+	sed -i -e "s/#threadsPerRun/$THREADS_PER_RUN/" $config_path
+	sed -i -e "s/#blatVersion/$BLAT_VERSION/" $config_path
+	sed -i -e "s/#blastVersion/$BLAST_VERSION/" $config_path
+	sed -i -e "s/#pairedFragmentLength/$PAIRED_FRAGMENT_LENGTH/" $config_path
+	sed -i -e "s/#readLength/$READ_LENGTH/" $config_path
+
+
+	local script_path=$path_scripts_dir/rins.$prefix.sh
+	cp $BASEDIR/rins.sh $script_path
+	chmod 770 $script_path
+
+	sed -i -e "s/#walltimeHours/$WALLTIME_HOURS_PER_RUN/" $script_path
+	sed -i -e "s/#threadsPerRun/$THREADS_PER_RUN/" $script_path
+	sed -i -e "s/#blatVersion/$BLAT_VERSION/" $script_path
+	sed -i -e "s/#blastVersion/$BLAST_VERSION/" $script_path
+	sed -i -e "s/#trinityVersion/$TRINITY_VERSION/" $script_path
+	sed -i -e "s/#bowtieVersion/$BOWTIE_VERSION/" $script_path
+	sed -i -e "s/#baseDir/${BASEDIR//\//\\/}/" $script_path
+	sed -i -e "s/#configPath/${config_path//\//\\/}/" $script_path
+	sed -i -e "s/#resultPath/${result_path//\//\\/}/" $script_path
+	sed -i -e "s/#readsDir/${path_reads_directory//\//\\/}/" $script_path
+	sed -i -e "s/#patternRead1/$pattern_read_1/" $script_path
+	sed -i -e "s/#patternRead2/$pattern_read_2/" $script_path
+	sed -i -e "s/#bowtieIndexHost/${BOWTIE_INDEX_HOST//\//\\/}/" $script_path
+	sed -i -e "s/#blastIndexHost/${BLASTN_INDEX_HOST//\//\\/}/" $script_path
+	sed -i -e "s/#blastIndexViral/${BLASTN_INDEX_VIRAL//\//\\/}/" $script_path
+	sed -i -e "s/#fastaViral/${FASTA_VIRAL//\//\\/}/" $script_path
+
+
+	#submit job
+	local log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+	echo "`$NOW`$script_path" >> $setup_log
+	echo -n "`$NOW`" >> $setup_log
+	local job_id=`qsub -o $log_output_path $script_path`
+	echo $job_id >> $setup_log
+}
+
+####################
+
+#if the input path is a CGI project directory...
+if [ -d $INPUT_PATH ] ; then
+
+    #create and set permissions for analysis project parent directory
+    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT
+    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT
+
+    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME
+    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME
+
+    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY
+    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY
+
+    #create and set permissions for results project parent directory
+    mkdir -p $GROUP_VOL_CGI/results/$PROJECT
+    chmod 770 $GROUP_VOL_CGI/results/$PROJECT
+
+    mkdir -p $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME
+    chmod 770 $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME
+
+    mkdir -p $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY
+    chmod 770 $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY
+
+    #for each sample directory...
+    for SAMPLE in `ls --color=never $INPUT_PATH`
+    do
+
+	FASTQ_DIR=$INPUT_PATH/$SAMPLE
+
+	if [ -d $FASTQ_DIR ]; then
+
+		#count fastq files in directory		
+		FASTQ_COUNT=`ls --color=never $FASTQ_DIR/*.f*q* | wc -l`
+
+		if [ $FASTQ_COUNT -gt 0 ]; then
+
+			echo "`$NOW`processing directory $SAMPLE..."
+
+			#create and set permissions for analysis sample parent directory
+			mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
+			chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
+
+ 			#create and set permissions for results sample parent directory
+   			mkdir -p $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
+    			chmod 770 $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
+
+        		#...create output directory
+			PATH_RUN_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
+			PATH_OUT_DIR=$GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE     
+	
+			#create, configure and submit job scripts
+			submitJobs $FASTQ_DIR \
+				   $PATTERN_READ_1 \
+				   $PATTERN_READ_2 \
+				   $PATH_RUN_DIR \
+				   $PATH_OUT_DIR \
+				   $FASTA_VIRAL \
+				   $BLASTN_INDEX_VIRAL \
+				   $BOWTIE_INDEX_HOST \
+				   $BLASTN_INDEX_HOST \
+				   $PAIRED_FRAGMENT_LENGTH \
+				   $READ_LENGTH  
+		
+		else
+
+			echo "`$NOW`directory $SAMPLE does not contain any fastq files (.fq or .fastq file extension)"	
+
+		fi
+
+	fi
+
+    done;
+	
+else
+
+    echo "`$NOW`Error: Input path is not a directory."
+    exit 1
+
+fi

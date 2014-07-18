@@ -1,0 +1,109 @@
+e#!/bin/bash
+
+#
+# sets up and submits scripts to run fastqc
+
+#configuration
+THREADS_PER_RUN=2
+
+PATH_PLACE_HOLDER=forwardSlash
+
+BASEDIR=`dirname $0`
+GROUP_VOL_CGI=/groupvol/pgm/home/cgi
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+USAGE="USAGE: qfastq -i <reads_fastq_directory_path>"
+
+#parse command line args
+while getopts "i:m:" option; do
+    case "$option" in
+	i) PATH_READS_DIRECTORY="$OPTARG";;
+	[?]) echo "$USAGE";;
+
+esac
+done
+
+
+if [ -z $PATH_READS_DIRECTORY ]
+    then
+    echo $USAGE
+    exit 1
+fi
+
+### get sample and project names
+## remove /trimmed folder
+PATH_READS_DIR_NO_TRIMMED=`dirname $PATH_READS_DIRECTORY`
+SAMPLE=`basename $PATH_READS_DIR_NO_TRIMMED`
+SAMPLE_PATH=`dirname $PATH_READS_DIR_NO_TRIMMED`
+PROJECT=`basename $SAMPLE_PATH`
+
+PATH_OUT_DIR=$GROUP_VOL_CGI/results/fastqc/$PROJECT/$SAMPLE/trimmed
+PATH_SCRIPT_DIR=$GROUP_VOL_CGI/analysis/fastqc_runs/$PROJECT/$SAMPLE/trimmed
+
+echo "`$NOW`setting up FastQC runs"
+echo "`$NOW`read directory: $PATH_READS_DIRECTORY"
+echo "`$NOW`QC report output directory: $PATH_OUT_DIR" 
+echo "`$NOW`script output directory: $PATH_SCRIPT_DIR"
+
+
+#create directory structure
+echo "`$NOW`creating FastQC output directory $OUT_DIR"
+mkdir -m 770 -p $PATH_OUT_DIR
+chmod -R 770 $GROUP_VOL_CGI/results/fastqc/$PROJECT
+mkdir -m 770 -p $PATH_SCRIPT_DIR
+chmod -R 770 $GROUP_VOL_CGI/analysis/fastqc_runs/$PROJECT
+
+
+#create job scripts
+
+echo "`$NOW`creating and submitting job scripts for mapping of fastq files in $PATH_READS_DIRECTORY"
+
+#for each fastq file (fastq files have to be gzipped and 
+#have to have a fq.gz or fastq.gz extension
+for FASTQ in `ls $PATH_READS_DIRECTORY | grep -P "fq|fastq" | grep -vP 'md5|fastqc'`
+do 
+
+  FASTQ_NO_EXT=`echo ${FASTQ} | \
+      perl -e '$name=<>; \
+      $name =~ s/\.gz$//; \
+      print $name;'`
+    
+  FASTQ_BASENAME=`basename $FASTQ_NO_EXT .fq`
+  FASTQ_BASENAME=`basename $FASTQ_BASENAME .fastq`
+
+  SCRIPT_PATH=$PATH_SCRIPT_DIR/fastqc_trimmed.$FASTQ_NO_EXT.sh
+  cp $BASEDIR/fastQC.sh $SCRIPT_PATH
+
+  PATH_READS_FASTQ=$PATH_READS_DIRECTORY/$FASTQ
+  PATH_QC_REPORT_DIR=$PATH_OUT_DIR
+
+  #set variables
+  perl -i -pe "s/threads/$THREADS_PER_RUN/" $SCRIPT_PATH
+ 
+  #replace forward slashes in path with place holder as it
+  #causes problems with Perl inline replacement
+  #(will be converted back in the target script)
+  PATH_READS_FASTQ=`echo $PATH_READS_FASTQ | perl -pe "s/\//$PATH_PLACE_HOLDER/g"`
+  PATH_QC_REPORT_DIR=`echo $PATH_QC_REPORT_DIR | perl -pe "s/\//$PATH_PLACE_HOLDER/g"`
+
+  perl -i -pe "s/pathReadsFastq/$PATH_READS_FASTQ/" $SCRIPT_PATH
+  perl -i -pe "s/pathQcReportDir/$PATH_QC_REPORT_DIR/" $SCRIPT_PATH
+
+  #convert path place holder back to forward slash
+  perl -i -pe "s/$PATH_PLACE_HOLDER/\//g" $SCRIPT_PATH
+
+  #submit job 
+  LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+  echo "`$NOW`$SCRIPT_PATH"
+  qsub -o $LOG_OUTPUT_PATH $SCRIPT_PATH
+ 
+done;
+
+echo "`$NOW`done"
+
+

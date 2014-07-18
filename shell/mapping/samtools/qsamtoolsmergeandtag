@@ -1,0 +1,507 @@
+#!/bin/bash
+
+#
+# creates and submits scripts to run samtools merge
+# on one or more sets of BAM files, mark duplicates
+# and collect metrics on the merged BAM file
+#
+
+#CONFIGURATION
+##############
+
+GROUPVOL_CGI=/groupvol/cgi
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
+DEPLOYMENT_BASE_DIR=/www/html/report
+
+USAGE="$BASEDIR/qsamtoolsmergeandtag.usage"
+
+JAVA_VERSION=jdk-7u25
+PICARD_VERSION=1.85
+SAMTOOLS_VERSION=0.1.18
+R_VERSION=2.15
+GATK_VERSION=2.6-5
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+QUEUE=pqcgi
+
+#default parameters
+PATH_HEADER=$GROUPVOL_CGI/rawdata/documents/hs37d5_head
+PATH_BAIT_AMPLICON_INTERVALS=$GROUPVOL_CGI/analysis/ngs_tools/reference/target/SureSelect_All_Exon_50M_hg19.tab.intList
+PATH_TARGET_INTERVALS=$GROUPVOL_CGI/analysis/ngs_tools/reference/target/SureSelect_All_Exon_50M_hg19.tab.intList
+PATH_RIBOSOMAL_RNA_INTERVALS=$GROUPVOL_CGI/resources/annotations/GRCh37.ribosomal_rna.intList
+PATH_ANNOTATION_REFFLAT=$GROUPVOL_CGI/resources/annotations/Homo_sapiens.GRCh37.74.refFlat
+PATH_REFERENCE_FASTA=$GROUPVOL_CGI/resources/reference/eukaryote/human/hs37d5/hs37d5.fa
+METRIC=NONE
+MARK_DUPLICATES=TRUE
+METRIC_LEVEL=S
+
+#COMMAND LINE ARGS
+##################
+
+#parse command line args
+while getopts "i:r:d:s:m:b:t:p:a:f:q:h" option; do
+    case "$option" in
+	
+	i) PATH_INPUT_DIR="$OPTARG";;
+	r) PATH_READ_GROUP_INFO="$OPTARG";;
+	d) MARK_DUPLICATES="$OPTARG";;
+	s) PATH_HEADER="$OPTARG";;
+	m) METRIC="$OPTARG";;
+	b) PATH_BAIT_AMPLICON_INTERVALS="$OPTARG";;
+	t) PATH_TARGET_INTERVALS="$OPTARG";;
+	p) PATH_RIBOSOMAL_RNA_INTERVALS="$OPTARG";;
+	a) PATH_ANNOTATION_REFFLAT="$OPTARG";;
+	f) PATH_REFERENCE_FASTA="$OPTARG";;
+	q) METRIC_LEVEL="$OPTARG";;
+	h) cat $USAGE; exit 0;;
+	[?]) cat $USAGE; exit 1;;
+
+esac
+done
+
+# check for presence of required input parameters
+if [ -z $PATH_INPUT_DIR ] || \
+   [ -z $PATH_READ_GROUP_INFO ]
+   then
+        echo "Error: Required input argument missing."
+        cat $USAGE
+        exit 1
+fi
+
+#check if input directory and read group info file exists
+if [[ ! -d $PATH_INPUT_DIR ]]
+then
+        echo "`$NOW`ERROR: input path does not exist or is not a directory: $PATH_INPUT_DIR"
+        exit 1
+fi
+
+if [[ ! -f $PATH_READ_GROUP_INFO ]]
+then
+        echo "`$NOW`ERROR: read group info file does not exist: $PATH_READ_GROUP_INFO"
+        exit 1
+fi
+
+if [[ ! -f $PATH_REFERENCE_FASTA ]]
+then
+        echo "`$NOW`ERROR: reference sequence fasta file does not exist: $PATH_REFERENCE_FASTA"
+        exit 1
+fi
+
+if [ "$MARK_DUPLICATES" != "TRUE" ] && \
+   [ "$MARK_DUPLICATES" != "FALSE" ]
+   then
+	echo "Error: Invalid value for mark duplicates (-d) option."
+	cat $USAGE
+	exit 1
+fi
+
+RG_LEVEL=`echo $METRIC_LEVEL | grep RG`
+L_LEVEL=`echo $METRIC_LEVEL | grep L`
+S_LEVEL=`echo $METRIC_LEVEL | grep S`
+if  [ -z $RG_LEVEL ] && \
+    [ -z $L_LEVEL ] && \
+    [ -z $S_LEVEL ] 
+    then
+	echo "Error: Invalid value for metric level (-q) option."
+	cat $USAGE
+	exit 1
+fi
+
+# if specified check for valid METRIC option
+if [ "$METRIC" != "NONE" ]
+    then
+    if  [ "$METRIC" != "HS" ] && \
+        [ "$METRIC" != "TP" ] && \
+        [ "$METRIC" != "RS" ]  
+	then
+	    echo "Error: Invalid value for metrics (-m) option."
+	    cat $USAGE
+	    exit 1
+    fi
+fi
+
+echo "`${NOW}`merging BAM files in $PATH_INPUT_DIR..."
+echo "`${NOW}`using read group info: $PATH_READ_GROUP_INFO"
+#echo "`${NOW}`using header         : $PATH_HEADER"
+
+
+if [[ "$METRIC" != "NONE" ]]
+then
+
+     if [[ "$METRIC" == "HS" ]]
+     then
+	if [[ ! -f $PATH_BAIT_AMPLICON_INTERVALS ]] || [[ ! -f $PATH_TARGET_INTERVALS ]]
+	then
+	    echo "`${NOW}`bait coordinates file or target coordinates file is missing"
+	    exit 1
+	fi
+	echo "`${NOW}`generating Hybrid Sequencing metrics from merged file"
+        echo "`${NOW}`using bait coordinates  : $PATH_BAIT_AMPLICON_INTERVALS"
+	echo "`${NOW}`using target coordinates: $PATH_TARGET_INTERVALS"
+     elif [[ "$METRIC" == "TP" ]]
+     then
+	if [[ ! -f $PATH_BAIT_AMPLICON_INTERVALS ]] || [[ ! -f $PATH_TARGET_INTERVALS ]]
+        then
+	    echo "`${NOW}`bait coordinates file or target coordinates file is missing"
+	    exit 1
+	fi
+	echo "`${NOW}`generating Targeted PCR metrics from merged file"
+        echo "`${NOW}`using amplicon coordinates: $PATH_BAIT_AMPLICON_INTERVALS"
+	echo "`${NOW}`using target coordinates  : $PATH_TARGET_INTERVALS"
+     elif [[ "$METRIC" == "RS" ]]
+     then
+	if [[ ! -f $PATH_RIBOSOMAL_RNA_INTERVALS ]] || [[ ! -f $PATH_ANNOTATION_REFFLAT ]]
+        then
+	    echo "`${NOW}`ribosomal RNA coordinates file or annotation refFlat file is missing"
+	    exit 1
+	fi
+	echo "`${NOW}`generating RNA-seq metrics from merged file"
+        echo "`${NOW}`using ribosomal RNA coordinates: $PATH_RIBOSOMAL_RNA_INTERVALS"
+        echo "`${NOW}`using annotation refFlat file: $PATH_ANNOTATION_REFFLAT"
+     fi
+
+fi
+
+#parse project name from input directory
+PROJECT=`echo $PATH_INPUT_DIR | perl -e 'while(<>){ chop(); @tokens=split(/\//); $retval=@tokens[@tokens-2]; print $retval;  }'`
+
+PATH_OUT_DIR_PREFIX=$GROUPVOL_CGI/results/$PROJECT/mergetag
+mkdir -p $PATH_OUT_DIR_PREFIX
+chmod 770 $PATH_OUT_DIR_PREFIX
+
+mkdir -p $PATH_OUT_DIR_PREFIX/$TODAY
+chmod 770 $PATH_OUT_DIR_PREFIX/$TODAY
+
+SUMMARY_RESULTS=$PATH_OUT_DIR_PREFIX/$TODAY/multisample
+mkdir -p $SUMMARY_RESULTS
+chmod 770 $SUMMARY_RESULTS
+
+PATH_RUN_DIR_PREFIX=$GROUPVOL_CGI/analysis/$PROJECT/mergetag	
+mkdir -p $PATH_RUN_DIR_PREFIX
+chmod 770 $PATH_RUN_DIR_PREFIX
+
+mkdir -p $PATH_RUN_DIR_PREFIX/$TODAY
+chmod 770 $PATH_RUN_DIR_PREFIX/$TODAY
+
+mkdir -p $PATH_RUN_DIR_PREFIX/$TODAY/multisample
+chmod 770 $PATH_RUN_DIR_PREFIX/$TODAY/multisample
+    
+SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/mergetag/$TODAY
+ssh $DEPLOYMENT_SERVER "mkdir -p $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
+ssh $DEPLOYMENT_SERVER "chmod  775 $DEPLOYMENT_BASE_DIR/project/$PROJECT/mergetag" > /dev/null 2>&1
+ssh $DEPLOYMENT_SERVER "chmod  775 $DEPLOYMENT_BASE_DIR/project/$PROJECT/mergetag/$TODAY" > /dev/null 2>&1
+
+scp -r ${BASEDIR}/*png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+ssh $DEPLOYMENT_SERVER "chmod -R 664 $SUMMARY_DEPLOYMENT/*png" > /dev/null 2>&1
+
+
+echo "`$NOW`creating and submitting merging jobs for samples in read group info file:"
+
+METRIC_MERGING_DEPENDECIES="afterany"
+
+# for each sample in the read group info file
+# (skips header line, extracts 2nd column, removes empty lines and outputs
+# set of unique sample names)
+for SAMPLE in `sed 1d $PATH_READ_GROUP_INFO | cut -f2 | grep -vP "^$" | uniq`
+do
+
+	#create output dir path
+	PATH_OUT_DIR=$PATH_OUT_DIR_PREFIX/$TODAY/$SAMPLE
+	PATH_RUN_DIR=$PATH_RUN_DIR_PREFIX/$TODAY/$SAMPLE
+	
+	mkdir -p $PATH_OUT_DIR
+	mkdir -p $PATH_RUN_DIR
+
+	chmod 770 $PATH_OUT_DIR
+	chmod 770 $PATH_RUN_DIR
+
+	#create readgroup-to-Bam mapping file
+	PATH_FILE2RG=$PATH_RUN_DIR/$SAMPLE.file2RG.tsv		
+	echo -n "" > $PATH_FILE2RG
+	chmod 660 $PATH_FILE2RG
+
+	#create RG-tag file
+	PATH_RG_TAGS=$PATH_RUN_DIR/$SAMPLE.RGtags.tsv		
+	echo -n "" > $PATH_RG_TAGS
+	chmod 660 $PATH_RG_TAGS
+
+	echo "`$NOW`###########################################################################################"
+	echo "`$NOW`sample $SAMPLE"
+	echo "`$NOW`###########################################################################################"
+	sed 1d $PATH_READ_GROUP_INFO | grep -P "\t$SAMPLE\t" | \
+	while read READ_GROUP_RECORD 
+        do
+		
+		RG=`echo "$READ_GROUP_RECORD" | perl -e '$_=<>; @cols=split(/\t/, $_); print $cols[0];'`
+		LIB=`echo "$READ_GROUP_RECORD" | perl -e '$_=<>; @cols=split(/\t/, $_); print $cols[2];'`
+		MAP_DATE=`echo "$READ_GROUP_RECORD" | perl -e '$_=<>; @cols=split(/\t/, $_); print $cols[9];'`
+
+		#add read group to readgroup-to-Bam mapping file
+		BAM_INPUT=`ls $PATH_INPUT_DIR/$MAP_DATE/$SAMPLE/$RG*.bam`
+
+		echo -e "$BAM_INPUT\t$RG" >> $PATH_FILE2RG
+
+		echo "$READ_GROUP_RECORD" | perl -e '$_=<>; @cols=split(/\t/, $_); \
+                                                     print "\@RG\t"; 
+                                                     print "ID:$cols[0]\t";
+                                                     print "SM:$cols[1]\t";
+                                                     print "LB:$cols[2]\t";
+                                                     print "DS:$cols[3]\t";
+                                                     print "PI:$cols[4]\t";
+                                                     print "CN:$cols[5]\t";
+                                                     print "DT:$cols[6]\t";
+                                                     print "PL:$cols[7]\t";
+                                                     print "PU:$cols[8]\n"' \
+                                          >> $PATH_RG_TAGS
+
+	done
+
+	# get total BAM file size
+	# (this cannot be done in the above
+        # while loop as we pipe into the loop
+        # which creates a subshell for which
+        # variables are out of scope outside
+        # the loop)
+	TOTAL_BAM_SIZE_KB=0
+	for FILE in `cut -f1 $PATH_FILE2RG`
+	do
+	
+		#get file size
+		BAM_SIZE_KB=`du $FILE | cut -f1`
+		TOTAL_BAM_SIZE_KB=$(( $TOTAL_BAM_SIZE_KB + $BAM_SIZE_KB ))
+		
+	done;
+	
+	if [[ "$TOTAL_BAM_SIZE_KB" -ne "0" ]]
+	then
+		TOTAL_BAM_SIZE_MB=$(( $TOTAL_BAM_SIZE_KB / 1024 ))
+	fi
+
+	TMP_SPACE_MB=$(( $TOTAL_BAM_SIZE_MB * 10/4 ))
+
+	OUT_BAM_NAME=$SAMPLE.bam
+
+	#creating job script from template
+	SCRIPT_PATH=$PATH_RUN_DIR/samtoolsMergeAndTag.$SAMPLE.sh
+	cp $BASEDIR/samtoolsMergeAndTag.sh $SCRIPT_PATH
+
+	#configure job script
+	sed -i -e "s/queue/$QUEUE/" $SCRIPT_PATH
+	sed -i -e "s/tmpSpace/$TMP_SPACE_MB/" $SCRIPT_PATH
+	sed -i -e "s/javaVersion/$JAVA_VERSION/" $SCRIPT_PATH
+	sed -i -e "s/picardVersion/$PICARD_VERSION/" $SCRIPT_PATH
+	sed -i -e "s/samtoolsVersion/$SAMTOOLS_VERSION/" $SCRIPT_PATH
+	sed -i -e "s/rVersion/$R_VERSION/" $SCRIPT_PATH
+	sed -i -e "s/gatkVersion/$GATK_VERSION/" $SCRIPT_PATH
+	sed -i -e "s/readGroupInfo/${PATH_RG_TAGS//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/markDuplicates/$MARK_DUPLICATES/" $SCRIPT_PATH
+	sed -i -e "s/headerFile/${PATH_HEADER//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/file2RgMapping/${PATH_FILE2RG//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/pathOutputDir/${PATH_OUT_DIR//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/outBamName/$OUT_BAM_NAME/" $SCRIPT_PATH
+	sed -i -e "s/baitIntervalsFile/${PATH_BAIT_AMPLICON_INTERVALS//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/targetIntervalsFile/${PATH_TARGET_INTERVALS//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/ribosomalRnaIntervalsFile/${PATH_RIBOSOMAL_RNA_INTERVALS//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/annotationRefFlat/${PATH_ANNOTATION_REFFLAT//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/referenceSequence/${PATH_REFERENCE_FASTA//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/calculateMetric/$METRIC/" $SCRIPT_PATH
+	sed -i -e "s/metricLevel/$METRIC_LEVEL/" $SCRIPT_PATH
+
+	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
+
+	echo "`${NOW}`submitting job script $SCRIPT_PATH "
+	JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+	echo "`${NOW}`job ID: $JOB_ID"
+	
+	METRIC_MERGING_DEPENDECIES="$METRIC_MERGING_DEPENDECIES:$JOB_ID"
+
+
+        #print progress summary for submitted jobs
+        #if job is completed and log file is created in the run directory
+        #script examines whether the output files are in place and not empty
+ 
+        SCRIPT_PATH=$PATH_RUN_DIR/summary_mergeandtag.$SAMPLE.pl
+        cp $BASEDIR/summary_mergeandtag.pl $SCRIPT_PATH
+
+        sed -i -e "s/projectDirAnalysis/${PATH_RUN_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
+        sed -i -e "s/projectDirResults/${PATH_OUT_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
+        sed -i -e "s/Today/$TODAY/" $SCRIPT_PATH
+	sed -i -e "s/Project/$PROJECT/" $SCRIPT_PATH
+        sed -i -e "s/deploymentServer/$DEPLOYMENT_SERVER/" $SCRIPT_PATH
+        sed -i -e "s/summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SCRIPT_PATH
+        sed -i -e "s/summaryResults/${SUMMARY_RESULTS//\//\\/}/" $SCRIPT_PATH
+        sed -i -e "s/sampleList/${PATH_READ_GROUP_INFO//\//\\/}/" $SCRIPT_PATH
+        sed -i -e "s/markDuplicates/$MARK_DUPLICATES/" $SCRIPT_PATH
+	sed -i -e "s/metricLevel/$METRIC_LEVEL/" $SCRIPT_PATH
+	sed -i -e "s/collectMetric/$METRIC/" $SCRIPT_PATH
+
+	echo "`${NOW}`submitting summary script $SCRIPT_PATH "
+        LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.pl/\.log/g'`
+        SUM_JOB_ID=`qsub -q $QUEUE -o $LOG_PATH -j oe -W depend=afterany:$JOB_ID -M cgi@imperial.ac.uk $SCRIPT_PATH` 
+	echo "`$NOW`job ID: $SUM_JOB_ID"
+
+done;
+
+echo "`$NOW`###########################################################################################"
+#submit metric merging job
+if [[ "$METRIC" == "TP" ]]
+then
+	
+	SCRIPT_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/mergePicardTargetedPcrMetrics.sh
+	cp $BASEDIR/mergePicardTargetedPcrMetrics.sh $SCRIPT_PATH
+
+	CUSTOM_AMPLICON_SET=`basename $PATH_BAIT_AMPLICON_INTERVALS`
+
+	#configure job script
+	sed -i -e "s/mergeTagProjectDirectory/${PATH_OUT_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/mergeTagDate/$TODAY/" $SCRIPT_PATH
+	sed -i -e "s/mergeTagProjectName/$PROJECT/" $SCRIPT_PATH
+	sed -i -e "s/customAmpliconSet/$CUSTOM_AMPLICON_SET/" $SCRIPT_PATH
+	
+	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
+
+	echo "`${NOW}`submitting job script to merge targeted PCR metrics: $SCRIPT_PATH "
+	JOB_ID=`qsub -W depend=$METRIC_MERGING_DEPENDECIES -q $QUEUE -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+	echo "`$NOW`job ID: $JOB_ID"
+	METRIC_MERGING_DEPENDECIES="$METRIC_MERGING_DEPENDECIES:$JOB_ID"
+
+	OUTPUT_FILE=$PROJECT.$TODAY.targetedPcrMetrics
+        HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
+        cp $BASEDIR/tsvToHtmlTable.php $HTML_PATH
+        sed -i -e "s/#header/Targeted PCR Metrics/" $HTML_PATH
+        sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
+	cat $BASEDIR/picardTargetPcrMetricsColumnDescriptions.txt >> $HTML_PATH
+
+	OUTPUT_FILE=$PROJECT.$TODAY.perTargetCoverage
+        HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
+        cp $BASEDIR/tsvToHtmlTable.php $HTML_PATH
+        sed -i -e "s/#header/Target coverage/" $HTML_PATH
+        sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
+
+elif [ "$METRIC" == "HS" ]
+then
+	
+	SCRIPT_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/mergePicardHybridSequencingMetrics.sh
+	cp $BASEDIR/mergePicardHybridSequencingMetrics.sh $SCRIPT_PATH
+
+	CUSTOM_AMPLICON_SET=`basename $PATH_BAIT_AMPLICON_INTERVALS`
+
+	#configure job script
+	sed -i -e "s/mergeTagProjectDirectory/${PATH_OUT_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/mergeTagDate/$TODAY/" $SCRIPT_PATH
+	sed -i -e "s/mergeTagProjectName/$PROJECT/" $SCRIPT_PATH
+	sed -i -e "s/customAmpliconSet/$CUSTOM_AMPLICON_SET/" $SCRIPT_PATH
+	
+	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
+
+	echo "`${NOW}`submitting job script to merge hybrid sequencing metrics: $SCRIPT_PATH "
+	JOB_ID=`qsub -W depend=$METRIC_MERGING_DEPENDECIES -q $QUEUE -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+	echo "`$NOW`job ID: $JOB_ID"
+	METRIC_MERGING_DEPENDECIES="$METRIC_MERGING_DEPENDECIES:$JOB_ID"
+
+	OUTPUT_FILE=$PROJECT.$TODAY.hybridMetrics
+        HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
+        cp $BASEDIR/tsvToHtmlTable.php $HTML_PATH
+        sed -i -e "s/#header/Hybrid Sequencing Metrics/" $HTML_PATH
+        sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
+	cat $BASEDIR/picardHybridSequencingMetricsColumnDescriptions.txt >> $HTML_PATH
+
+	OUTPUT_FILE=$PROJECT.$TODAY.perTargetCoverage
+        HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
+        cp $BASEDIR/tsvToHtmlTable.php $HTML_PATH
+        sed -i -e "s/#header/Target coverage/" $HTML_PATH
+        sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
+
+elif [ "$METRIC" == "RS" ]
+then
+
+	SCRIPT_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/mergePicardRnaSeqMetrics.sh
+	cp $BASEDIR/mergePicardRnaSeqMetrics.sh $SCRIPT_PATH
+
+	#configure job script
+	sed -i -e "s/mergeTagProjectDirectory/${PATH_OUT_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/mergeTagDate/$TODAY/" $SCRIPT_PATH
+	sed -i -e "s/mergeTagProjectName/$PROJECT/" $SCRIPT_PATH
+	
+	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
+
+	echo "`${NOW}`submitting job script to merge RNA-Seq metrics: $SCRIPT_PATH "
+	JOB_ID=`qsub -W depend=$METRIC_MERGING_DEPENDECIES -q $QUEUE -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+	echo "`$NOW`job ID: $JOB_ID"
+	METRIC_MERGING_DEPENDECIES="$METRIC_MERGING_DEPENDECIES:$JOB_ID"
+
+	OUTPUT_FILE=$PROJECT.$TODAY.RnaSeqMetrics
+        HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
+        cp $BASEDIR/tsvToHtmlTable.php $HTML_PATH
+        sed -i -e "s/#header/RNA-Seq Metrics/" $HTML_PATH
+        sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
+	cat $BASEDIR/picardRnaSeqMetricsColumnDescriptions.txt >> $HTML_PATH
+
+fi
+
+#submit alignment summary metrics merging job
+if [ "$S_LEVEL" ]
+then
+
+	SCRIPT_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/mergePicardAlignmentSummaryMetrics.sh
+	cp $BASEDIR/mergePicardAlignmentSummaryMetrics.sh $SCRIPT_PATH
+
+	#configure job script
+	sed -i -e "s/mergeTagProjectDirectory/${PATH_OUT_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/mergeTagDate/$TODAY/" $SCRIPT_PATH
+	sed -i -e "s/mergeTagProjectName/$PROJECT/" $SCRIPT_PATH
+
+	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
+
+	echo "`${NOW}`submitting job script to merge alignment summary metrics: $SCRIPT_PATH "
+	JOB_ID=`qsub -W depend=$METRIC_MERGING_DEPENDECIES -q $QUEUE -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+	echo "`$NOW`job ID: $JOB_ID"
+	METRIC_MERGING_DEPENDECIES="$METRIC_MERGING_DEPENDECIES:$JOB_ID"
+
+        #create php script that translate tsv file into html
+	for CATEGORY in FIRST_OF_PAIR SECOND_OF_PAIR PAIR
+	do
+
+	    OUTPUT_FILE=$PROJECT.$TODAY.alignment_summary_metrics.$CATEGORY
+            HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
+            cp $BASEDIR/tsvToHtmlTable.php $HTML_PATH
+            sed -i -e "s/#header/Alignment Summary Metrics $CATEGORY/" $HTML_PATH
+            sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
+	    cat $BASEDIR/picardAlignmentSummaryMetricsColumnDescription.txt >> $HTML_PATH
+
+	done
+
+fi
+
+
+#print progress summary for submitted jobs
+#if job is completed and log file is created in the run directory
+#script examines whether the output files are in place and not empty
+
+SCRIPT_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/summary_mergeandtag.pl
+cp $BASEDIR/summary_mergeandtag.pl $SCRIPT_PATH
+
+sed -i -e "s/projectDirAnalysis/${PATH_RUN_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/projectDirResults/${PATH_OUT_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/Today/$TODAY/" $SCRIPT_PATH
+sed -i -e "s/Project/$PROJECT/" $SCRIPT_PATH
+sed -i -e "s/deploymentServer/$DEPLOYMENT_SERVER/" $SCRIPT_PATH
+sed -i -e "s/summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/summaryResults/${SUMMARY_RESULTS//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/sampleList/${PATH_READ_GROUP_INFO//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/markDuplicates/$MARK_DUPLICATES/" $SCRIPT_PATH
+sed -i -e "s/metricLevel/$METRIC_LEVEL/" $SCRIPT_PATH
+sed -i -e "s/collectMetric/$METRIC/" $SCRIPT_PATH
+
+LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.pl/\.log/g'`
+
+echo "`$NOW`submitting last summary script: $SCRIPT_PATH"
+SUM_JOB_ID=`qsub -q $QUEUE -o $LOG_PATH -j oe -W depend=$METRIC_MERGING_DEPENDECIES -M cgi@imperial.ac.uk $SCRIPT_PATH` 
+echo "`$NOW`job ID: $SUM_JOB_ID"
+echo "`$NOW`progress and summary can be seen at $DEPLOYMENT_SERVER/$SUMMARY_DEPLOYMENT"

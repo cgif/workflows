@@ -1,0 +1,214 @@
+#!/bin/bash
+
+#
+# creates and submits scripts to run HTSeq tool
+# for counting reads in features
+#
+
+#CONFIGURATION
+##############
+
+GROUPVOL_CGI=/groupvol/cgi
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
+DEPLOYMENT_BASE_DIR=/www/html/report
+
+USAGE="./qHTSeq -i path_to_input_directory -g path_to_gff_file -f feature_ID -s check_if_ss_library"
+
+#python/cx1 is version 2.6.6
+PYTHON_VERSION=cx1
+SAMTOOLS_VERSION=0.1.18
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+QUEUE=pqcgi
+WALLTIME_HOURS_PER_RUN=72
+
+#default parameters
+PATH_ANNOTATION_GFF=$GROUPVOL_CGI/resources/annotations/bowtie2_indexed/Homo_sapiens.GRCh37.74.gff
+FEATURE=gene_id
+STRAND=F
+
+#COMMAND LINE ARGS
+##################
+
+#parse command line args
+while getopts "i:g:f:sh" option; do
+    case "$option" in
+	
+	i) PATH_INPUT_DIR="$OPTARG";;
+	g) PATH_ANNOTATION_GFF="$OPTARG";;
+	f) FEATURE="$OPTARG";;
+	s) STRAND=T;;
+	h) cat $USAGE;;
+	[?]) cat $USAGE;;
+
+esac
+done
+
+
+# check for presence of required input parameters
+if [ -z $PATH_INPUT_DIR ]
+   then
+        echo "ERROR: Required input argument is missing."
+        echo $USAGE
+        exit 1
+fi
+
+#check if input directory and features-containing file exists
+if [[ ! -d $PATH_INPUT_DIR ]]
+then
+        echo "ERROR: Input path does not exist or is not a directory: $PATH_INPUT_DIR"
+        exit 1
+fi
+
+if [[ ! -f $PATH_ANNOTATION_GFF ]]
+then
+        echo "ERROR: Path to GFF file containing features does not exist: $PATH_ANNOTATION_GFF"
+        exit 1
+fi
+
+#parse project name from input directory
+PROJECT=`echo $PATH_INPUT_DIR | perl -e 'while(<>){ chop(); @tokens=split(/\//); $retval=@tokens[@tokens-3]; print $retval;  }'`
+
+########################
+
+echo "`${NOW}`Counting reads from files in $PATH_INPUT_DIR"
+echo "`${NOW}`using features file $PATH_ANNOTATION_GFF"
+echo "########################################################"
+
+#create directories and set permissions
+
+mkdir -p $GROUPVOL_CGI/results/$PROJECT/HTSeq
+chmod 770 $GROUPVOL_CGI/results/$PROJECT/HTSeq
+
+mkdir -p $GROUPVOL_CGI/results/$PROJECT/HTSeq/$TODAY
+chmod 770 $GROUPVOL_CGI/results/$PROJECT/HTSeq/$TODAY
+
+mkdir -p $GROUPVOL_CGI/results/$PROJECT/HTSeq/$TODAY/multisample
+chmod 770 $GROUPVOL_CGI/results/$PROJECT/HTSeq/$TODAY/multisample
+
+PATH_OUT_DIR_PREFIX=$GROUPVOL_CGI/results/$PROJECT/HTSeq/$TODAY
+	
+mkdir -p $GROUPVOL_CGI/analysis/$PROJECT/HTSeq
+chmod 770 $GROUPVOL_CGI/analysis/$PROJECT/HTSeq
+
+mkdir -p $GROUPVOL_CGI/analysis/$PROJECT/HTSeq/$TODAY
+chmod 770 $GROUPVOL_CGI/analysis/$PROJECT/HTSeq/$TODAY
+
+mkdir -p $GROUPVOL_CGI/analysis/$PROJECT/HTSeq/$TODAY/multisample
+chmod 770 $GROUPVOL_CGI/analysis/$PROJECT/HTSeq/$TODAY/multisample
+
+mkdir -p $GROUPVOL_CGI/analysis/$PROJECT/HTSeq/$TODAY/multisample/run
+chmod 770 $GROUPVOL_CGI/analysis/$PROJECT/HTSeq/$TODAY/multisample/run
+
+PATH_RUN_DIR_PREFIX=$GROUPVOL_CGI/analysis/$PROJECT/HTSeq/$TODAY
+
+#create and set permissions for summary
+SUMMARY_RESULTS=$PATH_OUT_DIR_PREFIX/multisample
+SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/HTSeq/$TODAY
+ssh $DEPLOYMENT_SERVER "mkdir -p $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
+ssh $DEPLOYMENT_SERVER "chmod 0775 $DEPLOYMENT_BASE_DIR/project/$PROJECT" > /dev/null 2>&1
+ssh $DEPLOYMENT_SERVER "chmod 0775 $DEPLOYMENT_BASE_DIR/project/$PROJECT/HTSeq" > /dev/null 2>&1
+ssh $DEPLOYMENT_SERVER "chmod 0775 $DEPLOYMENT_BASE_DIR/project/$PROJECT/HTSeq/$TODAY" > /dev/null 2>&1
+scp -r ${BASEDIR}/*png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+ssh $DEPLOYMENT_SERVER "chmod -R 664 $SUMMARY_DEPLOYMENT/*png" > /dev/null 2>&1
+
+#create summary script and set variables
+SUMMARY_SCRIPT=$PATH_RUN_DIR_PREFIX/multisample/run/HTSeq_summary.pl
+cp $BASEDIR/HTSeq_summary.pl $SUMMARY_SCRIPT
+chmod 770 $SUMMARY_SCRIPT
+
+#set variables in summary script
+sed -i -e "s/#inputDir/${PATH_INPUT_DIR//\//\\/}/" $SUMMARY_SCRIPT
+sed -i -e "s/#projectDirResults/${PATH_OUT_DIR_PREFIX//\//\\/}/" $SUMMARY_SCRIPT
+sed -i -e "s/#deploymentServer/$DEPLOYMENT_SERVER/" $SUMMARY_SCRIPT
+sed -i -e "s/#summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SUMMARY_SCRIPT
+sed -i -e "s/#summaryResults/${SUMMARY_RESULTS//\//\\/}/" $SUMMARY_SCRIPT
+
+HTSEQ_DEPENDENCIES=afterok
+HTSEQ_SAMPLES="GENE_ID"
+HTSEQ_FILES=""
+
+for SAMPLE in `ls --color=never $PATH_INPUT_DIR`
+do
+
+	if [ $SAMPLE != multisample ]
+	then
+
+	        echo "`$NOW`submitting HTSeq counting script for sample $SAMPLE..."
+
+		#create and set permissions for analysis sample parent directory
+		mkdir -p $PATH_RUN_DIR_PREFIX/$SAMPLE
+		chmod 770 $PATH_RUN_DIR_PREFIX/$SAMPLE
+
+		mkdir -p $PATH_RUN_DIR_PREFIX/$SAMPLE/run
+		chmod 770 $PATH_RUN_DIR_PREFIX/$SAMPLE/run
+
+ 		#create and set permissions for results sample parent directory
+		mkdir -p $PATH_OUT_DIR_PREFIX/$SAMPLE
+		chmod 770 $PATH_OUT_DIR_PREFIX/$SAMPLE
+
+		BAM_FILE=$PATH_INPUT_DIR/$SAMPLE/$SAMPLE.bam
+		HTSEQ_COUNTS=$PATH_OUT_DIR_PREFIX/$SAMPLE/$SAMPLE.HTSeq.counts
+
+		SCRIPT_PATH=$PATH_RUN_DIR_PREFIX/$SAMPLE/run/$SAMPLE.HTSeq.sh
+		cp $BASEDIR/HTSeq.sh $SCRIPT_PATH
+		chmod 770 $SCRIPT_PATH
+
+		#set variables 
+		sed -i -e "s/#walltimeHours/$WALLTIME_HOURS_PER_RUN/" $SCRIPT_PATH  
+		sed -i -e "s/#samtoolsVersion/$SAMTOOLS_VERSION/" $SCRIPT_PATH  
+		sed -i -e "s/#pythonVersion/$PYTHON_VERSION/" $SCRIPT_PATH   
+	        sed -i -e "s/#bamFile/${BAM_FILE//\//\\/}/" $SCRIPT_PATH
+		sed -i -e "s/#gffFile/${PATH_ANNOTATION_GFF//\//\\/}/" $SCRIPT_PATH
+		sed -i -e "s/#htseqCounts/${HTSEQ_COUNTS//\//\\/}/" $SCRIPT_PATH
+		sed -i -e "s/#strand/$STRAND/" $SCRIPT_PATH
+		sed -i -e "s/#feature/$FEATURE/" $SCRIPT_PATH
+
+		#submit job and save job ID to dependency variable 
+		LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+
+		JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+		echo "`$NOW`$SCRIPT_PATH"
+		echo "`$NOW`$JOB_ID"
+		HTSEQ_DEPENDENCIES=$HTSEQ_DEPENDENCIES:$JOB_ID 
+		HTSEQ_FILES="$HTSEQ_FILES $HTSEQ_COUNTS"
+		HTSEQ_SAMPLES="$HTSEQ_SAMPLES\t$SAMPLE"
+
+		#submit job and save job ID to dependency variable 
+		SUMMARY_LOG=$PATH_RUN_DIR_PREFIX/$SAMPLE/run/$SAMPLE.HTSeq_summary.log
+		SUMMARY_ID=`qsub -q $QUEUE -j oe -W depend=afterany:$JOB_ID -o $SUMMARY_LOG $SUMMARY_SCRIPT`
+#		SUMMARY_ID=`qsub -q $QUEUE -j oe -o $SUMMARY_LOG $SUMMARY_SCRIPT`
+		echo "`$NOW`$SUMMARY_SCRIPT"
+		echo "`$NOW`$SUMMARY_ID"
+		echo "########################################################"
+
+	fi
+
+done 
+
+echo "`$NOW`submitting script for merging count columns into cross-sample counts table"
+
+SCRIPT_PATH=$PATH_RUN_DIR_PREFIX/multisample/run/mergeColumns.sh
+cp $BASEDIR/mergeColumns.sh $SCRIPT_PATH
+chmod 770 $SCRIPT_PATH
+
+HTSEQ_TABLE=$PATH_OUT_DIR_PREFIX/multisample/$PROJECT.$TODAY.htseq.counts
+
+#set variables  
+sed -i -e "s/#htseqFiles/${HTSEQ_FILES//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#htseqTable/${HTSEQ_TABLE//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#htseqSamples/${HTSEQ_SAMPLES//\//\\/}/" $SCRIPT_PATH
+
+#submit job and save job ID to dependency variable 
+LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+JOB_ID=`qsub -q $QUEUE -W depend=$HTSEQ_DEPENDENCIES -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+#JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+echo "`$NOW`$SCRIPT_PATH"
+echo "`$NOW`$JOB_ID"
+echo "`$NOW`Progress and summary of HTSeq runs can be monitored at $DEPLOYMENT_SERVER/report/project/$PROJECT"

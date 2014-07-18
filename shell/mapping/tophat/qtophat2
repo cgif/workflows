@@ -1,0 +1,316 @@
+#!/bin/bash
+
+#
+# sets up directory structure and configures scripts
+# for tophat2 mapping run and submits jobs to pqcgi queue
+#
+
+#CONFIGURATION
+##############
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+#returns absolute path to qfastqc directory, not changing your current directory
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+GROUP_VOL_CGI=/groupvol/cgi
+DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
+DEPLOYMENT_BASE_DIR=/www/html/report
+
+QUEUE=pqcgi
+WALLTIME_HOURS_PER_RUN=72
+
+#trhreads per run
+THREADS_PER_RUN=4
+
+USAGE="$BASEDIR/qtophat2.usage"
+
+ANALYSIS_NAME=tophat
+
+TOPHAT_VERSION=2.0.10
+SAMTOOLS_VERSION=0.1.19
+BOWTIE_VERSION=2.1.0
+JAVA_VERSION=jdk-7u25
+PICARD_VERSION=1.85
+
+PATH_REFERENCE_FASTA=/groupvol/cgi/resources/reference/eukaryote/human/GRCh37/bowtie2_indexed/GRCh37.fa
+PATH_ANNOTATION_GFF=/groupvol/cgi/resources/annotations/bowtie2_indexed/Homo_sapiens.GRCh37.74.gff
+PATTERN_READ1='_R1_'
+PATTERN_READ2='_R2_'
+MULT_READS=F
+EDIT_DIST0=F
+
+#COMMAND LINE ARGS
+##################
+while getopts "i:r:a:t:p:n:hmd" option; do
+    case "$option" in
+	
+	i) INPUT_PATH="$OPTARG";;
+	r) PATH_REFERENCE_FASTA="$OPTARG";;
+	a) PATH_ANNOTATION_GFF="$OPTARG";;
+	t) PATTERN_READ1="$OPTARG";;
+	p) PATTERN_READ2="$OPTARG";;
+	n) PROJECT="$OPTARG";;
+        m) MULT_READS=T;;
+        d) EDIT_DIST0=T;;
+	h) cat $USAGE; exit 0;;
+	[?]) cat $USAGE; exit 1;;
+
+esac
+done
+
+if [ -z $INPUT_PATH ] || \
+    [ -z $PATH_REFERENCE_FASTA ] || \
+    [ -z $PATH_ANNOTATION_GFF ] || \
+    [ -z $PATTERN_READ1 ] || \
+    [ -z $PATTERN_READ2 ] || \
+    [ -z $PROJECT ]
+    then
+    cat $USAGE
+    exit 1
+fi
+
+
+#FUNCTIONS
+##########
+
+#creates job scripts
+function submitJobs {
+
+        local path_reads_directory=$1
+	local path_reference_fasta=$2
+	local path_annotation_gff=$3
+	local path_analysis_dir=$4
+	local path_results_dir=$5
+	local pattern_read1=$6
+	local pattern_read2=$7
+	local threads_per_run=$8
+	local walltime_hours_per_run=$9
+	local mult_reads=${10}
+	local edit_dist0=${11}
+	local summary_script_path=${12}
+
+	local path_scripts_dir=$path_analysis_dir/run      
+	local setup_log=$path_scripts_dir/setup.log
+	local job_id_list=$path_scripts_dir/job_id.list
+	echo -n "" > $job_id_list
+	chmod 660 $job_id_list
+
+	for fastq_read1 in `ls --color=never $path_reads_directory/*.f*q* | grep $pattern_read1`
+	do
+ 
+	        local fastq_read1=`basename $fastq_read1`
+    		local fastq_read2=`echo $fastq_read1 | perl -pe "s/$pattern_read1/$pattern_read2/"`
+
+                #right filter the shortest match (chop end extension)
+		local path_reference_fasta_no_ext=${path_reference_fasta%.*}
+		local reference_fasta_name=`basename $path_reference_fasta_no_ext`
+
+                #right filter the longest match (chop end extension)
+		local read_group_name=${fastq_read1%%.*}
+     
+	        #output prefix
+		local output_prefix=$read_group_name.vs.$reference_fasta_name
+
+		echo "`$NOW`setting up $ANALYSIS_NAME mapping run for $read_group_name... "
+
+		echo "`$NOW`setting up $ANALYSIS_NAME run" >> $setup_log
+		echo "`$NOW`read directory: $path_reads_directory" >> $setup_log
+		echo "`$NOW`fastq file 1: $fastq_read1" >> $setup_log
+		echo "`$NOW`fastq file 2: $fastq_read1" >> $setup_log
+		echo "`$NOW`reference file: $path_reference_fasta" >> $setup_log
+		echo "`$NOW`annotation file: $path_annotation_gff" >> $setup_log
+		echo "`$NOW`script directory: $path_scripts_dir" >> $setup_log
+		echo "`$NOW`result directory: $path_results_dir" >> $setup_log
+		echo "`$NOW`creating and submitting job scripts:" >> $setup_log
+
+		local script_path=$path_scripts_dir/tophat2.$output_prefix.sh
+		cp $BASEDIR/tophat2.sh $script_path
+		chmod 770 $script_path
+
+	        #set variables 
+		sed -i -e "s/#tophatVersion/$TOPHAT_VERSION/" $script_path
+		sed -i -e "s/#bowtieVersion/$BOWTIE_VERSION/" $script_path
+		sed -i -e "s/#samtoolsVersion/$SAMTOOLS_VERSION/" $script_path
+		sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
+		sed -i -e "s/#picardVersion/$PICARD_VERSION/" $script_path
+		sed -i -e "s/#walltimeHours/$walltime_hours_per_run/" $script_path
+		sed -i -e "s/#threads/$threads_per_run/" $script_path
+		sed -i -e "s/#outputPrefix/$output_prefix/" $script_path
+		sed -i -e "s/#multReads/$mult_reads/" $script_path
+		sed -i -e "s/#editDist0/$edit_dist0/" $script_path
+		sed -i -e "s/#pathOutputDir/${path_results_dir//\//\\/}/" $script_path
+		sed -i -e "s/#pathReferenceFastaNoExt/${path_reference_fasta_no_ext//\//\\/}/" $script_path
+		sed -i -e "s/#pathAnnotation/${path_annotation_gff//\//\\/}/" $script_path
+		sed -i -e "s/#pathReadsDirectory/${path_reads_directory//\//\\/}/" $script_path
+		sed -i -e "s/#read1/$fastq_read1/" $script_path
+		sed -i -e "s/#read2/$fastq_read2/" $script_path
+
+	        #submit job and save job ID to dependency variable 
+		local log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+		echo "`$NOW`$script_path" >> $setup_log
+		echo -n "`$NOW`" >> $setup_log
+		local job_id=`qsub -q $QUEUE -o $log_output_path $script_path`
+		echo $job_id >> $setup_log
+		echo -e "$job_id" >> $job_id_list
+		echo "#############################################################################" >> $setup_log
+
+	done
+
+        #summary is on hold until tophat runs for the sample are completed 
+        #collect tophat job ids for dependency variable
+	SUMMARY_JOB_DEPENDENCY="afterany"
+	for JOB_ID in `grep 'cx1' $job_id_list`
+	do
+
+                JOB_ID=`basename $JOB_ID .cx1b`
+	        SUMMARY_JOB_DEPENDENCY="$SUMMARY_JOB_DEPENDENCY:$JOB_ID"
+
+	done
+
+	echo "`$NOW`submitting summary script:" >> $setup_log
+	echo "`$NOW`$summary_script_path" >> $setup_log
+	echo "`$NOW`with dependency $SUMMARY_JOB_DEPENDENCY" >> $setup_log
+	echo -n "`$NOW`" >> $setup_log
+	local summary_log=$path_scripts_dir/summary.log
+	local sum_job_id=`qsub -q $QUEUE -o $summary_log -j oe -W depend=$SUMMARY_JOB_DEPENDENCY -M cgi@imperial.ac.uk $summary_script_path`
+	echo $sum_job_id >> $setup_log
+	echo "`$NOW`for details look at $setup_log"
+       
+}
+
+
+if [ -d $INPUT_PATH ]
+then
+
+        #create and set permissions for analysis project parent directory
+        mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT
+	chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT
+
+	mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME
+	chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME
+
+	mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY
+	chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY
+
+	mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/multisample
+	chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/multisample
+
+	mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/multisample/run
+	chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/multisample/run
+
+	PATH_MS_ANALYSIS_PATH=$GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/multisample
+
+        #create and set permissions for results project parent directory
+	mkdir -p $GROUP_VOL_CGI/results/$PROJECT
+	chmod 770 $GROUP_VOL_CGI/results/$PROJECT
+
+	mkdir -p $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME
+	chmod 770 $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME
+
+	mkdir -p $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY
+	chmod 770 $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY
+
+	mkdir -p $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY/multisample
+	chmod 770 $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY/multisample
+
+	PATH_MS_RESULTS_PATH=$GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY/multisample
+
+        #create and set permissions for summary
+	SUMMARY_RESULTS=$PATH_MS_RESULTS_PATH
+	SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/$ANALYSIS_NAME/$TODAY
+	ssh $DEPLOYMENT_SERVER "mkdir -p $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
+	ssh $DEPLOYMENT_SERVER "chmod 0775 $DEPLOYMENT_BASE_DIR/project/$PROJECT/$ANALYSIS_NAME" > /dev/null 2>&1
+	ssh $DEPLOYMENT_SERVER "chmod 0775 $DEPLOYMENT_BASE_DIR/project/$PROJECT" > /dev/null 2>&1
+	scp -r ${BASEDIR}/*png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+	ssh $DEPLOYMENT_SERVER "chmod -R 664 $SUMMARY_DEPLOYMENT/*png" > /dev/null 2>&1
+
+        #create summary script and set variables
+	SUMMARY_SCRIPT=$PATH_MS_ANALYSIS_PATH/run/summary_tophat2.pl
+	cp $BASEDIR/summary_tophat2.pl $SUMMARY_SCRIPT
+	chmod 770 $SUMMARY_SCRIPT
+
+        #set variables in summary script
+	sed -i -e "s/#projectDirAnalysis/${PATH_MS_ANALYSIS_PATH//\//\\/}/" $SUMMARY_SCRIPT
+	sed -i -e "s/#projectDirResults/${PATH_MS_RESULTS_PATH//\//\\/}/" $SUMMARY_SCRIPT
+	sed -i -e "s/#deploymentServer/$DEPLOYMENT_SERVER/" $SUMMARY_SCRIPT
+	sed -i -e "s/#summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SUMMARY_SCRIPT
+	sed -i -e "s/#summaryResults/${SUMMARY_RESULTS//\//\\/}/" $SUMMARY_SCRIPT
+
+        #for each sample directory...
+	for SAMPLE in `ls --color=never $INPUT_PATH|grep -v 'multisample'`
+	do
+
+	        echo "#############################################################################"
+		echo "`$NOW`processing sample $SAMPLE..."
+		echo "#############################################################################"
+
+		FASTQ_DIR=$INPUT_PATH/$SAMPLE
+       
+		if [ -d $FASTQ_DIR ]
+		then
+
+	                #count fastq files in directory		
+		        FASTQ_COUNT=`ls --color=never $FASTQ_DIR/*.f*q* | wc -l`
+
+			if [ $FASTQ_COUNT -gt 0 ]
+			then
+
+		                #create and set permissions for analysis sample parent directory
+			        mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
+				chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
+
+				mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE/run
+				chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE/run
+
+ 		                #create and set permissions for results sample parent directory
+   				mkdir -p $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
+    				chmod 770 $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
+
+        	                #create output directory
+				PATH_RUN_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
+				PATH_OUT_DIR=$GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE   
+
+   				SETUP_LOG=$PATH_RUN_DIR/run/setup.log
+				echo -n "" > $SETUP_LOG
+	
+		                #create, configure and submit job scripts
+				submitJobs $FASTQ_DIR \
+			                   $PATH_REFERENCE_FASTA \
+			                   $PATH_ANNOTATION_GFF \
+			                   $PATH_RUN_DIR \
+			                   $PATH_OUT_DIR \
+			                   $PATTERN_READ1 \
+			                   $PATTERN_READ2 \
+			                   $THREADS_PER_RUN \
+			                   $WALLTIME_HOURS_PER_RUN \
+			                   $MULT_READS \
+			                   $EDIT_DIST0 \
+		                           $SUMMARY_SCRIPT
+
+			else
+
+			        echo "`$NOW`Error: directory $SAMPLE does not contain any fastq files (.fq or .fastq file extension)"	
+
+			fi
+       
+		else 
+
+		        echo "`$NOW`Error: directory $SAMPLE is not a directory."
+
+		fi
+
+	done
+	
+else
+
+        echo "`$NOW`Error: Input path is not a directory."
+	exit 1
+
+fi
+
+echo "#############################################################################"
+echo "`$NOW`progress and summary of tophat runs can be monitored at $DEPLOYMENT_SERVER/report/project/$PROJECT"

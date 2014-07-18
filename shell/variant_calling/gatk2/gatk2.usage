@@ -1,0 +1,72 @@
+
+USAGE
+
+	qgatk2 -i <input_directory> 
+          [-c]
+	       -s <sample_list_file>
+          [-r <reference_fasta_path>]
+          [-d <sequence_dictionary_file_path, default /groupvol/cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.dict>]
+           -t <sequencing_type, [WGS,EXOME,TARGETED]>
+          [-v <variant_calling_algorithm, [U,H,UH,HU], default U>]
+          [-a <amplicon_or_exom_interval_bed>]
+          [-x <auxiliary_sample_directory>]
+          [-p <primer_probe_genomic_coordinates_bed>]
+          [-o <primer_probe_coordinates_offset; default = 10>]
+          [-q <ped_file>]     
+          [-g]
+	
+DESCRIPTION
+
+	-i	Absolute path to a a directory containing 
+        a set of BAM files or a CGI project directory
+        containing BAM files organised into sample 
+        sub-folders.
+
+	-c	The argument of the -i option points to 
+		a CGI project directory.
+
+	-s  File containing a list of sample names and merge-tag dates
+	    for which to run the analysis in the format sample_name\tYYYY-MM-DD\n\project.
+
+	-r	Absolute path to the BWA indexed reference
+        sequence fasta file,
+        default default /groupvol/cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.fa.
+
+	-d	Absolute path to the sequence dictionary,
+        default default /groupvol/cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.dict.
+
+    -t  The type of sequencing data:
+		WGS       whole-genome sequencing
+		EXOME     whole-exome sequencing
+		TARGETED  targete sequencing (e.g. amplicon sequencing)
+		
+	-v  Variant calling algorithm:
+		U = UnifiedGenotyper (default)
+		H = HaplotypeCaller
+		UH or HU = UnifiedGenotyper AND HaplotyperCaller
+
+    -a  Absolute path to file containing the target intervals
+		for exome or targeted sequencing in BED format.
+		
+	-x  Absolute path to directory containing BAM files of 
+		auxiliary samples to be used in multi-sample 
+		variant calling to reach the recommended minimum
+		number of samples (30).
+
+	-p  Absolute path to file containing the genomic 
+	    coordinates of primer/probe binding sites for amplicon
+		sequencing experiments. If provided, primer/probe
+		regions will be soft clipped to avoid false
+		positive reference allele calls from primer/probe
+		sequence overlapping with variant locations.
+		
+	-o  The number of bases the mapped read start/end position
+		can differ from the genomic start position of the
+		primer/probe binding region (default = 10).
+		
+	-q  Sample meta data in PED format.
+	
+	-g  Generate script files only without submitting jobs to queue. 	
+		
+    -h  Display help and exit.
+

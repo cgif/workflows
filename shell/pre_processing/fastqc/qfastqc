@@ -1,0 +1,219 @@
+#!/bin/bash
+
+#
+# generates, configures and submits scripts to run FastQC on
+# a single fastq file, a set of fastq files in a directory or
+# a CGI project directory
+#
+
+#CONFIGURATION
+##############
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+#returns absolute path to qfastqc directory, not changing your current directory
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+
+QUEUE=pqcgi
+GROUP_VOL_CGI=/groupvol/cgi
+DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
+DEPLOYMENT_BASE_DIR=/www/html/report
+
+PATTERN_READ_1='_R1_'
+PATTERN_READ_2='_R2_'
+
+USAGE="USAGE: qfastqc -i <input_path> -t <read1_tag, default '_R1_'> -p <read1_tag, default '_R2_'>"
+
+#COMMAND LINE ARGS
+##################
+
+while getopts "i:t:p:h" option; do
+    case "$option" in
+
+	i) INPUT_PATH="$OPTARG";;
+	t) PATTERN_READ_1="$OPTARG";;
+	p) PATTERN_READ_2="$OPTARG";;
+	h) echo $USAGE; exit 1;;
+	[?]) echo $USAGE; exit 1;;
+
+    esac
+done
+
+#check if required arguments are missing
+if [ -z $INPUT_PATH ]; then
+
+    echo $USAGE
+    exit 1
+
+fi
+
+#FUNCTIONS
+##########
+
+#creates job scripts
+function submitJob {
+
+	path_reads_dir=$1
+        read1=$2
+        read2=$3
+	path_report_dir=$4
+	path_script_dir=$5
+	deployment_server=$6
+	deployment_path=$7
+        summary_deployment=$8
+	job_id_list=$9
+    
+	sample=`basename $path_reads_dir`
+
+	echo "`$NOW`creating and submitting job script for QC of fastq files for sample $sample"
+	#create fastqc script from template
+  	script_path=$path_script_dir/fastqc.$sample.sh
+  	cp $BASEDIR/fastQC.sh $script_path
+  	chmod 770 $script_path
+
+	#configure fastqc script
+	sed -i -e "s/#pathReadsFastq/${path_reads_dir//\//\\/}/" $script_path
+        sed -i -e "s/#patternRead1/${read1//\//\\/}/" $script_path
+        sed -i -e "s/#patternRead2/${read2//\//\\/}/" $script_path
+	sed -i -e "s/#pathQcReportDir/${path_report_dir//\//\\/}/" $script_path
+	sed -i -e "s/#deploymentServer/$deployment_server/" $script_path
+	sed -i -e "s/#deploymentPath/${deployment_path//\//\\/}/" $script_path
+	sed -i -e "s/#summaryPath/${summary_deployment//\//\\/}/" $script_path
+
+  	#submit job 
+  	log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+  	job_id=`qsub -q $QUEUE -o $log_output_path $script_path`
+	echo "`$NOW`Job ID:$job_id"
+	echo -e "$job_id" >> $job_id_list
+}
+
+
+#RUN
+####
+
+echo "`$NOW`setting up FastQC runs"
+
+if [ -d $INPUT_PATH ]; then
+    
+    PROJECT=`basename $INPUT_PATH`
+
+    #create and set permissions for analysis project parent directory
+    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/fastqc
+    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/fastqc
+    PROJECT_ANALYSIS_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/fastqc
+
+    #create and set permissions for results project parent directory
+    mkdir -p $GROUP_VOL_CGI/results/$PROJECT/fastqc
+    chmod 770 $GROUP_VOL_CGI/results/$PROJECT/fastqc
+    PROJECT_RESULT_DIR=$GROUP_VOL_CGI/results/$PROJECT/fastqc
+
+    #create and set permissions for multisample analysis directory
+    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/fastqc/multisample
+    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/fastqc/multisample
+
+    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/fastqc/multisample/run
+    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/fastqc/multisample/run
+    MS_ANALYSIS_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/fastqc/multisample
+
+    #create and set permissions for multisample results directory
+    mkdir -p $GROUP_VOL_CGI/results/$PROJECT/fastqc/multisample
+    chmod 770 $GROUP_VOL_CGI/results/$PROJECT/fastqc/multisample
+    MS_RESULT_DIR=$GROUP_VOL_CGI/results/$PROJECT/fastqc/multisample
+
+    JOB_ID_LIST=$MS_ANALYSIS_DIR/job_id_list.txt
+    echo -n "" > $JOB_ID_LIST
+    chmod 660 $JOB_ID_LIST
+
+    #create summary directory on deployment server
+    SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/fastqc
+    ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
+    scp -r ${BASEDIR}/*png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+    ssh $DEPLOYMENT_SERVER "chmod -R 664 $SUMMARY_DEPLOYMENT/*png" > /dev/null 2>&1
+
+    #for each sample directory...
+    for SAMPLE in `ls --color=never $INPUT_PATH`
+    do
+
+	FASTQ_DIR=$INPUT_PATH/$SAMPLE
+
+	if [ -d $FASTQ_DIR ]; then
+
+		#count fastq files in directory		
+		FASTQ_COUNT=`ls --color=never $FASTQ_DIR/*.f*q* | wc -l`
+
+		if [ $FASTQ_COUNT -gt 0 ]; then
+
+			echo "`$NOW`processing directory $SAMPLE..."
+
+        		#...create output directory
+			mkdir -p $GROUP_VOL_CGI/results/$PROJECT/fastqc/$SAMPLE
+			chmod 770 $GROUP_VOL_CGI/results/$PROJECT/fastqc/$SAMPLE
+			OUT_RESULTS=$GROUP_VOL_CGI/results/$PROJECT/fastqc/$SAMPLE
+
+			mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/fastqc/$SAMPLE
+			chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/fastqc/$SAMPLE
+
+			mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/fastqc/$SAMPLE/run
+			chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/fastqc/$SAMPLE/run
+			OUT_SCRIPTS=$GROUP_VOL_CGI/analysis/$PROJECT/fastqc/$SAMPLE/run
+
+			echo "`$NOW`input directory: $FASTQ_DIR"
+			echo "`$NOW`QC report output directory: $OUT_RESULTS" 
+			echo "`$NOW`script and log output directory: $OUT_SCRIPTS"
+
+			DEPLOYMENT_PATH=$DEPLOYMENT_BASE_DIR/project/$PROJECT/fastqc/$SAMPLE
+			
+			#create, configure and submit job scripts
+	       		submitJob $FASTQ_DIR $PATTERN_READ_1 $PATTERN_READ_2 $OUT_RESULTS $OUT_SCRIPTS $DEPLOYMENT_SERVER $DEPLOYMENT_PATH $SUMMARY_DEPLOYMENT $JOB_ID_LIST
+      
+		else
+
+			echo "`$NOW`directory $SAMPLE does not contain any fastq files (.fq or .fastq file extension)"
+	
+		fi
+	fi
+
+    done
+
+
+    echo "`$NOW`creating and submitting job script for summary of results"
+    #create summary script from template
+    SUMMARY_PATH=$MS_ANALYSIS_DIR/run/summary.$PROJECT.pl
+    cp $BASEDIR/summary_fastqc.pl $SUMMARY_PATH
+    chmod 770 $SUMMARY_PATH
+
+    #configure summary script, it will be executed from fastqc script
+    sed -i -e "s/#pathReadsFastq/${INPUT_PATH//\//\\/}/" $SUMMARY_PATH
+    sed -i -e "s/#pathAnalysisDir/${PROJECT_ANALYSIS_DIR//\//\\/}/" $SUMMARY_PATH
+    sed -i -e "s/#pathReportsDir/${PROJECT_RESULT_DIR//\//\\/}/" $SUMMARY_PATH
+    sed -i -e "s/#pathMSReportsDir/${MS_RESULT_DIR//\//\\/}/" $SUMMARY_PATH
+    sed -i -e "s/#deploymentServer/$DEPLOYMENT_SERVER/" $SUMMARY_PATH
+    sed -i -e "s/#summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SUMMARY_PATH
+
+    #summary is on hold until fastqc runs are completed 
+    #collect fastqc job ids for dependency variable
+    SUMMARY_JOB_DEPENDENCY="afterany"
+    for JOB_ID in `grep 'cx1' $JOB_ID_LIST`
+    do
+
+        JOB_ID=`basename $JOB_ID .cx1b`
+	SUMMARY_JOB_DEPENDENCY="$SUMMARY_JOB_DEPENDENCY:$JOB_ID"
+
+    done
+
+    #submit job 
+    LOG_OUTPUT_PATH=`echo $SUMMARY_PATH | perl -pe 's/\.pl/\.log/g'`
+    JOB_ID=`qsub -q $QUEUE -W depend=$SUMMARY_JOB_DEPENDENCY -o $LOG_OUTPUT_PATH -j oe $SUMMARY_PATH`
+    echo "`$NOW`Job ID:$JOB_ID"
+
+else
+
+    echo "`$NOW`Error: Input path is not a directory."
+    exit 1
+
+fi
+

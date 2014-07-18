@@ -1,0 +1,112 @@
+#!/bin/bash
+
+# sets up directory structure and scripts for calling CNVs from target capture data using ExomeDepth
+# and submits jobs to queue
+
+BASEDIR=`dirname $0`
+PATH_PLACE_HOLDER=forwardSlash
+
+# now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+# script containing R functions
+R_FUNCTIONS=$BASEDIR/exomeDepth_target.R
+
+# by default, only the sample that is analysed is excluded from the reference set.
+# to exclude other samples (e.g. related individuals), use -e argument, providing a file with a list fo samples to exclude, one per line
+EXCLUDED_SAMPLES=none
+
+USAGE="USAGE: qcallCNVs -s <sample> -i <sample_bam_no_path> -l <all_samples_bam_list_file_path> -e <samples_to_exclude_file_path, [none]> -p <project> -c <exon_count_file_with_path>"
+ 
+#parse command line args
+while getopts "i:s:l:e:p:c:" option; do
+    case "$option" in
+	
+	i) SAMPLE_BAM="$OPTARG";;
+	s) SAMPLE="$OPTARG";;
+	l) ALL_SAMPLES="$OPTARG";;
+	e) EXCLUDED_SAMPLES="$OPTARG";;
+	p) PROJECT="$OPTARG";;
+	c) EXON_COUNTS_FILE="$OPTARG";;
+	[?]) echo "$USAGE";;
+
+esac
+done
+
+if [ -z $SAMPLE_BAM ] || \
+    [ -z $SAMPLE ] || \
+    [ -z $ALL_SAMPLES ] || \
+    [ -z $EXCLUDED_SAMPLES ] || \
+    [ -z $PROJECT ] || \
+    [ -z $EXON_COUNTS_FILE ]
+    then
+    echo $USAGE
+    exit 1
+fi
+
+# make folders 
+
+ANALYSIS_DIR=/ax3-cgi/analysis/$PROJECT/exomeDepth/$SAMPLE/$TODAY
+SCRIPT_DIR=$ANALYSIS_DIR/run
+RESULTS_DIR=/ax3-cgi/results/$PROJECT/exomeDepth/$SAMPLE/$TODAY
+
+echo "`$NOW`creating directory structure"
+mkdir -m 770 -p $ANALYSIS_DIR
+mkdir -m 770 -p $SCRIPT_DIR
+mkdir -m 770 -p $RESULTS_DIR
+
+# write R script for calling CNVs
+
+R_SCRIPT=$SCRIPT_DIR/${SAMPLE}_callCNVs.R
+
+echo "`$NOW`creating R script for $SAMPLE "
+
+echo "
+source('$R_FUNCTIONS')
+
+exon.counts.file <- '$EXON_COUNTS_FILE'
+test.sample <- '$SAMPLE_BAM'
+all.samples.file <- '$ALL_SAMPLES'
+excluded.samples.file <- '$EXCLUDED_SAMPLES'
+all.exons.output <- '$RESULTS_DIR/${SAMPLE}.all.exons.Rdata'
+cnv.calls.file <- '$RESULTS_DIR/${SAMPLE}.cnv.txt'
+
+call.cnvs(exon.counts.file = exon.counts.file,
+						test.sample = test.sample,
+						all.samples.file = all.samples.file,
+						excluded.samples.file = excluded.samples.file,
+						all.exons.output = all.exons.output,
+						cnv.calls.file = cnv.calls.file)
+
+" > $R_SCRIPT
+
+#create job script
+echo "`$NOW`creating and submitting job script for $SAMPLE "
+
+SCRIPT_PATH=$SCRIPT_DIR/${SAMPLE}.callCNVs.sh
+cp $BASEDIR/callCNVs.sh $SCRIPT_PATH
+
+#replace forward slashes in path with place holder as it
+#causes problems with Perl inline replacement
+#(will be converted back in the target script)
+R_SCRIPT=`echo $R_SCRIPT | perl -pe "s/\//$PATH_PLACE_HOLDER/g"`
+RESULTS_DIR=`echo $RESULTS_DIR | perl -pe "s/\//$PATH_PLACE_HOLDER/g"`
+SCRIPT_DIR=`echo $SCRIPT_DIR | perl -pe "s/\//$PATH_PLACE_HOLDER/g"`
+
+perl -i -pe "s/Rscript/$R_SCRIPT/" $SCRIPT_PATH
+perl -i -pe "s/resultsFolder/$RESULTS_DIR/" $SCRIPT_PATH
+perl -i -pe "s/scriptFolder/$SCRIPT_DIR/" $SCRIPT_PATH
+
+#convert path place holder back to forward shlash
+perl -i -pe "s/$PATH_PLACE_HOLDER/\//g" $SCRIPT_PATH
+
+#submit job 
+LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+echo "`$NOW`$SCRIPT_PATH"
+
+qsub -o $LOG_OUTPUT_PATH $SCRIPT_PATH
+
+echo "`$NOW`done"

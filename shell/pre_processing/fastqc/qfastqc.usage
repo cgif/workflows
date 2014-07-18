@@ -1,0 +1,25 @@
+
+USAGE
+
+	qfastq 	-i <fastq_directory or fastq_file>
+	       [-c]
+	       [-o <output_directory, default /groupvol/pgm/home/cgi/results/fastqc/>
+	       [-d]
+
+
+DESCRIPTION
+
+	-i	Absolute path to a single fastq file, 
+		to a directory containing a set of fastq
+		files or a CGI project directory containing
+		fastq file organised into sample sub-folders.
+
+	-c	The argument of the -i option points to 
+		a CGI project directory.
+
+	-o	Absolute path to output directory.
+
+	-d      Deploy report to CGI webserver (eliot.med.imperial.ac.uk).
+
+	-h	Display this help and exit.
+

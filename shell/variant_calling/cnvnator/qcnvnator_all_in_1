@@ -1,0 +1,83 @@
+#!/bin/bash
+
+# sets up directory structure and scripts for cnvnator and submits jobs to a queue
+# for step 1: extracting read mapping from bam/sam files
+
+BASEDIR=`dirname $0`
+PATH_PLACE_HOLDER=forwardSlash
+
+# now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+# default values
+FASTA_FOLDER=/ax3-cgi/src/reference/per_chromosome
+BIN_SIZE=100
+
+USAGE="USAGE: qcnvnator_all_in_1 -i <input_bam> -s <sample> -p <project> -r <folder_with_per_chromosome_fasta;[/ax3-cgi/src/reference/per_chromosome]> -b <bin_size;[100]>"
+ 
+#parse command line args
+while getopts "i:s:p:r:b:" option; do
+    case "$option" in
+	i) INPUT_BAM="$OPTARG";;
+	s) SAMPLE="$OPTARG";;
+	p) PROJECT="$OPTARG";;
+	r) FASTA_FOLDER="$OPTARG";;
+	b) BIN_SIZE="$OPTARG";;
+	[?]) echo "$USAGE";;
+esac
+done
+
+if [ -z $INPUT_BAM ] || \
+    [ -z $SAMPLE ] || \
+    [ -z $PROJECT ] || \
+    [ -z $FASTA_FOLDER ] || \
+    [ -z $BIN_SIZE ]
+    then
+    echo $USAGE
+    exit 1
+fi
+
+ANALYSIS_DIR=/ax3-cgi/analysis/${PROJECT}/cnvnator/${SAMPLE}/${TODAY}
+#RESULTS_DIR=/ax3-cgi/results/${PROJECT}/cnvnator/${SAMPLE}/${TODAY}
+RUN_DIR=$ANALYSIS_DIR/run
+
+# make folders 
+
+mkdir -p $ANALYSIS_DIR
+#mkdir -p $RESULTS_DIR
+mkdir -p $RUN_DIR
+mkdir -p $ANALYSIS_DIR
+
+#create job script
+echo "`$NOW`creating and submitting job script for cnvnator"
+
+#write script and submit the job
+SCRIPT_PATH=$RUN_DIR/${SAMPLE}_cnvnator.sh
+cp $BASEDIR/cnvnator_all_in_1.sh $SCRIPT_PATH
+
+#replace forward slashes in path with place holder as it
+#causes problems with Perl inline replacement
+#(will be converted back in the target script)
+INPUT_BAM=`echo $INPUT_BAM | perl -pe "s/\//$PATH_PLACE_HOLDER/g"`
+ANALYSIS_DIR=`echo $ANALYSIS_DIR | perl -pe "s/\//$PATH_PLACE_HOLDER/g"`
+FASTA_FOLDER=`echo $FASTA_FOLDER | perl -pe "s/\//$PATH_PLACE_HOLDER/g"`
+
+perl -i -pe "s/inputBam/$INPUT_BAM/" $SCRIPT_PATH
+perl -i -pe "s/analysisDir/$ANALYSIS_DIR/" $SCRIPT_PATH
+perl -i -pe "s/sample/$SAMPLE/" $SCRIPT_PATH
+perl -i -pe "s/fastaFolder/$FASTA_FOLDER/" $SCRIPT_PATH
+perl -i -pe "s/binSize/$BIN_SIZE/" $SCRIPT_PATH
+
+
+#    convert path place holder back to forward shlash
+perl -i -pe "s/$PATH_PLACE_HOLDER/\//g" $SCRIPT_PATH
+
+#    submit job and save job ID to dependency variable
+LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+echo "`$NOW`$SCRIPT_PATH"
+
+qsub -o $LOG_OUTPUT_PATH $SCRIPT_PATH
+

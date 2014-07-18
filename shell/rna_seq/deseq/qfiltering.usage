@@ -1,0 +1,45 @@
+USAGE
+
+	qDESeqfiltering -i <counts_data>
+               		-f <metadata>
+	       		-t <use_HTSeq_files_as_input>
+               		-n <project_name>
+	       		-o <results_subfolder>
+               		-d <dispersion_mode>
+         		-a <gff_file>
+           		-g <GO_terms_file>
+           		-c <gene_GC_content_file>
+           		-l <gene_length_file>
+           		-s <filtering_statistics>
+           		-u <filtering_cutoff>
+
+
+DESCRIPTION
+
+	-i	Same as in qDESeq
+
+	-f	Same as in qDESeq
+
+	-t	Same as in qDESeq
+
+	-n	Same as in qDESeq
+
+	-o	Same as in qDESeq
+
+	-d	Same as in qDESeq
+
+	-a 	Same as in qDESeq
+           		
+	-g 	Same as in qDESeq
+
+        -c 	Same as in qDESeq
+
+        -l 	Same as in qDESeq
+
+	-s 	Filtering statistics. Allowed values: 'max'(default), 
+		'min', 'mean' or 'sd'. 
+
+	-u 	Filtering cut-off. Default is 0.4. That means 40% of 
+		genes with the lowest mean (maximum, minimum or standard 
+		diviation) of counts for all samples will be filtered. 
+

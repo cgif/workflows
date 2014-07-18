@@ -1,0 +1,53 @@
+USAGE
+
+	qrins -i <reads_fastq_directory_path> 
+	      -t <read1_tag, default '_R1_'>
+              -p <read2_tag, default '_R2_'>
+	      -n <project_name>
+	      -a <actions_file, default /groupvol/cgi/src/pathogen/trunk/imsa/actions.txt>
+	      -w <bowtie_indexed_human_reference, default /ax3-cgi/resources/reference/eukaryote/human/hs37d5/bowtie_indexed/hs37d5>
+	      -o <blat_indexed_human_reference, default /ax3-cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.2bit>
+	      -O <ooc_file_for_human_reference, default /ax3-cgi/resources/reference/eukaryote/human/hs37d5/blat_indexed/hs37d5.11.ooc>
+	      -d <blast_indexed_human_reference, default /ax3-cgi/resources/reference/eukaryote/human/hs37d5/blast_indexed/hs37d5>
+	      -D <blast_indexed_nt_database, default /ax3-cgi/resources/reference/nt/nt.fa>
+	      -x <taxonomy_dmp_file, default /ax3-cgi/resources/taxonomy/gi_taxid_nucl.dmp>
+
+
+DESCRIPTION
+
+	-i	Absolute path to a a directory containing 
+                a set of fastq files or a CGI project directory
+                containing fastq files organised into sample 
+                sub-folders. The fastq files need to have the .fq.gz
+                or .fastq.gz extension.
+
+	-t	The tag of the fastq file containing read1
+		sequences, default is  _R1_.
+
+	-p	The tag of the fastq file containing read2
+		sequences, default is _R2_.
+
+	-n	Project name.
+
+	-a 	Absolute path to the actions file
+		default /groupvol/cgi/src/pathogen/trunk/imsa/actions.txt
+
+	-w 	Absolute path to the bowtie-indexed human reference
+		default /ax3-cgi/resources/reference/eukaryote/human/hs37d5/bowtie_indexed/hs37d5
+
+	-o 	Absolute path to the blat-indexed human reference
+		default /ax3-cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.2bit
+
+	-O 	Absolute path to the ooc file for human_reference
+		default /ax3-cgi/resources/reference/eukaryote/human/hs37d5/blat_indexed/hs37d5.11.ooc
+
+	-d 	Absolute path to the blast-indexed human reference
+		default /ax3-cgi/resources/reference/eukaryote/human/hs37d5/blast_indexed/hs37d5
+
+	-D 	Absolute path to the blast-indexed nt database
+		default /ax3-cgi/resources/reference/nt/nt.fa
+
+	-x 	Absolute path to the taxonomy dmp file
+		default /ax3-cgi/resources/taxonomy/gi_taxid_nucl.dmp
+
+	-h	Display help and exit.

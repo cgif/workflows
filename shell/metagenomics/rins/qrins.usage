@@ -1,0 +1,47 @@
+USAGE
+
+	qrins -i <reads_fastq_directory_path> 
+	      -t <read1_tag, default '_R1_'>
+              -p <read2_tag, default '_R2_'>
+	      -n <project_name>
+	      -v <viral_fasta_file, default /ax3-cgi/resources/reference/viral/virus.ICTV.fa>
+	      -V <blast_indexed_viral_reference, default /ax3-cgi/resources/reference/viral/virus.ICTV.fa>
+	      -o <bowtie_indexed_human_reference, default /ax3-cgi/resources/reference/eukaryote/human/hs37d5/bowtie_indexed/hs37d5>
+	      -O <blast_indexed_human_reference, default /ax3-cgi/resources/reference/eukaryote/human/hs37d5/blast_indexed/hs37d5>
+	      -l <expected_pair_dist, default 500>
+	      -r <read_length, default 100>
+
+DESCRIPTION
+
+	-i	Absolute path to a a directory containing 
+                a set of fastq files or a CGI project directory
+                containing fastq files organised into sample 
+                sub-folders. The fastq files need to have the .fq[.gz]
+                or .fastq[.gz] extension.
+
+	-t	The tag of the fastq file containing read1
+		sequences, default is  _R1_.
+
+	-p	The tag of the fastq file containing read2
+		sequences, default is _R2_.
+
+	-n	Project name.
+
+	-v	Absolute path to the fasta file of viral sequences
+		default /ax3-cgi/resources/reference/viral/virus.ICTV.fa
+
+	-V	Absolute path to the blast indexed fasta file of viral sequences
+		default /ax3-cgi/resources/reference/viral/virus.ICTV.fa
+
+	-o	Absolute path to the Bowtie indexed host fasta file
+		default /ax3-cgi/resources/reference/eukaryote/human/hs37d5/bowtie_indexed/hs37d5
+
+	-O	Absolute path to the blast indexed host fasta file
+		default /ax3-cgi/resources/reference/eukaryote/human/hs37d5/blast_indexed/hs37d5
+
+	-l	Maximum length expected between fragment pairs (default is 500).
+                Reads outside this distance are treated as single-end.
+
+	-r	Read length (default is 100).
+
+	-h	Display help and exit.

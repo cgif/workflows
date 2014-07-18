@@ -1,0 +1,47 @@
+USAGE
+
+	qannotatevcf -i  <input_directory> 
+          		[-c]
+	       		[-s] <sample_list_file>
+			[-p] <comma delimited list of additional annotation protocols, starting with comma, no spaces)
+			[-o] <comma delimited list of additional annotation operations, startig with comma, no spaces)
+			[-a] <comma delimited list of additional annotation arguments, startig with comma, no spaces)
+			[-m] <HGMD release, default 2013_4>
+			[-d] <ANNOVAR database download date, default 2014-03-06>
+			[-f] <configuration file>
+                          
+	
+DESCRIPTION
+
+	-i	Absolute path to a VCF file.
+
+	-c	The argument of the -i option points to 
+		a VCF file in a CGI gatk2 project directory.
+
+	-s  Path to a file containing a list of sample
+		names to include in the output file
+		
+		If not provided all samples in the VCF file
+		will be processed.
+
+	-p	comma delimited list of additional annotation
+		protocols, starting with comma, no spaces. 
+		See ANNOVAR manual for details.
+
+	-o	comma delimited list of additional annotation
+		operations, startig with comma, no spaces.
+		See ANNOVAR manual for details.
+
+	-a	comma delimited list of additional annotation
+		arguments, starting with comma, no spaces.
+		See ANNOVAR manual for details. The number must
+		match the number of additional protocols.
+
+	-m	HGMD release, default 2013_4
+
+	-d	ANNOVAR database download date, default 2014-03-06
+
+	-f	configuration file, default annovar.<db_download_date>.config
+		 
+    -h  Display help and exit.
+

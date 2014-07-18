@@ -1,0 +1,43 @@
+USAGE
+
+	qtophat2 -i <reads_fastq_directory_path> 
+   		 -n <project_name>
+           	[-r <reference_fasta_file, default /groupvol/cgi/resources/reference/eukaryote/human/GRCh37/bowtie2_indexed/GRCh37.fa>]
+		[-a <transcriptome_GFF_file, default /groupvol/cgi/resources/annotations/bowtie2_indexed/Homo_sapiens.GRCh37.74.gff>]
+           	[-t <read1_tag, default '_R1_'>]
+           	[-p <read2_tag, default '_R2_'>]
+           	[-m <report_multiple_alignments, default FALSE>]
+                [-d <realign_reads_with_edit_distance_above_0, default FALSE>]
+                
+	
+DESCRIPTION
+
+	-i	Absolute path to a a directory containing 
+                a set of fastq files or a CGI project directory
+                containing fastq files organised into sample 
+                sub-folders. The fastq files need to have the .fq[.gz]
+                or .fastq[.gz] extension.
+
+	-n	Project name.
+
+	-r	Absolute path to the Bowtie indexed reference
+		sequence fasta file,
+		default /groupvol/cgi/resources/reference/eukaryote/human/GRCh37/bowtie2_indexed/GRCh37.fa
+
+	-a	Absolute path to the Bowtie indexed 
+		GTF 2.2 or GFF3 file of known transcripts
+		default /groupvol/cgi/resources/annotations/bowtie2_indexed/Homo_sapiens.GRCh37.74.gff
+
+	-t	The tag of the fastq file containing read1
+		sequences, default is  _R1_.
+
+	-p	The tag of the fastq file containing read2
+		sequences, default is _R2_.
+
+	-m	Reports multiple primary alignments (up to 20) for a given query sequence. Default is FALSE.
+ 
+	-d	Map every read in all the mapping steps (transcriptome, genome, and splice variants detected by TopHat) unless alignment is perfect. 
+                Report the best possible alignment. By default TopHat will not try to realign reads already mapped in earlier steps with edit distance <= 2. 
+
+	-h	Display help and exit.
+

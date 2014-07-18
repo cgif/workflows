@@ -1,0 +1,37 @@
+
+USAGE
+
+	qbwape -i <reads_fastq_directory_path> 
+          [-c]
+           -r <reference_fasta_path, default /groupvol/cgi/resources/reference/eukaryote/human/hs37d5/bwa_indexed/hs37d5.fa.gz>
+           -t <read1_tag, default '_R1_'> 
+           -p <read2_tag, default '_R2_'> 
+           -m <keep multiple alignments>
+                
+	
+DESCRIPTION
+
+	-i	Absolute path to a a directory containing 
+                a set of fastq files or a CGI project directory
+                containing fastq files organised into sample 
+                sub-folders. The fastq files need to have the .fq[.gz]
+                or .fastq[.gz] extension.
+
+	-c	The argument of the -i option points to 
+		a CGI project directory.
+
+	-r	Absolute path to the BWA indexed reference
+                sequence fasta file,
+                default /groupvol/cgi/resources/reference/eukaryote/human/hs37d5/bwa_indexed/hs37d5.fa.gz.
+
+	-t	The tag of the fastq file containing read1
+		sequences, default is  _R1_.
+
+	-p	The tag of the fastq file containing read2
+		sequences, default is _R2_.
+
+	-m	Keeps multiple primary alignments for different parts of a query sequence. 
+		Shorter split hits are marked as secondary (BWA mem -M option) and can be removed with samtools.
+
+	-h	Display help and exit.
+

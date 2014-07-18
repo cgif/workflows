@@ -1,0 +1,254 @@
+#!/bin/bash
+
+# reruns GATK2 analysis on whole-run, sample or variant calling level
+# depending on the run directory path provided
+
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+
+GROUP_VOL_CGI=/groupvol/cgi
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+
+#path to text file containing usage information
+USAGE="$BASEDIR/qgatk2_rerun.usage"
+
+
+#parse command line args
+while getopts "p:d:1:2:3:" OPTION;
+do
+
+    case "$OPTION" in
+	p) PROJECT_TAG="$OPTARG";;
+	d) RUN_DATE="$OPTARG";;
+	1) SAMPLE_LIST_PRE="$OPTARG";;
+	2) VARIANT_CALLER="$OPTARG";;
+	3) SAMPLE_LIST_POST="$OPTARG";;
+	h) cat $USAGE;;
+	[?]) cat $USAGE;;
+
+esac
+done
+
+echo ""
+
+#check if all required arguments are present...
+if [[ -z $PROJECT_TAG ]]
+then
+        #...if not print usage and exit
+		echo "`$NOW`ERROR: required input argument project tag (-p) missing."
+        cat $USAGE
+        exit 1
+fi
+
+if [[ -z $RUN_DATE ]]
+then
+        #...if not print usage and exit
+		echo "`$NOW`ERROR: required input argument run date (-d) missing."
+        cat $USAGE
+        exit 1
+fi
+
+ANALYSIS_DIR_PATH="/groupvol/cgi/analysis/$PROJECT_TAG/gatk2/$RUN_DATE"
+
+#check if input directory exists
+if [[ ! -e $ANALYSIS_DIR_PATH ]]
+then
+        echo "`$NOW`ERROR: analysis directory does not exist: $ANALYSIS_DIR_PATH"
+        exit 1
+fi
+
+#check if samples have been specified and if so in which format
+SAMPLES_PRE=""
+if [[ -z $SAMPLE_LIST_PRE ]]
+then
+
+		#do nothing
+		echo -n ""
+		
+
+elif [[ $SAMPLE_LIST_PRE == "ALL" ]]
+then
+
+		echo -n "`$NOW`Re-running pre-processing of all samples."
+        for SAMPLE in `ls $ANALYSIS_DIR_PATH | grep -v multisample`
+        do 
+        	SAMPLES_PRE="$SAMPLES_PRE $SAMPLE"
+        done
+		
+		echo ""
+
+elif [[ -f $SAMPLE_LIST_PRE ]]
+then
+
+		echo "`$NOW`Re-running pre-processing of samples in file $SAMPLE_LIST_PRE."
+        for SAMPLE in `cat $SAMPLE_LIST_PRE`
+        do
+        	SAMPLES_PRE="$SAMPLES_PRE $SAMPLE"
+        done 
+
+else 
+
+		echo "`$NOW`Re-running pre-processing of samples $SAMPLE_LIST_PRE."
+		for SAMPLE in `echo $SAMPLE_LIST_PRE | perl -pe 's/,/ /g'`
+        do
+        	SAMPLES_PRE="$SAMPLES_PRE $SAMPLE"
+        done 
+
+fi
+
+#variant caller
+CALLERS=""
+if [[ -z $VARIANT_CALLER ]]
+then
+
+	#do nothing
+	echo -n ""
+	
+elif [[ $VARIANT_CALLER == "U" ]]
+then
+
+	echo "`$NOW`Re-running UnifiedGenotyper."
+	CALLERS="unifiedgenotyper"
+
+elif [[ $VARIANT_CALLER == "H" ]]
+then
+
+	echo "`$NOW`Re-running HaplotypeCaller."
+	CALLERS="haplotypecaller"
+
+elif [[ $VARIANT_CALLER == "UH" ]] ||
+     [[ $VARIANT_CALLER == "HU" ]]
+then
+	
+	echo "`$NOW`Re-running UnifiedGenotyper & HaplotypeCaller."
+	CALLERS="unifiedgenotyper haplotypecaller"
+
+
+else
+
+	echo "`$NOW`Invalid argument for variant calling option (-2): $VARIANT_CALLER"
+	cat $USAGE
+	exit 1
+
+fi
+
+
+SAMPLES_POST=""
+if [[ -z $SAMPLE_LIST_POST ]]
+then
+
+		#do nothing
+		echo -n ""
+		
+
+elif [[ $SAMPLE_LIST_POST == "ALL" ]]
+then
+
+		echo -n "`$NOW`Re-running post-processing of all samples."
+        for SAMPLE in `ls $ANALYSIS_DIR_PATH | grep -v multisample`
+        do 
+        	SAMPLES_POST="$SAMPLES_POST $SAMPLE"
+        done
+		
+		echo ""
+
+elif [[ -f $SAMPLE_LIST_POST ]]
+then
+
+		echo "`$NOW`Re-running post-processing of samples in file $SAMPLE_LIST_POST."
+        for SAMPLE in `cat $SAMPLE_LIST_POST`
+        do
+        	SAMPLES_POST="$SAMPLES_POST $SAMPLE"
+        done 
+
+else 
+
+		echo "`$NOW`Re-running post-processing of samples $SAMPLE_LIST_POST."
+		for SAMPLE in `echo $SAMPLE_LIST_POST | perl -pe 's/,/ /g'`
+        do
+        	SAMPLES_POST="$SAMPLES_POST $SAMPLE"
+        done 
+
+fi
+
+
+echo "`$NOW`"
+
+#re-initialise job dependency files
+#if [[ -f $ANALYSIS_DIR_PATH/multisample/run/*.dependencies.txt ]]
+#then
+	for FILE in `ls $ANALYSIS_DIR_PATH/multisample/run/ | grep '.dependencies.txt'`
+	do
+		echo -n "" > $FILE
+	done;
+#fi
+
+#submit pre-processing jobs
+if [[ ! -z $SAMPLE_LIST_PRE ]]
+then
+
+	echo "`$NOW`submitting pre-processing jobs..."
+
+	for SAMPLE in $SAMPLES_PRE
+	do
+		$ANALYSIS_DIR_PATH/$SAMPLE/run/rerun.sh pre
+	done;
+
+fi
+
+#submit variant calling jobs
+if [[ ! -z $VARIANT_CALLER ]]
+then
+
+	echo "`$NOW`submitting variant calling jobs..."
+	for CALLER in $CALLERS
+	do
+
+		if [[ ! -z $SAMPLE_LIST_PRE ]]
+		then
+			
+			#rerun variant calling with pre-processing job dependencies
+			$ANALYSIS_DIR_PATH/multisample/run/rerun.$CALLER.sh TRUE
+		
+		else
+		
+			#rerun variant calling without job dependencies
+			$ANALYSIS_DIR_PATH/multisample/run/rerun.$CALLER.sh FALSE
+		fi
+
+	done;
+
+fi
+
+#submit post-processing jobs
+if [[ ! -z $SAMPLE_LIST_POST ]]
+then
+
+	echo "`$NOW`submitting post-processing jobs..."
+
+	for SAMPLE in $SAMPLES_POST
+	do
+	
+		if [[ ! -z $SAMPLE_LIST_PRE ]]
+		then
+			
+			#rerun variant calling with post-processing job dependencies
+			$ANALYSIS_DIR_PATH/$SAMPLE/run/rerun.sh post TRUE
+		
+		else
+		
+			#rerun variant calling without post-processing job dependencies
+			$ANALYSIS_DIR_PATH/$SAMPLE/run/rerun.sh post FALSE
+			
+		fi
+	
+	
+	done;
+
+fi
+
+
+
+

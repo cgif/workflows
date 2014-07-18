@@ -1,0 +1,34 @@
+
+USAGE
+
+    qgatk2_rerun -p <project_tag>
+                 -d <analysis_date>
+                [-1 <sample_name_1,[sample_name_2,...] | sample_list_file_path | ALL> ]
+                [-2 <variant_calling_algorithm, [U,H,UH,HU], default U>]
+                [-3 <sample_name_1,[sample_name_2,...] | sample_list_file_path | ALL> ]
+
+DESCRIPTION
+
+    -p  The projec tag.
+
+    -d  The analysis date.
+    
+    -1  Re-run sample pre-processing (realignment, recalibration, read
+        reduction) for all or a subset of samples.
+        Comma separated list of sample names (without whitespace),
+        path to file with a list of sample names (one per row) or "ALL"
+        to re-run pre-processing for all samples.
+		
+    -2  Re-run variant calling:
+        U = UnifiedGenotyper
+        H = HaplotypeCaller
+        UH or HU = UnifiedGenotyper AND HaplotyperCaller
+
+    -3  Re-run sample post-processing (BAM merging, recalibration reports,
+        coverage metrics) for all or a subset of samples.
+        Comma separated list of sample names (without whitespace),
+        path to file with a list of sample names (one per row) or "ALL"
+        to re-run pre-processing for all samples.
+
+    -h  Display help and exit.
+    

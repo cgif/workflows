@@ -1,0 +1,206 @@
+#!/bin/bash
+
+#
+# sets up directory structure and generates, configures and submits 
+# scripts to run cutadapt algorithm for removing adapters and low quality ends 
+#
+
+#CONFIGURATION
+##############
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+GROUP_VOL_CGI=/groupvol/cgi
+
+QUEUE=pqcgi
+WALLTIME_HOURS_PER_RUN=30
+
+
+#CUTADAPT
+#########
+
+ADAPTER5='AATGATACGGCGACCACCGAGATCTACACTCTTTCCCTACACGACGCTCTTCCGATCT'
+ADAPTER3='GATCGGAAGAGCACACGTCTGAACTCCAGTCAC'
+OVERLAP=15
+CUTOFF=20
+
+
+#COMMAND LINE ARGS
+##################
+
+USAGE="USAGE: qcutadapt -i <path_to_fastq_directory> -a <3'_adapter_sequence [TruSeq Indexed Adapter]> -g <5'_adapter_sequence [TruSeq Universal Adapter]> -O <min_overlap_between_the_read_and_the_adapter [15]> -q <cutoff_for_trimming_low_quality_ends [20]>"
+
+#parse command line args
+while getopts "i:a:g:O:q:h" option; do
+    case "$option" in
+
+	i) INPUT_PATH="$OPTARG";;
+        a) ADAPTER3="$OPTARG";;
+        g) ADAPTER5="$OPTARG";;
+        O) OVERLAP="$OPTARG";;
+        q) CUTOFF="$OPTARG";;
+        h) echo "$USAGE"; exit 1;;
+	[?]) echo "$USAGE"; exit 1;;
+
+esac
+done
+
+#check if required arguments are missing
+if [ -z $INPUT_PATH ] 
+    then
+    echo $USAGE
+    exit 1
+fi
+
+#FUNCTIONS
+##########
+
+#creates job scripts
+function submitJobs {
+
+        FASTQ_DIR=$1
+        PATH_RUN_DIR=$2
+        PATH_OUT_DIR=$3
+        ADAPTER5=$4
+        ADAPTER3=$5
+        OVERLAP=$6
+	CUTOFF=$7
+
+	PATH_SCRIPT_DIR=$PATH_RUN_DIR/run  
+	mkdir -p $PATH_SCRIPT_DIR
+	chmod 770 $PATH_SCRIPT_DIR
+
+	PATH_RESULTS_DIR=$PATH_OUT_DIR
+	mkdir -p $PATH_RESULTS_DIR
+	chmod 770 $PATH_RESULTS_DIR
+
+	SETUP_LOG=$PATH_SCRIPT_DIR/setup.log
+
+	echo -n "" > $SETUP_LOG
+	echo "`$NOW`setting up cutadapt run(s)... "
+	echo "`$NOW`(see $SETUP_LOG for details)"
+
+	echo "`$NOW`setting up cutadapt run(s)... " >> $SETUP_LOG
+        echo "`$NOW`fastq read directory: $FASTQ_DIR" >> $SETUP_LOG
+        echo "`$NOW`trimmed fastq output directory: $PATH_RESULTS_DIR" >> $SETUP_LOG
+        echo "`$NOW`script directory: $PATH_SCRIPT_DIR" >> $SETUP_LOG
+        echo "`$NOW`creating and submitting job scripts:" >> $SETUP_LOG
+
+        #for each fastq file (fastq files have to be gzipped and 
+        #have to have a fq.gz or fastq.gz extension
+        for FASTQ in `ls --color=never $FASTQ_DIR/*.f*q*`
+        do 
+    
+            FASTQ_BASENAME=`basename $FASTQ .gz`
+            SCRIPT_PATH=$PATH_SCRIPT_DIR/cutadapt.$FASTQ_BASENAME.sh
+            cp $BASEDIR/cutadapt.sh $SCRIPT_PATH
+	    chmod 770 $SCRIPT_PATH
+
+            PATH_READS_FASTQ=$PATH_READS_DIRECTORY/$FASTQ
+
+            #set variables
+            sed -i -e "s/walltimeHours/$WALLTIME_HOURS_PER_RUN/" $SCRIPT_PATH  
+            sed -i -e "s/pathReadsFastq/${PATH_READS_FASTQ//\//\\/}/" $SCRIPT_PATH
+            sed -i -e "s/pathTrimmedDir/${PATH_RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
+            sed -i -e "s/adapter5/$ADAPTER5/" $SCRIPT_PATH  
+            sed -i -e "s/adapter3/$ADAPTER3/" $SCRIPT_PATH  
+            sed -i -e "s/overlap/$OVERLAP/" $SCRIPT_PATH  
+            sed -i -e "s/cutoff/$CUTOFF/" $SCRIPT_PATH  
+
+            #submit job 
+            LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+            echo "`$NOW`$SCRIPT_PATH" >> $SETUP_LOG
+            qsub -q $QUEUE -o $LOG_OUTPUT_PATH $SCRIPT_PATH
+ 
+        done;
+
+        echo "`$NOW`done" >> $SETUP_LOG
+}
+
+#if the input path is a directory...
+if [ -d $INPUT_PATH ] ; then
+
+    PROJECT=`basename $INPUT_PATH`
+
+    #create and set permissions for analysis project parent directory
+    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT
+    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT
+
+    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/cutadapt
+    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/cutadapt
+
+    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/cutadapt/$TODAY
+    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/cutadapt/$TODAY
+
+    #create and set permissions for results project parent directory
+    mkdir -p $GROUP_VOL_CGI/results/$PROJECT
+    chmod 770 $GROUP_VOL_CGI/results/$PROJECT
+
+    mkdir -p $GROUP_VOL_CGI/results/$PROJECT/cutadapt
+    chmod 770 $GROUP_VOL_CGI/results/$PROJECT/cutadapt
+
+    mkdir -p $GROUP_VOL_CGI/results/$PROJECT/cutadapt/$TODAY
+    chmod 770 $GROUP_VOL_CGI/results/$PROJECT/cutadapt/$TODAY
+
+    #for each sample directory...
+    for SAMPLE in `ls --color=never $INPUT_PATH`
+    do
+
+	FASTQ_DIR=$INPUT_PATH/$SAMPLE
+
+	if [ -d $FASTQ_DIR ]; then
+
+		#count fastq files in directory		
+		FASTQ_COUNT=`ls --color=never $FASTQ_DIR/*.f*q* | wc -l`
+
+		if [ $FASTQ_COUNT -gt 0 ]; then
+
+			echo "`$NOW`processing directory $SAMPLE..."
+
+			#create and set permissions for analysis sample parent directory
+			mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/cutadapt/$TODAY/$SAMPLE
+			chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/cutadapt/$TODAY/$SAMPLE
+
+ 			#create and set permissions for results sample parent directory
+   			mkdir -p $GROUP_VOL_CGI/results/$PROJECT/cutadapt/$TODAY/$SAMPLE
+    			chmod 770 $GROUP_VOL_CGI/results/$PROJECT/cutadapt/$TODAY/$SAMPLE
+
+        		#...create output directory
+			PATH_RUN_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/cutadapt/$TODAY/$SAMPLE
+			PATH_OUT_DIR=$GROUP_VOL_CGI/results/$PROJECT/cutadapt/$TODAY/$SAMPLE      
+	
+			#create, configure and submit job scripts
+			submitJobs $FASTQ_DIR \
+                                   $PATH_RUN_DIR \
+                                   $PATH_OUT_DIR \
+                                   $ADAPTER5 \
+                                   $ADAPTER3 \
+                                   $OVERLAP \
+				   $CUTOFF 
+                                  
+		else
+
+			echo "`$NOW`directory $SAMPLE does not contain any fastq files (.fq or .fastq file extension)"	
+
+		fi
+
+	fi
+
+    done;
+
+else
+
+    echo "`$NOW`Error: Input path is not a directory."
+    exit 1
+
+fi
+
+
+
+
+

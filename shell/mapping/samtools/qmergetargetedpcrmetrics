@@ -1,0 +1,67 @@
+#!/bin/bash
+
+#
+# creates and submits script to merge output
+# of Picard Targeted PCR Metrics on project
+# level
+#
+
+#CONFIGURATION
+##############
+
+GROUPVOL_CGI=/groupvol/cgi
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+
+USAGE="$BASEDIR/qmergetargetedpcrmetrics.usage"
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+QUEUE=pqcgi
+
+#parse command line args
+while getopts "i:d:a:" option; do
+    case "$option" in
+	
+	i) MERGETAG_PROJECT_DIRECTORY="$OPTARG";;
+	d) MERGETAG_DATE="$OPTARG";;
+	a) CUSTOM_AMPLICON_SET="$OPTARG";;
+	h) cat $USAGE;;
+	[?]) cat $USAGE;;
+
+esac
+done
+
+# check for presence of required
+# input parameters
+if [ -z $MERGETAG_PROJECT_DIRECTORY ] || \
+   [ -z $MERGETAG_DATE ]
+   then
+   echo "Error: Required input argument missing."
+   cat $USAGE
+   exit 1
+fi
+
+echo "`${NOW}`merging targeted PCR metrics for samples in $MERGETAG_PROJECT_DIRECTORY..."
+echo "`${NOW}`merging date: $MERGETAG_DATE"
+echo "`${NOW}`custom amplicon set: $CUSTOM_AMPLICON_SET"
+
+PATH_RUN_DIR=$PWD
+SCRIPT_PATH=$PATH_RUN_DIR/mergePicardTargetPcrMetrics.sh
+cp $BASEDIR/mergePicardTargetPcrMetrics.sh $SCRIPT_PATH
+
+CUSTOM_AMPLICON_SET=`basename $CUSTOM_AMPLICON_SET`
+
+#configure job script
+sed -i -e "s/mergeTagProjectDirectory/${PATH_OUT_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/mergeTagDate/$TODAY/" $SCRIPT_PATH
+sed -i -e "s/customAmpliconSet/$CUSTOM_AMPLICON_SET/" $SCRIPT_PATH
+	
+LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
+
+echo "`${NOW}`submitting job script to merge targeted PCR metrics: $SCRIPT_PATH "
+qsub -q $QUEUE -o $LOG_OUTPUT_PATH $SCRIPT_PATH
+

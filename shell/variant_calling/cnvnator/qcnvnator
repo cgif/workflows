@@ -1,0 +1,206 @@
+#!/bin/bash
+
+# sets up directory structure and scripts for cnvnator and submits jobs to a queue
+# for step 1: extracting read mapping from bam/sam files
+
+BASEDIR=`dirname $0`
+PATH_PLACE_HOLDER=forwardSlash
+
+# now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+# default values
+FASTA_FOLDER=/ax3-cgi/src/reference/per_chromosome
+BIN_SIZE=100
+
+USAGE="USAGE: qcnvnator -i <input_bam> -s <sample> -p <project> -r <folder_with_per_chromosome_fasta;[/ax3-cgi/src/reference/per_chromosome]> -b <bin_size;[100]>"
+ 
+#parse command line args
+while getopts "i:s:p:r:b:" option; do
+    case "$option" in
+	i) INPUT_BAM="$OPTARG";;
+	s) SAMPLE="$OPTARG";;
+	p) PROJECT="$OPTARG";;
+	r) FASTA_FOLDER="$OPTARG";;
+	b) BIN_SIZE="$OPTARG";;
+	[?]) echo "$USAGE";;
+esac
+done
+
+if [ -z $INPUT_BAM ] || \
+    [ -z $SAMPLE ] || \
+    [ -z $PROJECT ] || \
+    [ -z $FASTA_FOLDER ] || \
+    [ -z $BIN_SIZE ]
+    then
+    echo $USAGE
+    exit 1
+fi
+
+ANALYSIS_DIR=/ax3-cgi/analysis/${PROJECT}/cnvnator/${SAMPLE}/${TODAY}
+#RESULTS_DIR=/ax3-cgi/results/${PROJECT}/cnvnator/${SAMPLE}/${TODAY}
+RUN_DIR=$ANALYSIS_DIR/run
+
+# make folders 
+
+mkdir -p $ANALYSIS_DIR
+#mkdir -p $RESULTS_DIR
+mkdir -p $RUN_DIR
+mkdir -p $ANALYSIS_DIR/per_chromosome
+
+
+#create job script
+echo "`$NOW`creating and submitting job script for cnvnator extracting reads from bam"
+
+######### script 1: to extract read mapping from bam files per chromosome
+
+#variable to store job dependencies
+MERGE_DEPENDENCIES_1=afterok
+
+#variable to store realigned bam files to be passed for CountCovariates
+EXTRACTED_READ_FILES=""
+ROOT_FILES=""
+
+for CHR in `seq 1 22`; do
+
+    #write script for extracting read mapping for each aut
+    SCRIPT_PATH=$RUN_DIR/${SAMPLE}_chr${CHR}_cnvnator_step1.sh
+    cp $BASEDIR/cnvnator_step1.sh $SCRIPT_PATH
+
+    #replace forward slashes in path with place holder as it
+    #causes problems with Perl inline replacement
+    #(will be converted back in the target script)
+    INPUT_BAM=`echo $INPUT_BAM | perl -pe "s/\//$PATH_PLACE_HOLDER/g"`
+    ANALYSIS_DIR=`echo $ANALYSIS_DIR | perl -pe "s/\//$PATH_PLACE_HOLDER/g"`
+
+    perl -i -pe "s/inputBam/$INPUT_BAM/" $SCRIPT_PATH
+    perl -i -pe "s/analysisDir/$ANALYSIS_DIR/" $SCRIPT_PATH
+    perl -i -pe "s/sample/$SAMPLE/" $SCRIPT_PATH
+    perl -i -pe "s/chromosomeName/$CHR/" $SCRIPT_PATH
+
+#    convert path place holder back to forward shlash
+    perl -i -pe "s/$PATH_PLACE_HOLDER/\//g" $SCRIPT_PATH
+
+#    submit job and save job ID to dependency variable
+    LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+    echo "`$NOW`$SCRIPT_PATH"
+
+#	qsub -o $LOG_OUTPUT_PATH $SCRIPT_PATH
+
+    MERGE_DEPENDENCIES_1=$MERGE_DEPENDENCIES_1:`qsub -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+
+#    REALIGNED_BAM_FILES="$REALIGNED_BAM_FILES ${ANALYSIS_DIR}forwardSlashper_chromosomeforwardSlash${SAMPLE}.${FRAGMENT}.realigned.bam"
+
+	ROOT_FILES="$ROOT_FILES ${ANALYSIS_DIR}forwardSlashper_chromosomeforwardSlash${SAMPLE}.chr${CHR}.root"
+
+done
+
+#echo "root files $ROOT_FILES"
+########## sript 2: merge root files and generate histogram
+
+DEPENDENCY_2=afterok
+
+echo "`$NOW`creating and submitting job script for cnvnator merging root, creating histogram and calculating statistics"
+
+SCRIPT_PATH=$RUN_DIR/${SAMPLE}_cnvnator_step2.sh
+cp $BASEDIR/cnvnator_step2.sh $SCRIPT_PATH
+
+# replace forward slashes in path with place holder as it
+# causes problems with Perl inline replacement
+# (will be converted back in the target script)
+
+FASTA_FOLDER=`echo $FASTA_FOLDER | perl -pe "s/\//$PATH_PLACE_HOLDER/g"`
+#ANALYSIS_DIR=`echo $ANALYSIS_DIR | perl -pe "s/\//$PATH_PLACE_HOLDER/g"`
+
+perl -i -pe "s/fastaFolder/$FASTA_FOLDER/" $SCRIPT_PATH
+perl -i -pe "s/analysisDir/$ANALYSIS_DIR/" $SCRIPT_PATH
+perl -i -pe "s/sample/$SAMPLE/" $SCRIPT_PATH
+perl -i -pe "s/rootFiles/$ROOT_FILES/" $SCRIPT_PATH
+perl -i -pe "s/binSize/$BIN_SIZE/" $SCRIPT_PATH
+
+# convert path place holder back to forward shlash
+perl -i -pe "s/$PATH_PLACE_HOLDER/\//g" $SCRIPT_PATH
+
+#    submit job and save job ID to dependency variable
+LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+echo "`$NOW`$SCRIPT_PATH"
+
+DEPENDENCY_2=$DEPENDENCY_2:`qsub -o $LOG_OUTPUT_PATH -W depend=$MERGE_DEPENDENCIES_1 $SCRIPT_PATH`
+
+########## script 3: run base quality recalibration for each chr
+
+#variable to store job dependencies
+#MERGE_DEPENDENCIES_3=afterok
+
+#echo "`$NOW`creating and submitting job scripts for GATK base quality recalibration"
+#variable to store recalibrated bam files
+#RECALIBRATED_BAM_FILES=""
+
+#for FRAGMENT_FILE in `find $RUN_DIR -name "chr*intervals"`; do
+#	FRAGMENT=`basename $FRAGMENT_FILE .intervals`
+#    if [[ $FRAGMENT == 'chr_22' ]]; then  FRAGMENT=${FRAGMENT}AndUnmapped; fi
+
+    #write script for base quality recalibration for each chromosome
+#    SCRIPT_PATH=$RUN_DIR/${SAMPLE}_${FRAGMENT}_recalibrateBam.sh
+#    cp /ax3-cgi/src/variant_calling/genome/recalibrateBam_genome.sh $SCRIPT_PATH
+
+    #replace forward slashes in path with place holder as it
+    #causes problems with Perl inline replacement
+    #(will be converted back in the target script)
+#    REFERENCE_FASTA=`echo $REFERENCE_FASTA | perl -pe "s/\//$PATH_PLACE_HOLDER/g"`
+#    ANALYSIS_DIR=`echo $ANALYSIS_DIR | perl -pe "s/\//$PATH_PLACE_HOLDER/g"`
+
+#    perl -i -pe "s/referenceFasta/$REFERENCE_FASTA/" $SCRIPT_PATH
+#    perl -i -pe "s/analysisDir/$ANALYSIS_DIR/" $SCRIPT_PATH
+#    perl -i -pe "s/fragmentName/$FRAGMENT/" $SCRIPT_PATH
+#    perl -i -pe "s/sample/$SAMPLE/" $SCRIPT_PATH
+
+    #convert path place holder back to forward shlash
+#    perl -i -pe "s/$PATH_PLACE_HOLDER/\//g" $SCRIPT_PATH
+
+    #submit job and save job ID to dependency variable
+#    LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+#    echo "`$NOW`$SCRIPT_PATH"
+
+#    MERGE_DEPENDENCIES_3=$MERGE_DEPENDENCIES_3:`qsub -o $LOG_OUTPUT_PATH -W depend=$DEPENDENCY_2 $SCRIPT_PATH`
+
+#    RECALIBRATED_BAM_FILES="$RECALIBRATED_BAM_FILES ${ANALYSIS_DIR}forwardSlashper_chromosomeforwardSlash${SAMPLE}.${FRAGMENT}.recalibrated.bam"
+
+#done
+
+######### script 4: merge all recalibrated bams into one, count covariates on recalibrated bam, analyse covariates pre and post-calibration, calculate depth of coverage for the region of interest and copy results to the results directory
+
+#echo "`$NOW`creating and submitting job script merging and evalutation recalibrated bam files"
+#SCRIPT_PATH=$RUN_DIR/${SAMPLE}_mergeRecalibratedBam.sh
+#cp /ax3-cgi/src/variant_calling/genome/mergeRecalibratedBam_genome.sh $SCRIPT_PATH
+
+# replace forward slashes in path with place holder as it
+# causes problems with Perl inline replacement
+# (will be converted back in the target script)
+#REFERENCE_FASTA=`echo $REFERENCE_FASTA | perl -pe "s/\//$PATH_PLACE_HOLDER/g"`
+#ANALYSIS_DIR=`echo $ANALYSIS_DIR | perl -pe "s/\//$PATH_PLACE_HOLDER/g"`
+#COVARIATES_PLOTS_PATH=`echo $COVARIATES_PLOTS_PATH | perl -pe "s/\//$PATH_PLACE_HOLDER/g"`
+#COVARIATES_PLOTS_RECALIBRATED_PATH=`echo $COVARIATES_PLOTS_RECALIBRATED_PATH | perl -pe "s/\//$PATH_PLACE_HOLDER/g"`
+#RESULTS_DIR=`echo $RESULTS_DIR | perl -pe "s/\//$PATH_PLACE_HOLDER/g"`
+
+#perl -i -pe "s/referenceFasta/$REFERENCE_FASTA/" $SCRIPT_PATH
+#perl -i -pe "s/analysisDir/$ANALYSIS_DIR/" $SCRIPT_PATH
+#perl -i -pe "s/sample/$SAMPLE/" $SCRIPT_PATH
+#perl -i -pe "s/recalibratedBamFiles/$RECALIBRATED_BAM_FILES/" $SCRIPT_PATH
+#perl -i -pe "s/covariatesPlotsPath/$COVARIATES_PLOTS_PATH/" $SCRIPT_PATH
+#perl -i -pe "s/covariatesPlotsRecalibratedPath/$COVARIATES_PLOTS_RECALIBRATED_PATH/" $SCRIPT_PATH
+#perl -i -pe "s/resultsDir/$RESULTS_DIR/" $SCRIPT_PATH
+
+# convert path place holder back to forward shlash
+#perl -i -pe "s/$PATH_PLACE_HOLDER/\//g" $SCRIPT_PATH
+
+#    submit job and save job ID to dependency variable
+#LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+#echo "`$NOW`$SCRIPT_PATH"
+
+#qsub -o $LOG_OUTPUT_PATH -W depend=$MERGE_DEPENDENCIES_3 $SCRIPT_PATH
+
+#echo "`$NOW`done"

@@ -1,0 +1,45 @@
+<P>
+BAIT_SET: The name of the bait set used in the hybrid selection.<BR>
+GENOME_SIZE: The number of bases in the reference genome used for alignment.<BR>
+BAIT_TERRITORY: The number of bases which have one or more baits on top of them.<BR>
+TARGET_TERRITORY: The unique number of target bases in the experiment where target is usually exons etc.<BR>
+BAIT_DESIGN_EFFICIENCY: Target terrirtoy / bait territory. 1 == perfectly efficient, 0.5 = half of baited bases are not target.<BR>
+TOTAL_READS: The total number of reads in the SAM or BAM file examine.<BR>
+PF_READS: The number of reads that pass the vendor's filter.<BR>
+PF_UNIQUE_READS: The number of PF reads that are not marked as duplicates.<BR>
+PCT_PF_READS: PF reads / total reads. The percent of reads passing filter.<BR>
+PCT_PF_UQ_READS: PF Unique Reads / Total Reads.<BR>
+PF_UQ_READS_ALIGNED: The number of PF unique reads that are aligned with mapping score > 0 to the reference genome.<BR>
+PCT_PF_UQ_READS_ALIGNED: PF Reads Aligned / PF Reads.<BR>
+PF_UQ_BASES_ALIGNED: The number of bases in the PF aligned reads that are mapped to a reference base. Accounts for clipping and gaps.<BR>
+ON_BAIT_BASES: The number of PF aligned bases that mapped to a baited region of the genome.<BR>
+NEAR_BAIT_BASES: The number of PF aligned bases that mapped to within a fixed interval of a baited region, but not on a baited region.<BR>
+OFF_BAIT_BASES: The number of PF aligned bases that mapped to neither on or near a bait.<BR>
+ON_TARGET_BASES: The number of PF aligned bases that mapped to a targeted region of the genome.<BR>
+PCT_SELECTED_BASES: On+Near Bait Bases / PF Bases Aligned.<BR>
+PCT_OFF_BAIT: The percentage of aligned PF bases that mapped neither on or near a bait.<BR>
+ON_BAIT_VS_SELECTED: The percentage of on+near bait bases that are on as opposed to near.<BR>
+MEAN_BAIT_COVERAGE: The mean coverage of all baits in the experiment.<BR>
+MEAN_TARGET_COVERAGE: The mean coverage of targets that received at least coverage depth = 2 at one base.<BR>
+PCT_USABLE_BASES_ON_BAIT: The number of aligned, de-duped, on-bait bases out of the PF bases available.<BR>
+PCT_USABLE_BASES_ON_TARGET: The number of aligned, de-duped, on-target bases out of the PF bases available.<BR>
+FOLD_ENRICHMENT: The fold by which the baited region has been amplified above genomic background.<BR>
+ZERO_CVG_TARGETS_PCT: The number of targets that did not reach coverage=2 over any base.<BR>
+FOLD_80_BASE_PENALTY: The fold over-coverage necessary to raise 80% of bases in "non-zero-cvg" targets to the mean coverage level in those targets.<BR>
+PCT_TARGET_BASES_2X: The percentage of ALL target bases achieving 2X or greater coverage.<BR>
+PCT_TARGET_BASES_10X: The percentage of ALL target bases achieving 10X or greater coverage.<BR>
+PCT_TARGET_BASES_20X: The percentage of ALL target bases achieving 20X or greater coverage.<BR>
+PCT_TARGET_BASES_30X: The percentage of ALL target bases achieving 30X or greater coverage.<BR>
+PCT_TARGET_BASES_40X: The percentage of ALL target bases achieving 40X or greater coverage.<BR>
+PCT_TARGET_BASES_50X: The percentage of ALL target bases achieving 50X or greater coverage.<BR>
+PCT_TARGET_BASES_100X: The percentage of ALL target bases achieving 100X or greater coverage.<BR>
+HS_LIBRARY_SIZE: The estimated number of unique molecules in the selected part of the library.<BR>
+HS_PENALTY_10X: The "hybrid selection penalty" incurred to get 80% of target bases to 10X. This metric should be interpreted as: if I have a design with 10 megabases of target, and want to get 10X coverage I need to sequence until PF_ALIGNED_BASES = 10^7 * 10 * HS_PENALTY_10X.<BR>
+HS_PENALTY_20X: The "hybrid selection penalty" incurred to get 80% of target bases to 20X. This metric should be interpreted as: if I have a design with 10 megabases of target, and want to get 20X coverage I need to sequence until PF_ALIGNED_BASES = 10^7 * 20 * HS_PENALTY_20X.<BR>
+HS_PENALTY_30X: The "hybrid selection penalty" incurred to get 80% of target bases to 30X. This metric should be interpreted as: if I have a design with 10 megabases of target, and want to get 30X coverage I need to sequence until PF_ALIGNED_BASES = 10^7 * 30 * HS_PENALTY_30X.<BR>
+HS_PENALTY_40X: The "hybrid selection penalty" incurred to get 80% of target bases to 40X. This metric should be interpreted as: if I have a design with 10 megabases of target, and want to get 40X coverage I need to sequence until PF_ALIGNED_BASES = 10^7 * 40 * HS_PENALTY_40X.<BR>
+HS_PENALTY_50X: The "hybrid selection penalty" incurred to get 80% of target bases to 50X. This metric should be interpreted as: if I have a design with 10 megabases of target, and want to get 50X coverage I need to sequence until PF_ALIGNED_BASES = 10^7 * 50 * HS_PENALTY_50X.<BR>
+HS_PENALTY_100X: The "hybrid selection penalty" incurred to get 80% of target bases to 100X. This metric should be interpreted as: if I have a design with 10 megabases of target, and want to get 100X coverage I need to sequence until PF_ALIGNED_BASES = 10^7 * 100 * HS_PENALTY_100X.<BR>
+AT_DROPOUT: A measure of how undercovered <= 50% GC regions are relative to the mean. For each GC bin [0..50] we calculate a = % of target territory, and b = % of aligned reads aligned to these targets. AT DROPOUT is then abs(sum(a-b when a-b < 0)). E.g. if the value is 5% this implies that 5% of total reads that should have mapped to GC<=50% regions mapped elsewhere.<BR>
+GC_DROPOUT: A measure of how undercovered >= 50% GC regions are relative to the mean. For each GC bin [50..100] we calculate a = % of target territory, and b = % of aligned reads aligned to these targets. GC DROPOUT is then abs(sum(a-b when a-b < 0)). E.g. if the value is 5% this implies that 5% of total reads that should have mapped to GC>=50% regions mapped elsewhere.<BR>
+

@@ -1,0 +1,293 @@
+#!/bin/bash
+
+# sets up directory structure and configures scripts  for IMSA run
+
+
+#CONFIGURATION
+###################
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+ANALYSIS_NAME=imsa
+GROUP_VOL_CGI=/ax3-cgi
+USAGE="$BASEDIR/imsa.usage"
+
+WALLTIME_HOURS_PER_RUN=72
+THREADS_PER_RUN=2
+
+BLAST_VERSION=2.2.28
+BLAT_VERSION=34
+BOWTIE_VERSION=1.0.0
+
+ACTIONS_FILE=$BASEDIR/actions.txt 
+BOWTIE_HG_DATABASE=/ax3-cgi/resources/reference/eukaryote/human/hs37d5/bowtie_indexed/hs37d5
+BLAT_HG_DATABASE=/ax3-cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.2bit
+BLAT_HG_OOC_FILE=/ax3-cgi/resources/reference/eukaryote/human/hs37d5/blat_indexed/hs37d5.11.ooc
+BLAST_NT_DATABASE=/ax3-cgi/resources/reference/nt/nt.fa
+BLAST_HG_DATABASE=/ax3-cgi/resources/reference/eukaryote/human/hs37d5/blast_indexed/hs37d5
+TAXONOMY_DMP=/ax3-cgi/resources/taxonomy/gi_taxid_nucl.dmp
+
+PATTERN_READ1='_R1_'
+PATTERN_READ2='_R2_'
+
+#COMMAND LINE ARGS
+####################
+while getopts "i:t:p:n:a:w:o:O:d:D:x:h" option; do
+    case "$option" in
+	
+	i) INPUT_PATH="$OPTARG";;
+	t) PATTERN_READ_1="$OPTARG";;
+	p) PATTERN_READ_2="$OPTARG";;
+        n) PROJECT="$OPTARG";;
+	a) ACTIONS_FILE="$OPTARG";;
+	w) BOWTIE_HG_DATABASE="$OPTARG";;
+	o) BLAT_HG_DATABASE="$OPTARG";;
+	O) BLAT_HG_OOC_FILE="$OPTARG";;
+	d) BLAST_HG_DATABASE="$OPTARG";;
+	D) BLAST_NT_DATABASE="$OPTARG";;
+	x) TAXONOMY_DMP="$OPTARG";;
+	h) cat $USAGE;;
+	[?]) cat $USAGE;;
+
+esac
+done
+
+if [ -z $INPUT_PATH ] || \
+    [ -z $PROJECT ]
+    then
+    cat $USAGE
+    exit 1
+fi
+
+
+#FUNCTIONS
+####################
+
+#creates job scripts
+function submitJobs {
+
+	local path_reads_directory=$1
+	local path_analysis_dir=$2
+	local path_results_dir=$3
+
+	local path_scripts_dir=$path_analysis_dir/run  
+	mkdir -m 770 -p $path_scripts_dir
+	mkdir -m 770 -p $path_results_dir
+
+	setup_log=$path_scripts_dir/setup.log
+	echo -n "" > $setup_log
+
+	echo "`$NOW`setting up $ANALYSIS_NAME mapping run... "
+	echo "`$NOW`(see $setup_log for details)"
+
+	echo "`$NOW`setting up $ANALYSIS_NAME run" >> $setup_log
+	echo "`$NOW`read directory: $path_reads_directory" >> $setup_log
+	echo "`$NOW`pattern mate pair 1 reads: $PATTERN_READ1" >> $setup_log
+	echo "`$NOW`pattern mate pair 2 reads: $PATTERN_READ2" >> $setup_log
+	echo "`$NOW`actions file: $ACTIONS_FILE" >> $setup_log
+	echo "`$NOW`bowtie human genome index: $BOWTIE_HG_DATABASE" >> $setup_log
+	echo "`$NOW`blat human genome index: $BLAT_HG_DATABASE" >> $setup_log
+	echo "`$NOW`blat human genome .occ file: $BLAT_HG_OOC_FILE" >> $setup_log
+	echo "`$NOW`blast nt database index; $BLAST_NT_DATABASE" >> $setup_log
+	echo "`$NOW`blast human genome index: $BLAST_HG_DATABASE" >> $setup_log
+	echo "`$NOW`taxonomy file: $TAXONOMY_DMP" >> $setup_log
+	echo "`$NOW`script directory: $path_scripts_dir" >> $setup_log
+	echo "`$NOW`result directory: $path_results_dir" >> $setup_log
+	echo "`$NOW`creating and submitting job scripts:" >> $setup_log
+
+	local sample=`basename $path_reads_directory`
+
+        #find paired fastq files and run imsa analysis for each pair
+        for fastq_read1 in `ls --color=never $path_reads_directory/*.f*q* | grep $PATTERN_READ1`
+        do
+
+	        fastq_read1=`basename $fastq_read1`
+
+                #find read2 mate file
+		for fastq in `ls --color=never $path_reads_directory/*.f*q* | grep $PATTERN_READ2`
+		do
+	
+		        fastq=`basename $fastq`
+    		        local fastq_replace=`echo $fastq | perl -pe "s/$PATTERN_READ2/$PATTERN_READ1/"`
+
+    		        if [ "$fastq_replace" = "$fastq_read1" ]; 
+    		        then
+
+				local fastq_read1_path=$path_reads_directory/$fastq_read1
+				local fastq_read2_path=$path_reads_directory/$fastq
+
+	                        #set up script and variables
+
+				local script_path_1=$path_scripts_dir/imsa.$sample.$PATTERN_READ1.sh
+				cp $BASEDIR/imsa.sh $script_path_1
+				chmod 770 $script_path_1
+
+				sed -i -e "s/#walltimeHours/$WALLTIME_HOURS_PER_RUN/" $script_path_1
+				sed -i -e "s/#threadsPerRun/$THREADS_PER_RUN/g" $script_path_1
+				sed -i -e "s/#blatVersion/$BLAT_VERSION/" $script_path_1
+				sed -i -e "s/#blastVersion/$BLAST_VERSION/" $script_path_1
+				sed -i -e "s/#bowtieVersion/$BOWTIE_VERSION/" $script_path_1
+				sed -i -e "s/#baseDir/${BASEDIR//\//\\/}/" $script_path_1
+				sed -i -e "s/#analysis/$ANALYSIS_NAME/" $script_path_1
+				sed -i -e "s/#resultPath/${path_results_dir//\//\\/}/" $script_path_1
+				sed -i -e "s/#readPath/${fastq_read1_path//\//\\/}/" $script_path_1
+				sed -i -e "s/#actionsFile/${ACTIONS_FILE//\//\\/}/" $script_path_1
+				sed -i -e "s/#bowtieHGdatabase/${BOWTIE_HG_DATABASE//\//\\/}/" $script_path_1
+				sed -i -e "s/#blatHGdatabase/${BLAT_HG_DATABASE//\//\\/}/" $script_path_1
+				sed -i -e "s/#blatHGOOCfile/${BLAT_HG_OOC_FILE//\//\\/}/" $script_path_1
+				sed -i -e "s/#blastNTdatabase/${BLAST_NT_DATABASE//\//\\/}/" $script_path_1
+				sed -i -e "s/#blastHGdatabase/${BLAST_HG_DATABASE//\//\\/}/" $script_path_1
+				sed -i -e "s/#taxonomyDmp/${TAXONOMY_DMP//\//\\/}/" $script_path_1
+
+	                        #submit alignment job for the first read 
+				echo "`$NOW`submit alignment job for the first read $fastq_read1_path" >> $setup_log
+				local log_output_path_1=`echo $script_path_1 | perl -pe 's/\.sh/\.log/g'`
+				echo "`$NOW`$script_path_1" >> $setup_log
+				echo -n "`$NOW`" >> $setup_log
+				local job_id1=`qsub -o $log_output_path_1 $script_path_1`
+				echo $job_id1 >> $setup_log
+
+				local script_path_2=$path_scripts_dir/imsa.$sample.$PATTERN_READ2.sh
+				cp $BASEDIR/imsa.sh $script_path_2
+				chmod 770 $script_path_2
+
+				sed -i -e "s/#walltimeHours/$WALLTIME_HOURS_PER_RUN/" $script_path_2
+				sed -i -e "s/#threadsPerRun/$THREADS_PER_RUN/g" $script_path_2
+				sed -i -e "s/#blatVersion/$BLAT_VERSION/" $script_path_2
+				sed -i -e "s/#blastVersion/$BLAST_VERSION/" $script_path_2
+				sed -i -e "s/#bowtieVersion/$BOWTIE_VERSION/" $script_path_2
+				sed -i -e "s/#baseDir/${BASEDIR//\//\\/}/" $script_path_2
+				sed -i -e "s/#analysis/$ANALYSIS_NAME/" $script_path_2
+				sed -i -e "s/#resultPath/${path_results_dir//\//\\/}/" $script_path_2
+				sed -i -e "s/#readPath/${fastq_read2_path//\//\\/}/" $script_path_2
+				sed -i -e "s/#actionsFile/${ACTIONS_FILE//\//\\/}/" $script_path_2
+				sed -i -e "s/#bowtieHGdatabase/${BOWTIE_HG_DATABASE//\//\\/}/" $script_path_2
+				sed -i -e "s/#blatHGdatabase/${BLAT_HG_DATABASE//\//\\/}/" $script_path_2
+				sed -i -e "s/#blatHGOOCfile/${BLAT_HG_OOC_FILE//\//\\/}/" $script_path_2
+				sed -i -e "s/#blastNTdatabase/${BLAST_NT_DATABASE//\//\\/}/" $script_path_2
+				sed -i -e "s/#blastHGdatabase/${BLAST_HG_DATABASE//\//\\/}/" $script_path_2
+				sed -i -e "s/#taxonomyDmp/${TAXONOMY_DMP//\//\\/}/" $script_path_2
+
+	                        #submit alignment job for the first read 
+				echo "`$NOW`submit alignment job for the second read $fastq_read2_path" >> $setup_log
+				local log_output_path_2=`echo $script_path_2 | perl -pe 's/\.sh/\.log/g'`
+				echo "`$NOW`$script_path_2" >> $setup_log
+				echo -n "`$NOW`" >> $setup_log
+				local job_id2=`qsub -o $log_output_path_2 $script_path_2`
+				echo $job_id2 >> $setup_log
+
+				local script_path=$path_scripts_dir/imsa.$sample.postprocess.sh
+				cp $BASEDIR/postprocess.sh $script_path
+				chmod 770 $script_path
+
+				sed -i -e "s/#blatVersion/$BLAT_VERSION/" $script_path
+				sed -i -e "s/#blastVersion/$BLAST_VERSION/" $script_path
+				sed -i -e "s/#bowtieVersion/$BOWTIE_VERSION/" $script_path
+				sed -i -e "s/#baseDir/${BASEDIR//\//\\/}/" $script_path
+				sed -i -e "s/#analysis/$ANALYSIS_NAME/" $script_path
+				sed -i -e "s/#resultPath/${path_results_dir//\//\\/}/" $script_path
+				sed -i -e "s/#bowtieHGdatabase/${BOWTIE_HG_DATABASE//\//\\/}/" $script_path
+				sed -i -e "s/#blatHGdatabase/${BLAT_HG_DATABASE//\//\\/}/" $script_path
+				sed -i -e "s/#blatHGOOCfile/${BLAT_HG_OOC_FILE//\//\\/}/" $script_path
+				sed -i -e "s/#blastNTdatabase/${BLAST_NT_DATABASE//\//\\/}/" $script_path
+				sed -i -e "s/#blastHGdatabase/${BLAST_HG_DATABASE//\//\\/}/" $script_path
+				sed -i -e "s/#taxonomyDmp/${TAXONOMY_DMP//\//\\/}/" $script_path
+				sed -i -e "s/#readPath1/${fastq_read1_path//\//\\/}/" $script_path
+				sed -i -e "s/#readPath2/${fastq_read2_path//\//\\/}/" $script_path
+
+	                        #submit alignment job for the first read 
+				echo "`$NOW`submit postprocessing job" >> $setup_log
+				local log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+				echo "`$NOW`$script_path" >> $setup_log
+				echo -n "`$NOW`" >> $setup_log
+				local job_id=`qsub -o $log_output_path -W depend=afterok:$job_id1:$job_id2 $script_path`
+				#local job_id=`qsub -o $log_output_path $script_path`
+				echo $job_id >> $setup_log
+
+			else
+
+			        echo "No mate file found for $FASTQ_READ1. Skipped."   	
+
+		        fi
+
+	        done
+
+        done
+}
+
+####################
+
+
+if [ -d $INPUT_PATH ]; then
+
+    #create and set permissions for analysis project parent directory
+    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT
+    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT
+
+    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME
+    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME
+
+    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY
+    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY
+
+    #create and set permissions for results project parent directory
+    mkdir -p $GROUP_VOL_CGI/results/$PROJECT
+    chmod 770 $GROUP_VOL_CGI/results/$PROJECT
+
+    mkdir -p $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME
+    chmod 770 $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME
+
+    mkdir -p $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY
+    chmod 770 $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY
+
+    #for each sample directory...
+    for SAMPLE in `ls --color=never $INPUT_PATH`
+    do
+
+	FASTQ_DIR=$INPUT_PATH/$SAMPLE
+
+	if [ -d $FASTQ_DIR ]; then
+
+		#count fastq files in directory		
+		FASTQ_COUNT=`ls --color=never $FASTQ_DIR/*.f*q* | wc -l`
+
+		if [ $FASTQ_COUNT -gt 0 ]; then
+
+			echo "`$NOW`processing directory $SAMPLE..."
+
+			#create and set permissions for analysis sample parent directory
+			mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
+			chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
+
+ 			#create and set permissions for results sample parent directory
+   			mkdir -p $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
+    			chmod 770 $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
+
+        		#...create output directory
+			PATH_RUN_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
+			PATH_OUT_DIR=$GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE     
+	
+			#create, configure and submit job scripts
+			submitJobs $FASTQ_DIR \
+				   $PATH_RUN_DIR \
+				   $PATH_OUT_DIR \
+
+		
+		else
+
+			echo "`$NOW`directory $SAMPLE does not contain any fastq files (.fq or .fastq file extension)"	
+
+		fi
+
+	fi
+
+    done;
+	
+else
+
+    echo "`$NOW`Error: Input path is not a directory."
+    exit 1
+
+fi
