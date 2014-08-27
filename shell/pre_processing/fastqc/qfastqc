@@ -58,37 +58,74 @@ fi
 function submitJob {
 
 	path_reads_dir=$1
-        read1=$2
-        read2=$3
+    pattern_read1=$2
+    pattern_read2=$3
 	path_report_dir=$4
 	path_script_dir=$5
 	deployment_server=$6
 	deployment_path=$7
-        summary_deployment=$8
+    summary_deployment=$8
 	job_id_list=$9
     
 	sample=`basename $path_reads_dir`
 
-	echo "`$NOW`creating and submitting job script for QC of fastq files for sample $sample"
+	echo "`$NOW`creating and submitting job scripts for QC of fastq files for sample $sample"
 	#create fastqc script from template
-  	script_path=$path_script_dir/fastqc.$sample.sh
-  	cp $BASEDIR/fastQC.sh $script_path
-  	chmod 770 $script_path
+	
+	#for each read1 fastq file 
+	for fastq_read1 in `ls --color=never $path_reads_dir/*.f*q* | grep $pattern_read1`
+	do
+ 
+        fastq_read1=`basename $fastq_read1`
 
-	#configure fastqc script
-	sed -i -e "s/#pathReadsFastq/${path_reads_dir//\//\\/}/" $script_path
-        sed -i -e "s/#patternRead1/${read1//\//\\/}/" $script_path
-        sed -i -e "s/#patternRead2/${read2//\//\\/}/" $script_path
-	sed -i -e "s/#pathQcReportDir/${path_report_dir//\//\\/}/" $script_path
-	sed -i -e "s/#deploymentServer/$deployment_server/" $script_path
-	sed -i -e "s/#deploymentPath/${deployment_path//\//\\/}/" $script_path
-	sed -i -e "s/#summaryPath/${summary_deployment//\//\\/}/" $script_path
+        #find read2 mate file
+        fastq_read2=""
+		for fastq in `ls --color=never $path_reads_dir/*.f*q* | grep $pattern_read2`
+		do	
 
-  	#submit job 
-  	log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
-  	job_id=`qsub -q $QUEUE -o $log_output_path $script_path`
-	echo "`$NOW`Job ID:$job_id"
-	echo -e "$job_id" >> $job_id_list
+	        fastq=`basename $fastq`
+    		fastq_replace=`echo $fastq | perl -pe "s/$pattern_read2/$pattern_read1/"`
+
+    		if [ "$fastq_replace" = "$fastq_read1" ]; 
+    		then
+		        fastq_read2=$fastq     
+	    	fi
+
+		done
+
+		#check if mate file was found...
+		if [ -z $fastq_read2 ]
+		then
+			#...if not skip fastq file
+			echo "`$NOW`ERROR:No mate file found for $fastq_read1. Skipped."   		
+		else
+
+	  		script_path=$path_script_dir/fastqc.$fastq_read1.sh
+	  		cp $BASEDIR/fastQC.sh $script_path
+	  		chmod 770 $script_path
+	
+			#configure fastqc script
+			sed -i -e "s/#pathReadsFastq/${path_reads_dir//\//\\/}/" $script_path
+	    	sed -i -e "s/#fastqRead1/${fastq_read1//\//\\/}/" $script_path
+	    	sed -i -e "s/#fastqRead2/${fastq_read2//\//\\/}/" $script_path
+			sed -i -e "s/#pathQcReportDir/${path_report_dir//\//\\/}/" $script_path
+			sed -i -e "s/#deploymentServer/$deployment_server/" $script_path
+			sed -i -e "s/#deploymentPath/${deployment_path//\//\\/}/" $script_path
+			sed -i -e "s/#summaryPath/${summary_deployment//\//\\/}/" $script_path
+
+	  		#submit job 
+	  		log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+	  		job_id=`qsub -q $QUEUE -o $log_output_path $script_path`
+			echo "`$NOW`Read pair: $fastq_read1 $fastq_read1"
+			echo "`$NOW`Job ID:$job_id"
+			echo -e "$job_id" >> $job_id_list
+
+		fi
+
+	done
+	
+
+	
 }
 
 
@@ -131,7 +168,9 @@ if [ -d $INPUT_PATH ]; then
     #create summary directory on deployment server
     SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/fastqc
     ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
-    scp -r ${BASEDIR}/*png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+    scp -r ${BASEDIR}/../../resources/images/error.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+    scp -r ${BASEDIR}/../../resources/images/tick.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+    scp -r ${BASEDIR}/../../resources/images/warning.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
     ssh $DEPLOYMENT_SERVER "chmod -R 664 $SUMMARY_DEPLOYMENT/*png" > /dev/null 2>&1
 
     #for each sample directory...
@@ -149,7 +188,7 @@ if [ -d $INPUT_PATH ]; then
 
 			echo "`$NOW`processing directory $SAMPLE..."
 
-        		#...create output directory
+        	#...create output directory
 			mkdir -p $GROUP_VOL_CGI/results/$PROJECT/fastqc/$SAMPLE
 			chmod 770 $GROUP_VOL_CGI/results/$PROJECT/fastqc/$SAMPLE
 			OUT_RESULTS=$GROUP_VOL_CGI/results/$PROJECT/fastqc/$SAMPLE
@@ -168,7 +207,7 @@ if [ -d $INPUT_PATH ]; then
 			DEPLOYMENT_PATH=$DEPLOYMENT_BASE_DIR/project/$PROJECT/fastqc/$SAMPLE
 			
 			#create, configure and submit job scripts
-	       		submitJob $FASTQ_DIR $PATTERN_READ_1 $PATTERN_READ_2 $OUT_RESULTS $OUT_SCRIPTS $DEPLOYMENT_SERVER $DEPLOYMENT_PATH $SUMMARY_DEPLOYMENT $JOB_ID_LIST
+	       	submitJob $FASTQ_DIR $PATTERN_READ_1 $PATTERN_READ_2 $OUT_RESULTS $OUT_SCRIPTS $DEPLOYMENT_SERVER $DEPLOYMENT_PATH $SUMMARY_DEPLOYMENT $JOB_ID_LIST
       
 		else
 

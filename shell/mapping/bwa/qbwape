@@ -426,7 +426,9 @@ if [ -d $INPUT_PATH ] && [ "$IS_PROJECT_DIR" = "T" ]; then
     SUMMARY_RESULTS=$GROUP_VOL_CGI/results/$PROJECT/bwa/$TODAY
     SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/bwa/$TODAY
     ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $SUMMARY_DEPLOYMENT"
-    scp -r ${BASEDIR}/*png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/
+    scp -r ${BASEDIR}/../../resources/images/error.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/
+    scp -r ${BASEDIR}/../../resources/images/tick.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/
+    scp -r ${BASEDIR}/../../resources/images/warning.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/
     ssh $DEPLOYMENT_SERVER "chmod -R 664 $SUMMARY_DEPLOYMENT/*png"
 
     #for each sample directory...

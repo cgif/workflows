@@ -31,8 +31,8 @@ while getopts "i:n:t:e:a:Xh" option; do
         e) PED_FILE="$OPTARG";;
 	X) CHROM_X=T;;
 	a) ANNOTATIONS="$OPTARG";;
-	h) cat "$USAGE";;
-	[?]) cat "$USAGE";;
+	h) echo "$USAGE";;
+	[?]) echo "$USAGE";;
 
     esac
 done

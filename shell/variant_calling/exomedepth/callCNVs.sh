@@ -11,7 +11,7 @@
 
 # load modules
 
-module load R/3.0.1
+module load R/3.1.0
 
 NOW="date +%Y-%m-%d%t%T%t"
 
@@ -91,13 +91,13 @@ else
 
     cut -f 2 $PED_FILE | grep -v "#" > $TMPDIR/all.sample.list
 
-    #select unrelated proband samples for reference set
+    #select unrelated AND unaffected proband samples for reference set
     FAMILY=`grep $SAMPLE $PED_FILE|cut -f 1|uniq` 
     cat $PED_FILE | awk '$7 == "1"' | grep -Pv "$FAMILY\t" | cut -f 2 > $TMPDIR/ref.sample.list
 
-    cp $RESULTS_DIR/multisample/exon.counts.Rdata $TMPDIR/exon.counts.Rdata
+    cp $PROJECT_RESULTS_DIR/multisample/exon.counts.Rdata $TMPDIR/exon.counts.Rdata
 
-    cp $TARGET > $TMPDIR/target.bed
+    cp $TARGET $TMPDIR/target.bed
 
     cp $ANNOTATIONS $TMPDIR/annotations.list
 

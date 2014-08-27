@@ -225,7 +225,9 @@ then
 	ssh $DEPLOYMENT_SERVER "mkdir -p $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
 	ssh $DEPLOYMENT_SERVER "chmod 0775 $DEPLOYMENT_BASE_DIR/project/$PROJECT/$ANALYSIS_NAME" > /dev/null 2>&1
 	ssh $DEPLOYMENT_SERVER "chmod 0775 $DEPLOYMENT_BASE_DIR/project/$PROJECT" > /dev/null 2>&1
-	scp -r ${BASEDIR}/*png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+	scp -r ${BASEDIR}/../../tick.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+	scp -r ${BASEDIR}/../../error.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+	scp -r ${BASEDIR}/../../warning.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
 	ssh $DEPLOYMENT_SERVER "chmod -R 664 $SUMMARY_DEPLOYMENT/*png" > /dev/null 2>&1
 
         #create summary script and set variables

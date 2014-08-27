@@ -26,8 +26,11 @@ TODAY=`date +%Y-%m-%d`
 
 #path to reads fastq file
 PATH_READS_DIRECTORY=#pathReadsFastq
-PATTERN_READ1=#patternRead1
-PATTERN_READ2=#patternRead2
+#PATTERN_READ1=#patternRead1
+#PATTERN_READ2=#patternRead2
+FASTQ_READ1=#fastqRead1
+FASTQ_READ2=#fastqRead2
+
 
 #QC output directory
 PATH_QC_REPORT_DIR=#pathQcReportDir
@@ -40,75 +43,48 @@ SUMMARY_PATH=#summaryPath
 #create temporary QC report output directory
 mkdir $TMPDIR/qc
 
-#for each read1 fastq file 
-for FASTQ_READ1 in `ls --color=never $PATH_READS_DIRECTORY/*.f*q* | grep $PATTERN_READ1`
-do
- 
-        FASTQ_READ1=`basename $FASTQ_READ1`
+#copy fastqs to tmp space
+echo "`${NOW}`copying fasq files to temporary scratch space..."
+echo "`${NOW}`$FASTQ_READ1"
+cp $PATH_READS_DIRECTORY/$FASTQ_READ1 $TMPDIR/$FASTQ_READ1
 
-        #find read2 mate file
-        FASTQ_READ2=""
-	for FASTQ in `ls --color=never $PATH_READS_DIRECTORY/*.f*q* | grep $PATTERN_READ2`
-	do	
+echo "`${NOW}`$FASTQ_READ2"
+cp $PATH_READS_DIRECTORY/$FASTQ_READ2 $TMPDIR/$FASTQ_READ2
 
-	        FASTQ=`basename $FASTQ`
-    		FASTQ_REPLACE=`echo $FASTQ | perl -pe "s/$PATTERN_READ2/$PATTERN_READ1/"`
+           
+#check if mate file found and the number of lines in mate files is the same
+gzip -t $TMPDIR/$FASTQ_READ1
+if [ $? -ne "0" ]
+then
+	echo "`${NOW}`ERROR:File $FASTQ_READ1 is corrupted. Skipped." 
+else
 
-    		if [ "$FASTQ_REPLACE" = "$FASTQ_READ1" ]; 
-    		then
-		        FASTQ_READ2=$FASTQ     
-	    	fi
-
-	done
-             
-        #check if mate file found and the number of lines in mate files is the same
-	if [ -z $FASTQ_READ2 ]
+	gzip -t $TMPDIR/$FASTQ_READ2
+	if [ $? -ne "0" ]
 	then
-	        echo "ERROR:No mate file found for $FASTQ_READ1. Skipped."   		
-	else
+		echo "`${NOW}`ERROR:File $FASTQ_READ2 is corrupted. Skipped." 
+    else 
 
-                gzip -t $PATH_READS_DIRECTORY/$FASTQ_READ1
-                if [ $? -ne "0" ]
+		#compare number of reads
+		COUNT_LINES_READ1=`gzip -d -c $TMPDIR/$FASTQ_READ1 | wc -l | cut -f 1 -d ' '`
+		COUNT_LINES_READ2=`gzip -d -c $TMPDIR/$FASTQ_READ2 | wc -l | cut -f 1 -d ' '`
+
+		if [ $COUNT_LINES_READ1 -ne $COUNT_LINES_READ2 ]
 		then
-	                echo "ERROR:File $FASTQ_READ1 is corrupted. Skipped." 
-                else
+			echo "ERROR:Unequal number of lines in the mate files. Skipped." 
+		else
 
-                        gzip -t $PATH_READS_DIRECTORY/$FASTQ_READ2
-                        if [ $? -ne "0" ]
-		        then
-	                        echo "ERROR:File $FASTQ_READ2 is corrupted. Skipped." 
-                        else 
+			#run FastQC 
+			#--noextract   creating a zip archived report
+			#--nogroup     disable grouping of bases for reads >50bp 
 
-                                #copy fastqs to tmp space
-                                echo "`${NOW}`copying fasq files to temporary scratch space..."
-                                echo "`${NOW}`$FASTQ_READ1"
-                                cp $PATH_READS_DIRECTORY/$FASTQ_READ1 $TMPDIR/$FASTQ_READ1
+			echo "`${NOW}`running FastQC..."
+			$FASTQC_HOME/fastqc -o $TMPDIR/qc --noextract --nogroup  $TMPDIR/$FASTQ_READ1
+			$FASTQC_HOME/fastqc -o $TMPDIR/qc --noextract --nogroup  $TMPDIR/$FASTQ_READ2
 
-                                echo "`${NOW}`$FASTQ_READ2"
-                                cp $PATH_READS_DIRECTORY/$FASTQ_READ2 $TMPDIR/$FASTQ_READ2
-
-				#compare number of reads
-                                COUNT_LINES_READ1=`gzip -d -c $TMPDIR/$FASTQ_READ1 | wc -l | cut -f 1 -d ' '`
-                                COUNT_LINES_READ2=`gzip -d -c $TMPDIR/$FASTQ_READ2 | wc -l | cut -f 1 -d ' '`
-
-                                if [ $COUNT_LINES_READ1 -ne $COUNT_LINES_READ2 ]
-                                then
-				        echo "ERROR:Unequal number of lines in the mate files. Skipped." 
-				else
-
-                                        #run FastQC 
-                                        #--noextract   creating a zip archived report
-                                        #--nogroup     disable grouping of bases for reads >50bp 
-
-                                        echo "`${NOW}`running FastQC..."
-                                        $FASTQC_HOME/fastqc -o $TMPDIR/qc --noextract --nogroup  $TMPDIR/$FASTQ_READ1
-                                        $FASTQC_HOME/fastqc -o $TMPDIR/qc --noextract --nogroup  $TMPDIR/$FASTQ_READ2
-	
-                                fi	
-                        fi
-                fi
-        fi  
-done
+		fi	
+	fi
+fi
 
 
 #copy results to output folder
@@ -132,7 +108,7 @@ do
 	ssh $DEPLOYMENT_SERVER "chmod 775 $DEPLOYMENT_PATH/$REPORT_DIR/*"  > /dev/null 2>&1
 	ssh $DEPLOYMENT_SERVER "chmod 664 $DEPLOYMENT_PATH/$REPORT_DIR/*/*"  > /dev/null 2>&1
 
-        echo "`${NOW}`copying unzipped QC report to $PATH_QC_REPORT_DIR/$REPORT_DIR"
+    echo "`${NOW}`copying unzipped QC report to $PATH_QC_REPORT_DIR/$REPORT_DIR"
 	mkdir -p -m 770 $PATH_QC_REPORT_DIR/$REPORT_DIR
 	cp $TMPDIR/$REPORT_DIR/*.txt  $PATH_QC_REPORT_DIR/$REPORT_DIR
 	chmod 660 $PATH_QC_REPORT_DIR/$REPORT_DIR/*.txt

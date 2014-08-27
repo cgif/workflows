@@ -11,7 +11,7 @@
 
 # load modules
 
-module load R/3.0.1
+module load R/3.1.0
 module load samtools/0.1.18
 
 NOW="date +%Y-%m-%d%t%T%t"

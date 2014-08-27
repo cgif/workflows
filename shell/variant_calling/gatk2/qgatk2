@@ -1727,7 +1727,7 @@ function submitMergeAndPlotMetricsJob {
 
 	script_path=$run_dir/gatk_merge_summary_metrics.sh
 	cp $BASEDIR/gatk2_merge_summary_metrics.sh $script_path
-	transpose_table_script=$BASEDIR/transposeTable.R
+	transpose_table_script=$BASEDIR/../../helper/transposeTable.R
 
 	sed -i -e "s/#rVersion/$R_VERSION/" $script_path
  	sed -i -e "s/#resultsDir/${results_dir//\//\\/}/" $script_path	
@@ -1749,27 +1749,27 @@ function submitMergeAndPlotMetricsJob {
 	
 	#sample summary
 	script_path=$run_dir/sample_summary.php
-	cp $BASEDIR/tsvToHtmlTable.php $script_path
+	cp $BASEDIR/../../helper/tsvToHtmlTable.php $script_path
 
  	sed -i -e "s/#tsvFile/$sample_summary/" $script_path	
  	sed -i -e "s/#header/Sample Coverage Summary/" $script_path
 
 	#sample interval summary
 	script_path=$run_dir/sample_interval_summary.php
-	cp $BASEDIR/tsvToHtmlTable.php $script_path
+	cp $BASEDIR/../../helper/tsvToHtmlTable.php $script_path
 
  	sed -i -e "s/#tsvFile/$sample_interval_summary/" $script_path	
  	sed -i -e "s/#header/Sample Interval Coverage Summary/" $script_path
 
 	#sample cumulative coverage proportions
 	script_path=$run_dir/sample_cumulative_coverage_proportions.php
-	cp $BASEDIR/tsvToHtmlTable.php $script_path
+	cp $BASEDIR/../../helper/tsvToHtmlTable.php $script_path
 
  	sed -i -e "s/#tsvFile/$sample_cumulative_coverage_proportions/" $script_path	
  	sed -i -e "s/#header/Sample Cumulative Coverage Proportions/" $script_path
 
 	#copy tsvToXsl.pl script to run folder
-	cp $BASEDIR/tsvToXls.pl $run_dir/
+	cp $BASEDIR/../../helper/tsvToXls.pl $run_dir/
 
 
 	echo "`$NOW`job ID: $job_id"
@@ -1948,7 +1948,9 @@ then
     SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/gatk/$TODAY
     DATA_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/data
     ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
-    scp -r ${BASEDIR}/*png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+    scp -r ${BASEDIR}/../../resources/images/error.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+    scp -r ${BASEDIR}/../../resources/images/tick.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+    scp -r ${BASEDIR}/../../resources/images/warning.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
     ssh $DEPLOYMENT_SERVER "chmod -R 664 $SUMMARY_DEPLOYMENT/*png" > /dev/null 2>&1
 
     #create encrypted directory to save vcf files accessable by user

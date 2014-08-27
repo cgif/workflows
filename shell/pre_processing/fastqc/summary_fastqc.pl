@@ -1,105 +1,193 @@
 #!/usr/bin/perl -w
 
-$fastq_dir = "#pathReadsFastq";
-$analysis_dir = "#pathAnalysisDir";
-$report_dir = "#pathReportsDir";
-$ms_report_dir = "#pathMSReportsDir";
-$deployment_server = "#deploymentServer";
-$summary_deployment = "#summaryDeployment";
+use strict;
+use warnings;
+
+my $fastq_dir = "#pathReadsFastq";
+my $analysis_dir = "#pathAnalysisDir";
+my $report_dir = "#pathReportsDir";
+my $ms_report_dir = "#pathMSReportsDir";
+my $deployment_server = "#deploymentServer";
+my $summary_deployment = "#summaryDeployment";
 
 #collect data from fastqc summaries in %sum
-%sum = ();
+my %sum = ();
 
-#for each sample
-opendir (PROJECT, "$fastq_dir")||print "Can't open $fastq_dir\n"; 
-while (defined($sample = readdir(PROJECT))){
+#open rawdata project directory
+opendir (PROJECT, "$fastq_dir") || print "Can't open $fastq_dir\n";
+
+#for each sample in the fastq directory... 
+while (defined(my $sample = readdir(PROJECT))){
+
+	#skip . and ..
     next if $sample =~ /^\./;
-    $sample_dir = "$fastq_dir/$sample";
+    
+    #assert that path is a directory path
+    #skip if not
+    my $sample_dir = "$fastq_dir/$sample";
     next unless (-d "$sample_dir");
 
     #check for FastQC run log file; integrity and proper pairing of fastq files
-    if (-e "$analysis_dir/$sample/run/fastqc.$sample.log"){
-        $sum{$sample}{'error'}=`grep ERROR $analysis_dir/$sample/run/fastqc.$sample.log`;
-    }else{
-	$sum{$sample}{'error'}="FastQC check was not done for this sample.";
-    }
+    my $run_dir = "$analysis_dir/$sample/run";
+    opendir (RUNDIR, "$run_dir");
+    
+    my $log_count = 0;
+    while (defined(my $log = readdir(RUNDIR))) {
+    	
+    	#skip . and ..
+    	next if $log =~ /^\./ || !($log =~ /\.log/);
+    
+    	#count log files
+    	$log_count++;
+    	
+    	#parse errors
+    	$sum{$sample}{'error'}=`grep ERROR $run_dir/$log`;
 
+	}
+	
+	#if no run logs existed for sample... 
+	if($log_count == 0){
+		$sum{$sample}{'error'}="FastQC check was not done for this sample.";
+	}
+	
+	#skip if errors occured
     next if $sum{$sample}{'error'} =~ /\w+/;
 
-    #for each read retrieve FAIL/WARN/PASS for each quality metrics
-    opendir (SAMPLE, "$sample_dir")||print "Can't open $sample_dir\n";
-    while (defined($read = readdir(SAMPLE))){
-        next unless $read =~ /^(\S+)\.f.*q.*/;
-	$read = "$1"."_fastqc";
-        if (-e "$report_dir/$sample/$read/summary.txt"){
-	    $cat = 11;
-	    open (SUM, "$report_dir/$sample/$read/summary.txt")||print "Can't open $report_dir/$sample/$read/summary.txt\n";
-	    while (<SUM>){
-                next if (/Basic Statistics/);
-	        if (/^(\w\w\w\w)\t/){
-		    $sum{$sample}{$read}{$cat} = $1;
-	            $cat++;
+    #for each fastq retrieve FAIL/WARN/PASS for each quality metrics
+    
+    #open sample fastq directory
+    opendir (SAMPLE, "$sample_dir") || print "Can't open $sample_dir\n";
+    
+    #for each fastq file
+    while (defined(my $fastq = readdir(SAMPLE))){
+    
+    	#check file fq/fastq file extension
+		next unless $fastq =~ /^(\S+)\.f.*q.*/;
+	
+		my $fastqc_report = "$1"."_fastqc";
+		
+		#if fastqc summary report exists...
+        if (-e "$report_dir/$sample/$fastqc_report/summary.txt"){
+	    	
+	    	my $cat = 11;
+	    	
+	    	#...parse fastqc summary report
+	    	open (SUM, "$report_dir/$sample/$fastqc_report/summary.txt") || print "Can't open $report_dir/$sample/$fastqc_report/summary.txt\n";
+	    	while (<SUM>){
+        
+				next if (/Basic Statistics/);
+	    
+	    	    if (/^(\w\w\w\w)\t/){
+		
+			    	$sum{$sample}{$fastqc_report}{$cat} = $1;
+	    	        $cat++;
+		
+				}
+				
+			}
+			
+		} else {
+		
+            $sum{$sample}{$fastqc_report}{'error'}="FastQC check was not done for this fastq file.";
+	    	next;
+	    	
 		}
-      	    }
-	}else{
-            $sum{$sample}{$read}{'error'}="FastQC check was not done for this read.";
-	    next;
-	}
 
         #read positions for low quality bases and total sequences produced for each read for each sample
-	$f1 = 0; $f3 = 0;
-        @l_qual = (); $l_qual = ""; 
-        $seq_tot = 0;
-	open (DATA, "$report_dir/$sample/$read/fastqc_data.txt")||print "Can't open $report_dir/$sample/$read/fastqc_data.txt\n";
-	while (<DATA>){
-	    $f1 = 1 if /^>>Per base sequence quality/;
-	    if ($f1 && /^(\d+)\t\S+\t(\d+)\S+\t(\d+)\S+\t/){
-                $pos = $1;
-                $med = $2;
-                $lq = $3;
-                push(@l_qual, $pos) if ($med < 20 || $lq < 5);                
-	    }
-	    $f1 = 0 if /^>>END_MODULE/;
-
-	    $f3 = 1 if /^>>Basic Statistics/;
-	    if ($f3 && /^Total Sequences\s+(\d+)/){
-		$seq_tot = $1;
-	    }
-	    $f3 = 0 if /^>>END_MODULE/;
-	}
+		my $f1 = 0; 
+		my $f3 = 0;
+        my @l_qual = ();
+        my $l_qual = ""; 
+        my $seq_tot = 0;
+	
+		#open fastqc data file
+		open (DATA, "$report_dir/$sample/$fastqc_report/fastqc_data.txt")||print "Can't open $report_dir/$sample/$fastqc_report/fastqc_data.txt\n";
+		
+		while (<DATA>){
+	    	
+	    	$f1 = 1 if /^>>Per base sequence quality/;
+	   
+	    	if ($f1 && /^(\d+)\t\S+\t(\d+)\S+\t(\d+)\S+\t/){
+            
+                my $pos = $1;
+                my $med = $2;
+                my $lq = $3;
+                push(@l_qual, $pos) if ($med < 20 || $lq < 5);
+                                
+	    	}
+	    	
+	    	$f1 = 0 if /^>>END_MODULE/;
+	    	$f3 = 1 if /^>>Basic Statistics/;
+	    
+	    	if ($f3 && /^Total Sequences\s+(\d+)/){
+				$seq_tot = $1;
+	    	}
+	    	
+	    	$f3 = 0 if /^>>END_MODULE/;
+	    	
+		}
     
         #translate low quality positions into intervals
-        $start = 0; $end = 0; 
-        foreach $pos (sort {$a <=> $b} @l_qual){
+        my $start = 0; 
+        my $end = 0; 
+        
+        foreach my $pos (sort {$a <=> $b} @l_qual){
+        
             if ($start == 0){
+            
                 $start = $pos;
                 $end = $pos;
-            }elsif ($pos == $end + 1){
+            
+            } elsif ($pos == $end + 1){
+            
                 $end = $pos;
-            }else{
-		if ($start == $end){
-                    $l_qual .= "$start ";
-		}else{
+            
+            } else {
+		
+				if ($start == $end){
+				
+					$l_qual .= "$start ";
+					
+				} else {
+				
                     $l_qual .= "$start-$end ";
-		}
+		
+				}
+				
                 $start = $pos;
-		$end = $pos;
-	    }
-	    if ($pos == $l_qual[-1]){
-		if ($start == $end){
-                    $l_qual .= "$start ";
-		}else{
-                    $l_qual .= "$start-$end ";
-		}
-	    }
-	}
-	$sum{$sample}{$read}{'0'} = "$seq_tot";
-	$sum{$sample}{$read}{'1'} = "$l_qual";
+				$end = $pos;
+
+	    	} #end of if 
+
+	    	if ($pos == $l_qual[-1]){
+	
+				if ($start == $end){
+
+					$l_qual .= "$start ";
+
+				} else {
+
+					$l_qual .= "$start-$end ";
+
+				}
+			
+	    	} # end of if 
+	    	
+		} #end of foreach
+	
+		$sum{$sample}{$fastqc_report}{'0'} = "$seq_tot";
+		$sum{$sample}{$fastqc_report}{'1'} = "$l_qual";
+    
     }
+    
 }
 
+
 #print extracted data into summary file
+
+#open output file
 open (OUT, ">$ms_report_dir/index.html");
+
 print OUT "<HTML>";
 print OUT "<TABLE><TR>";
 print OUT "<TH><CENTER>Sample";
@@ -116,53 +204,88 @@ print OUT "<TH><CENTER>Seq length";
 print OUT "<TH><CENTER>Seq duplication";
 print OUT "<TH><CENTER>Overrepr seq";
 print OUT "<TH><CENTER>Kmer content\n";
-$f1 = 0;
-foreach $sample (sort {$a cmp $b} keys %sum){
+
+my $f1 = 0;
+
+#for each sample (alphanumerically sorted)
+foreach my $sample (sort {$a cmp $b} keys %sum){
+
     print OUT "<TR><TD>$sample";
     $f1 = 1;
-    foreach $read (sort {$a cmp $b} keys %{$sum{$sample}}){
+    
+    foreach my $read (sort {$a cmp $b} keys %{$sum{$sample}}){
+
         if ($read eq "error"){
+
             if ($sum{$sample}{'error'} =~ /\w+/){
-	        print OUT "<TD COLSPAN=10>$sum{$sample}{'error'}";
-                print OUT "\n";
-	    }
-	    next;
-	}
-        $link = $summary_deployment;
+
+				print OUT "<TD COLSPAN=10>$sum{$sample}{'error'}";
+				print OUT "\n";
+
+	    	}
+	    
+	    	next;
+	
+		}
+        
+        my $link = $summary_deployment;
         $link =~ s/www\/html\/(.*)$/$1/;
-	$link = "http://"."$deployment_server/"."$link/"."$sample/$read/fastqc_report.html";
-	$read_title = $read;
-	$read_title =~ s/^(\S+)_fastqc/$1/;
-	if ($f1){
-	    print OUT "<TD><A HREF = $link>$read_title</A>";
-	    $f1 = 0;
-	}else{
-	    print OUT "<TR><TD> <TD><A HREF = $link>$read_title</A>";
-	}
-	if (defined($sum{$sample}{$read}{'error'})){
-	    print OUT "<TD COLSPAN=10>$sum{$sample}{$read}{'error'}";
-	    print OUT "\n";
-	    next;
-	}
-	foreach $cat (sort {$a <=> $b} keys %{$sum{$sample}{$read}}){
-	    next unless $cat =~ /^\d+$/;
+		$link = "http://"."$deployment_server/"."$link/"."$sample/$read/fastqc_report.html";
+		
+		my $read_title = $read;
+		$read_title =~ s/^(\S+)_fastqc/$1/;
+	
+		if ($f1){
+		
+	    	print OUT "<TD><A HREF = $link>$read_title</A>";
+	    	$f1 = 0;
+		
+		} else {
+	    
+	    	print OUT "<TR><TD> <TD><A HREF = $link>$read_title</A>";
+		
+		}
+	
+		if (defined($sum{$sample}{$read}{'error'})){
+	    
+	    	print OUT "<TD COLSPAN=10>$sum{$sample}{$read}{'error'}";
+	    	print OUT "\n";
+	    	next;
+		
+		}
+		
+		foreach my $cat (sort {$a <=> $b} keys %{$sum{$sample}{$read}}){
+	
+		    next unless $cat =~ /^\d+$/;
+            
             if ($sum{$sample}{$read}{$cat} eq "FAIL"){
-	        print OUT "<TD><CENTER><IMG SRC=error.png ALT=FAIL>";
-            }elsif ($sum{$sample}{$read}{$cat} eq "WARN"){
-	        print OUT "<TD><CENTER><IMG SRC=warning.png ALT=WARN>";
-            }elsif ($cat == 0||$cat == 1){
-	        print OUT "<TD><CENTER>$sum{$sample}{$read}{$cat}</FONT>";
-            }else{
-	        print OUT "<TD><CENTER><IMG SRC=tick.png ALT=PASS>";
-	    }
-	}
-	print OUT "\n";
+	        
+	        	print OUT "<TD><CENTER><IMG SRC=error.png ALT=FAIL>";
+            } elsif ($sum{$sample}{$read}{$cat} eq "WARN") {
+            
+            	print OUT "<TD><CENTER><IMG SRC=warning.png ALT=WARN>";
+            	
+            } elsif ($cat == 0||$cat == 1) {
+	        
+	        	print OUT "<TD><CENTER>$sum{$sample}{$read}{$cat}</FONT>";
+            
+            } else {
+	        
+	        	print OUT "<TD><CENTER><IMG SRC=tick.png ALT=PASS>";
+	    
+	    	}
+
+		}
+		
+		print OUT "\n";
+    
     }
+
 }
+
 print OUT "</TABLE></HTML>";
+
 system("chmod 660 $ms_report_dir/index.html");
-
-system("scp -r $ms_report_dir/index.html $deployment_server:$summary_deployment/index.html > /dev/null 2>&1");
-system("ssh $deployment_server chmod -R 664 $summary_deployment/index.html > /dev/null 2>&1");
-
+system("scp -r $ms_report_dir/index.html $deployment_server:$summary_deployment/index.html");
+system("ssh $deployment_server chmod -R 664 $summary_deployment/index.html");
 
