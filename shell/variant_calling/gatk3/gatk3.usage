@@ -1,0 +1,70 @@
+
+USAGE
+
+	qgatk3	-n <project_name>
+	      	-s <sample_list_file>
+		-t <sequencing_type, [WGS,EXOME,TARGETED]>
+	      	[-r <reference_fasta_path>, default /groupvol/cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.fa]
+	      	[-d <sequence_dictionary_file_path, default /groupvol/cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.dict>]
+	      	[-a <amplicon_or_exom_interval_bed>]
+      		[-x <file containing a list of additional samples and corresponding GVCF files>]
+      		[-l <file, containing sample list to be included in output vcf>]
+      		[-u <user provided chunks file>]
+      		[-p <primer_probe_genomic_coordinates_bed>]
+      		[-o <primer_probe_coordinates_offset; default = 10>]
+      		[-q <ped_file>]
+      		[-g]
+	
+DESCRIPTION
+
+	-n	project name
+
+	-s	input sample list file
+		in the format sample_name\tYYYY-MM-DD\t\project\n
+
+	-r	Absolute path to the BWA indexed reference
+        	sequence fasta file,
+        	default /groupvol/cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.fa.
+
+	-d	Absolute path to the sequence dictionary,
+         	default /groupvol/cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.dict.
+
+	-t  The type of sequencing data:
+		WGS       whole-genome sequencing
+		EXOME     whole-exome sequencing
+		TARGETED  targete sequencing (e.g. amplicon sequencing)
+		
+	-a	Absolute path to file containing the target intervals
+		for exome or targeted sequencing in BED format.
+		
+	-x	File, containing a list of sample names and 
+		corresponding genomic vcf files
+		to be used in the analysis as additional samples 
+		format: sample_name\tGVCF_file\n
+
+	-l	File, containing a list of sample names 
+		to be included in the output vcf file. 
+		First column needs to contain sample IDs. 
+		Other columns may be present and will be ignored.
+		if not provided, input sample list will be used.
+
+	-u	User provided chunks file
+
+	-p	Absolute path to file containing the genomic 
+		coordinates of primer/probe binding sites for amplicon
+		sequencing experiments. If provided, primer/probe
+		regions will be soft clipped to avoid false
+		positive reference allele calls from primer/probe
+		sequence overlapping with variant locations.
+		
+	-o	The number of bases the mapped read start/end position
+		can differ from the genomic start position of the
+		primer/probe binding region (default = 10).
+		
+	-q	Sample meta data in PED format.
+		not used by GATK3
+	
+	-g	Generate script files only without submitting jobs to queue. 	
+		
+	-h	Display help and exit.
+
