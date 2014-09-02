@@ -16,7 +16,7 @@ USAGE_FILE=usageFile
 SUMMARY_SCRIPT_PATH=summaryScriptPath
 
 echo -n "" > $USAGE_FILE
-echo -e "job_name\texit_stat\tncpus\tcpupercent\tmem\twalltime" >> $USAGE_FILE
+echo -e "job_name\texit_stat\tncpus\tcpupercent\tcput\tmem\tvmem\twalltime" >> $USAGE_FILE
 
 for JOB_ID in `grep 'job ID' $SETUP_LOG`
 do
@@ -39,7 +39,9 @@ EOF
         echo -n -e "`grep 'Exit_status' $TMPDIR/usage|cut -f2 -d '='`\t" >> $USAGE_FILE
         echo -n -e "`grep 'resources_used.ncpus' $TMPDIR/usage|cut -f2 -d '='`\t" >> $USAGE_FILE
         echo -n -e "`grep 'resources_used.cpupercent' $TMPDIR/usage|cut -f2 -d '='`\t" >> $USAGE_FILE
+	echo -n -e "`grep 'resources_used.cput' $TMPDIR/usage|cut -f2 -d '='`\t" >> $USAGE_FILE
         echo -n -e "`grep 'resources_used.mem' $TMPDIR/usage|cut -f2 -d '='`\t" >> $USAGE_FILE
+	echo -n -e "`grep 'resources_used.vmem' $TMPDIR/usage|cut -f2 -d '='`\t" >> $USAGE_FILE
         echo "`grep 'resources_used.walltime' $TMPDIR/usage|cut -f2 -d '='`" >> $USAGE_FILE
 
     fi

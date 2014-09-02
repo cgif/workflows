@@ -71,7 +71,7 @@ RTC_DATATHREADS=2
 RR_DATATHREADS=$RTC_DATATHREADS
 
 #PrintReads CPU threads
-PR_DATATHREADS=2
+PR_DATATHREADS=1
 #PR_CPUTHREADS=$(( $PR_DATATHREADS + 1 ))
 PR_CPUTHREADS=$PR_DATATHREADS
 
@@ -379,6 +379,12 @@ function submitRealignmentAndRecalibrationJobs {
 		subset_count=$(($subset_count+1))
 		local subset_bed=$run_dir/$chunk_bed_name.subset_${subset_count}.bed
 
+		local last_subset=F
+
+		if [[ $subset_count -eq $job_count ]]; then
+			last_subset=T
+		fi
+
 		echo "`$NOW`processing chunk subset $subset_count of $job_count..."
 
 		#initialise subset BAM
@@ -399,9 +405,11 @@ function submitRealignmentAndRecalibrationJobs {
 		local file_size_gb=`du $input_bam | perl -e '$in=<>; $in; @tokens=split(/\t/, $in); $size=$tokens[0]; $size_mb=$size/1024; $size_gb=$size_mb/1024; printf("%.0f",$size_gb);'`
 		#echo $file_size_gb
 		local tmpspace=$(($file_size_gb*2))
+
+		local subset_count_formatted=`printf "%.3d\n" $subset_count`
 	
 		#...create and configuring job script
-		script_path=$run_dir/splitBam.$input_bam_name.subset_${subset_count}.sh
+		script_path=$run_dir/SB_${input_bam_name}_${subset_count_formatted}.sh
 		cp $BASEDIR/splitBam.sh $script_path
 
 		local output_dir=$analysis_dir/chunks
@@ -417,6 +425,7 @@ function submitRealignmentAndRecalibrationJobs {
 		sed -i -e "s/#tmpSpaceGb/$tmpspace/g" $script_path
 		sed -i -e "s/#subset/subset_${subset_count}/" $script_path
 		sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $script_path
+		sed -i -e "s/#lastSubset/$last_subset/" $script_path
 	
 		#submit job and save job ID to dependency variable
 		echo "`$NOW`submitting job script $script_path..."
@@ -495,7 +504,9 @@ function submitRealignmentAndRecalibrationJobs {
 
 			echo "`$NOW`creating and submitting job script to realign and recalibrate chunk..."
 			
-			local script_path=$run_dir/gatk3_realign_recal.$sample.$chunk.sh
+			local chunk_formatted=`printf "%.3d\n" $chunk_name`
+
+			local script_path=$run_dir/RR_${sample}_${chunk_formatted}.sh
 			cp $BASEDIR/gatk3_realign_recalibrate.sh $script_path
 
 			sed -i -e "s/#gatkVersion/$GATK_VERSION/" $script_path
@@ -582,7 +593,7 @@ function submitRealignmentAndRecalibrationJobs {
 	echo "`$NOW`====================================================================================="
 	echo "`$NOW`Merge recalibration reports"
 	echo "`$NOW`====================================================================================="
-	script_path=$run_dir/gatk3_merge_recalibration_reports.${sample}.sh
+	script_path=$run_dir/MR_${sample}_000.sh
 	cp $BASEDIR/gatk3_merge_recalibration_reports.sh $script_path
 
 	sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
@@ -700,8 +711,10 @@ function submitRealignmentAndRecalibrationJobs {
 				includes_unmapped=T
 			fi
 
+			local chunk_formatted=`printf "%.3d\n" $chunk_name`
+
 			echo "`$NOW`creating and submitting job script to print recalibrated and run haplotype caller reads..."
-			script_path=$run_dir/gatk3_print_reads_hap_caller.$sample.$chunk.sh
+			script_path=$run_dir/PH_${sample}_${chunk_formatted}.sh
 			cp $BASEDIR/gatk3_print_reads_haplotype_caller.sh $script_path
 
 			sed -i -e "s/#gatkVersion/$GATK_VERSION/" $script_path
@@ -897,7 +910,9 @@ function submitGenotypeGVCFsJobs {
 
 			echo "`$NOW`creating and submitting job script to run genotypeGVCFs..."
 
-			local script_path=$run_dir/gatk3_genotypeGVCFs.$chunk.sh
+			local chunk_formatted=`printf "%.3d\n" $chunk_name`
+
+			local script_path=$run_dir/GG_00000000_${chunk_formatted}.sh
 			cp $BASEDIR/gatk3_genotypeGVCFs.sh $script_path
 				
 		  		
@@ -1016,7 +1031,7 @@ function submitGenotypeGVCFsJobs {
 	# note: also could do recalibration by suplying all separate VCF files together
 	# but we want to keep raw calls file as well, so we merge them first
 
-	script_path=$run_dir/gatk3_recal_vcf.$sample.sh
+	script_path=$run_dir/RV_00000000_000.sh
 	cp $BASEDIR/gatk3_recalibrate_vcf.sh $script_path
 
 	local analysis_dir_vc=$analysis_dir/genotypeGVCFs
@@ -1128,7 +1143,7 @@ function submitPostProcessingJobs {
 	mkdir -p $results_dir/recalibration
 
     #realignment
-	mkdir -p $results_dir/realignment
+#	mkdir -p $results_dir/realignment
 	
 	#rerun script
 	echo ""
@@ -1195,7 +1210,7 @@ function submitPostProcessingJobs {
 	echo "`$NOW`creating and submitting job script to merge realigned and recalibrated chunk BAMs..."
 		
 	#create and configure job script to merge realigned BAM files		
-	script_path=$run_dir/gatk3_merge_recal_chunk_bams_gvcfs.$sample.sh
+	script_path=$run_dir/MB_${sample}_000.sh
 	cp $BASEDIR/gatk3_merge_recalibrated_bams_and_gvcfs.sh $script_path
 
  	sed -i -e "s/#samtoolsVersion/$SAMTOOLS_VERSION/" $script_path
@@ -1337,8 +1352,10 @@ function submitPostProcessingJobs {
 			local chunk_pre_recalibration_report=$analysis_dir/recalibration/reports/pre/$sample.$chunk.realigned.recal_data.grp
 
 			echo "`$NOW`creating and submitting job script to get post-recalibration report on chunk..."
+
+			local chunk_formatted=`printf "%.3d\n" $chunk_name`
 			
-			local script_path=$run_dir/gatk3_postrecal_metrics.$sample.$chunk.sh
+			local script_path=$run_dir/PM_${sample}_${chunk_formatted}.sh
 			cp $BASEDIR/gatk3_postrecalibration_metrics.sh $script_path
 
 			sed -i -e "s/#gatkVersion/$GATK_VERSION/" $script_path
@@ -1426,7 +1443,7 @@ function submitPostProcessingJobs {
 		
 	echo "`$NOW`creating and submitting job script to generate summary metrics..."
 			
-	local script_path=$run_dir/gatk3_collect_summary_metrics.$sample.sh
+	local script_path=$run_dir/CS_${sample}_000.sh
 	local summary_script_path=$run_dir/summary_gatk.$sample.pl
 	cp $BASEDIR/gatk3_collect_summary_metrics.sh $script_path
 
@@ -1542,7 +1559,7 @@ function submitMergeAndPlotMetricsJob {
  	sed -i -e "s/#sampleIntervalSummary/$sample_interval_summary/" $script_path	
  	sed -i -e "s/#sampleCumulativeCoverageProportions/$sample_cumulative_coverage_proportions/" $script_path	
 
-	script_path=$run_dir/gatk3_merge_summary_metrics.sh
+	script_path=$run_dir/MM_00000000_000.sh
 	cp $BASEDIR/gatk3_merge_summary_metrics.sh $script_path
 	transpose_table_script=$BASEDIR/../../helper/transposeTable.R
 
@@ -1597,7 +1614,7 @@ function submitMergeAndPlotMetricsJob {
 function submitCompUse {
 
 	echo "`$NOW`creating and submitting usage script..."
-	local script_path=$ANALYSIS_DIR_MSVC/run/usage_gatk.${PROJECT}_multisample.sh
+	local script_path=$ANALYSIS_DIR_MSVC/run/US_00000000_000.sh
 	cp $BASEDIR/usage_gatk.sh $script_path
 
 	local usage_file="$RESULTS_DIR_MSVC/usage.$TODAY.txt"
@@ -1805,14 +1822,14 @@ fi
 #check that input bam files exist for each sample 
 sort $SAMPLE_LIST | uniq | while read SAMPLE DATE SAMPLE_PROJECT; do
 	if [[ "$SAMPLE" != "" ]]; then
-		echo "`$NOW`cheching input bam existance for $SAMPLE"
+#		echo "`$NOW`cheching input bam existance for $SAMPLE"
     	IN_BAM_SAMPLE=$GROUP_VOL_CGI/results/$SAMPLE_PROJECT/mergetag/$DATE/$SAMPLE/$SAMPLE.bam
 		if [[ ! -e $IN_BAM_SAMPLE ]]; then
        		echo "`$NOW`ERROR: input bam for $SAMPLE does not exist: $IN_BAM_SAMPLE"
 			echo "check $SAMPLE_LIST file"
         	exit 1
-		else
-			echo "INFO: input bam check ok - $IN_BAM_SAMPLE is present"
+#		else
+#			echo "INFO: input bam check ok - $IN_BAM_SAMPLE is present"
 		fi
 	fi
 done;
@@ -1821,13 +1838,13 @@ done;
 if [[ $AUX_LIST != "" ]]; then
 	sort $AUX_LIST | uniq | while read SAMPLE GVCF; do
     	if [[ "$SAMPLE" != "" ]]; then
-	    	echo "`$NOW`cheching input GVCF existance for $SAMPLE"
+#	    	echo "`$NOW`cheching input GVCF existance for $SAMPLE"
 			if [[ ! -e $GVCF ]]; then
         		echo "`$NOW`ERROR: input genomic vcf for $SAMPLE does not exist: $GVCF"
 				echo "check $AUX_LIST file"
         		exit 1
-			else 
-				echo "INFO: input GVCF file check ok - $GVCF is present"
+#			else 
+#				echo "INFO: input GVCF file check ok - $GVCF is present"
 			fi    
 		fi
 	done;

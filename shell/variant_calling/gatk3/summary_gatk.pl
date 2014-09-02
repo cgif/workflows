@@ -425,9 +425,11 @@ my $directoryURL = "http://$deployment_server/$data_link/$enc_dir/";
 my $customTrack = "track type=vcfTabix name=$project visibility=full bigDataUrl=$customTrackURL";
 my $url = "http://$deployment_server/ucsc/cgi-bin/hgTracks?org=human&db=hg19&position=chr21:33,031,597-33,041,570&hgct_customText=$customTrack";
 
-if ($sum{'multisample'}{'raw_vcf'} eq "PASS"){
-    print OUT "<P><FONT SIZE = '+1'>Results can be viewed as a <A HREF = '$url'>custom track</A> in the UCSC Genome Browser</FONT><BR>";
-    print OUT "<P><FONT SIZE = '+1'>Download vcf file <A HREF = '$directoryURL'>here</A></FONT><BR>";
+if (defined $sum{'multisample'}{'raw_vcf'}){
+    if ($sum{'multisample'}{'raw_vcf'} eq "PASS"){
+	print OUT "<P><FONT SIZE = '+1'>Results can be viewed as a <A HREF = '$url'>custom track</A> in the UCSC Genome Browser</FONT><BR>";
+	print OUT "<P><FONT SIZE = '+1'>Download vcf file <A HREF = '$directoryURL'>here</A></FONT><BR>";
+    }
 }
 
 

@@ -3,7 +3,7 @@
 ## script to run GATK for counting covariates before base quality recalibration
 
 #PBS -l walltime=48:00:00
-#PBS -l select=1:ncpus=#cpuThreads:mem=13gb
+#PBS -l select=1:ncpus=#cpuThreads:mem=7gb
 
 #PBS -M cgi@imperial.ac.uk
 #PBS -m ae
@@ -20,11 +20,11 @@ module load java/#javaVersion
 
 NXTGENUTILS_HOME=/groupvol/cgi/bin/nxtgen-utils-#nextGenUtilsVersion
 
-JAVA_XMX=12G
+JAVA_XMX=6G
 NCT=#nctThreads
 RUN_LOG=#runLog
 
-SCRIPT_CODE="GATKPRREHC"
+SCRIPT_CODE="GATKPRHC"
 
 
 LOG_INFO="`$NOW`INFO $SCRIPT_CODE"
@@ -116,9 +116,6 @@ else
 fi
 
 echo -e "`${NOW}`$SCRIPT_CODE\t$SAMPLE\t$FRAGMENT\trecalibrated_bam\t$STATUS" >> $RUN_LOG
-
-#run summary script
-perl $SUMMARY_SCRIPT_PATH
 
 #########################################################
 # run HaplotypeCaller on realigned recalibrated BAM file

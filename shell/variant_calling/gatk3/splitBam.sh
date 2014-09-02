@@ -24,6 +24,7 @@ SUBSET=#subset
 SAMPLE=#sample
 RUN_LOG=#runLog
 SUMMARY_SCRIPT_PATH=#summaryScriptPath
+LAST_SUBSET=#lastSubset
 
 input_bam_name=`basename $INPUT_BAM_SCRATCH .bam`
 input_bam=$TMPDIR/$input_bam_name.bam
@@ -96,43 +97,42 @@ done;
 
 echo "`${NOW}`INFO $SCRIPT_CODE starting chunk extraction..."
 PROCESS_IDS=""
-for chunk_name in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`
-	do
+for chunk_name in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`; do
 
-		if [[ $chunk_name != ""  ]]	
-		then 
+	if [[ $chunk_name != ""  ]]; then 
 
-			chunk_count=$(( $chunk_count + 1 ))
+		chunk_count=$(( $chunk_count + 1 ))
 			
-			includes_unmapped=F	
+		includes_unmapped=F	
 
-			echo "`${NOW}`INFO $SCRIPT_CODE chunk $chunk_count of $TOTAL_CHUNK_COUNT..."
+		echo "`${NOW}`INFO $SCRIPT_CODE chunk $chunk_count of $TOTAL_CHUNK_COUNT..."
 				
-			chunk="chunk_$chunk_name"
+		chunk="chunk_$chunk_name"
 
-			chunk_int=$analysis_dir/chunks/$chunk.intervals
-			chunk_bed=$analysis_dir/chunks/$chunk.bed
+		chunk_int=$analysis_dir/chunks/$chunk.intervals
+		chunk_bed=$analysis_dir/chunks/$chunk.bed
 
-			echo "`${NOW}`INFO $SCRIPT_CODE creating chunk interval file..."
-			#converting BED to interval list skipping blank lines
-			#converting to chr:start-end format instead of tab delimited
-			#format as GATK started to refuse parsing tab delimited format for some
-			#reason
-#			cat $REFERENCE_DICT > $chunk_int
-#			grep -P "chunk_${chunk_name}\." $REFERENCE_CHUNKS | awk '/^\s*$/ {next;} { print $1 "\t" $2+1 "\t" $3 "\t+\t" $4 }' > $chunk_int
-			grep -P "chunk_${chunk_name}\." $REFERENCE_CHUNKS | awk '/^\s*$/ {next;} { print $1 ":" $2+1 "-" $3 }' > $chunk_int
+		echo "`${NOW}`INFO $SCRIPT_CODE creating chunk interval file..."
+		#converting BED to interval list skipping blank lines
+		#converting to chr:start-end format instead of tab delimited
+		#format as GATK started to refuse parsing tab delimited format for some
+		#reason
+#		cat $REFERENCE_DICT > $chunk_int
+#		grep -P "chunk_${chunk_name}\." $REFERENCE_CHUNKS | awk '/^\s*$/ {next;} { print $1 "\t" $2+1 "\t" $3 "\t+\t" $4 }' > $chunk_int
+		grep -P "chunk_${chunk_name}\." $REFERENCE_CHUNKS | awk '/^\s*$/ {next;} { print $1 ":" $2+1 "-" $3 }' > $chunk_int
  		
-			echo "`${NOW}`INFO $SCRIPT_CODE creating chunk BED file..."
-			grep -P "chunk_${chunk_name}\." $REFERENCE_CHUNKS > $chunk_bed
+		echo "`${NOW}`INFO $SCRIPT_CODE creating chunk BED file..."
+		grep -P "chunk_${chunk_name}\." $REFERENCE_CHUNKS > $chunk_bed
 
-			chunk_bam=$analysis_dir/chunks/$input_bam_name.$chunk.bam
+		chunk_bam=$analysis_dir/chunks/$input_bam_name.$chunk.bam
 
-			if [[ $chunk_count -ne $TOTAL_CHUNK_COUNT ]] 
-		
-			then
+		# check whether the last subset
+		# we only include unmapped reads in the last chunk of the last subset
 
-				# generate region argument to use with samtools view
-				region=`echo $analysis_dir/chunks/$chunk.bed | perl -e '$input=<>; open(IN, "<$input"); 
+		if [[ $LAST_SUBSET == "F" ]]; then
+
+			# generate region argument to use with samtools view
+			region=`echo $analysis_dir/chunks/$chunk.bed | perl -e '$input=<>; open(IN, "<$input"); 
                    		              $regions; 
                 	    		      while(<IN>){ 
 						@cols=split; 
@@ -140,20 +140,42 @@ for chunk_name in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`
 					      } 
                                 	      print $regions;'` 
 
-				# we use the region option instead of the -L option
-				# as the latter will also output unmapped reads		
-				#echo "samtools view -b $input_bam -o $chunk_bam $region"
-				echo "`${NOW}`INFO $SCRIPT_CODE extracting chunk from input BAM..."
-				echo "`${NOW}`DEBUG $SCRIPT_CODE samtools view -b $input_bam -o $chunk_bam $region&" 
-				samtools view -b $input_bam -o $chunk_bam $region&
+			# we use the region option instead of the -L option
+			# as the latter will also output unmapped reads		
+			#echo "samtools view -b $input_bam -o $chunk_bam $region"
+			echo "`${NOW}`INFO $SCRIPT_CODE extracting chunk from input BAM..."
+			echo "`${NOW}`DEBUG $SCRIPT_CODE samtools view -b $input_bam -o $chunk_bam $region&" 
+			samtools view -b $input_bam -o $chunk_bam $region&
 				
-				PROCESS_IDS="$PROCESS_IDS $!"
-				#echo "`$NOW`indexing chunk BAM..."
-				#samtools index $chunk_bam&
-				#echo "`$NOW`PROCESS_IDS=$PROCESS_IDS"
-			else
-			
-			
+			PROCESS_IDS="$PROCESS_IDS $!"
+			#echo "`$NOW`indexing chunk BAM..."
+			#samtools index $chunk_bam&
+			#echo "`$NOW`PROCESS_IDS=$PROCESS_IDS"
+
+		elif [[ $chunk_count -ne $TOTAL_CHUNK_COUNT ]]; then
+
+			# generate region argument to use with samtools view
+			region=`echo $analysis_dir/chunks/$chunk.bed | perl -e '$input=<>; open(IN, "<$input"); 
+                   		              $regions; 
+                	    		      while(<IN>){ 
+						@cols=split; 
+						$regions=$regions.$cols[0].":".($cols[1]+1)."-".$cols[2]." ";
+					      } 
+                                	      print $regions;'` 
+
+			# we use the region option instead of the -L option
+			# as the latter will also output unmapped reads		
+			#echo "samtools view -b $input_bam -o $chunk_bam $region"
+			echo "`${NOW}`INFO $SCRIPT_CODE extracting chunk from input BAM..."
+			echo "`${NOW}`DEBUG $SCRIPT_CODE samtools view -b $input_bam -o $chunk_bam $region&" 
+			samtools view -b $input_bam -o $chunk_bam $region&
+				
+			PROCESS_IDS="$PROCESS_IDS $!"
+			#echo "`$NOW`indexing chunk BAM..."
+			#samtools index $chunk_bam&
+			#echo "`$NOW`PROCESS_IDS=$PROCESS_IDS"
+		else
+					
 			includes_unmapped=T
 
 			# In the last chunk we want to include the unmapped reads.

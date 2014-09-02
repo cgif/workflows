@@ -24,7 +24,7 @@ NXTGENUTILS_VERSION=#nxtGenUtilsVersion
 NXTGENUTILS_HOME=/groupvol/cgi/bin/nxtgen-utils-${NXTGENUTILS_VERSION}
 
 NOW="date +%Y-%m-%d%t%T%t"
-JAVA_XMX=3800M
+JAVA_XMX=4800M
 
 SCRIPT_CODE="GATKRARC"
 
@@ -206,8 +206,8 @@ fi
 
 READ_COUNT_INPUT=`samtools flagstat $TMPDIR/chunk.bam | head -n 1 | perl -e 'while(<>){ if(/(\d*?)\s\+\s(\d*?)\s/) { $retval=$1+$2; print "$retval\n"; }  }'`	
 READ_COUNT_OUTPUT=`samtools flagstat $TMPDIR/$SAMPLE.$FRAGMENT.realigned.bam | head -n 1 | perl -e 'while(<>){ if(/(\d*?)\s\+\s(\d*?)\s/) { $retval=$1+$2; print "$retval\n"; }  }'`
-echo "Number of reads in realigned file: $READ_COUNT_INPUT"
-echo "Number of reads in recalibrated file: $READ_COUNT_OUTPUT"
+echo "Number of reads in input chunk file: $READ_COUNT_INPUT"
+echo "Number of reads in realigned file: $READ_COUNT_OUTPUT"
 
 if [[ $READ_COUNT_INPUT -eq $READ_COUNT_OUTPUT ]]; then
 	echo "`${NOW}`INFO $SCRIPT_CODE copying realigned BAM to output directory $ANALYSIS_DIR/realignment..."

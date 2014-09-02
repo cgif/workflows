@@ -110,7 +110,9 @@ if [ $IN_GVCF_COUNT -ge 2 ]; then
 	if [[ -s $OUT_GVCF ]]; then 
 		STATUS=OK
 		echo "`${NOW}`INFO $SCRIPT_CODE deleting intermediate gVCF files..."
-		rm $IN_GVCFS
+		for GVCF in $IN_GVCFS; do 
+			rm $INPUT_DIR_GVCF/$GVCF
+		done
 	else 
 		STATUS=FAILED
 	fi
@@ -124,7 +126,7 @@ if [ $IN_GVCF_COUNT -eq 1 ]; then
 
 	echo "`${NOW}`INFO $SCRIPT_CODE only one input GVCF file. Nothing to merge."
 	GVCF_BASENAME=`basename $IN_GVCFS`
-	cp $INPUT_DIR_GVCF/$GVCF_BASENAME $OUT_GVCF
+	mv $INPUT_DIR_GVCF/$GVCF_BASENAME $OUT_GVCF
 
 	#logging
 	if [[ ! -s $OUT_GVCF ]]; then
@@ -214,8 +216,9 @@ if [ $IN_BAM_COUNT -ge 2 ]; then
 		chmod 660 $OUT_BAM.bai
 
 		echo "`${NOW}`INFO $SCRIPT_CODE deleting intermediate BAM files..."
-#		rm $IN_BAM
-
+		for BAM_FILE in $IN_BAM; do
+			rm $INPUT_DIR/$IN_BAM
+		done
 		#...if no, keep input BAM files for re-run
 	else
 		echo "`${NOW}`WARN $SCRIPT_CODE Output BAM does not contain the same number of reads as the input BAM file(s)!"
@@ -274,7 +277,7 @@ if [ $IN_BAM_COUNT -eq 1 ]; then
 		chmod 660 $OUT_BAM.bai
 
 		echo "`${NOW}`INFO $SCRIPT_CODE deleting intermediate BAM files..."
-		rm $IN_BAM
+		rm $INPUT_DIR/$IN_BAM
 
 		#...if no, keep input BAM files for re-run
 	else
