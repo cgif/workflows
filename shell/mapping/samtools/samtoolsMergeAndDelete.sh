@@ -73,7 +73,7 @@ then
     # requires ~8GB of RAM and 4 processors. The default is 500k reads.)	
 		
     echo "`${NOW}`merging and coordiante sorting BAM files..."
-    java -jar -Xmx4000m $PICARD_HOME/MergeSamFiles.jar $TMP_IN_BAM OUTPUT=$TMP_PATH_OUT_BAM SORT_ORDER=coordinate USE_THREADING=true  VALIDATION_STRINGENCY=SILENT TMP_DIR=$TMPDIR
+    java -jar -XX:+UseSerialGC -Xmx4000m $PICARD_HOME/MergeSamFiles.jar $TMP_IN_BAM OUTPUT=$TMP_PATH_OUT_BAM SORT_ORDER=coordinate USE_THREADING=true  VALIDATION_STRINGENCY=SILENT TMP_DIR=$TMPDIR
 
 fi
 
@@ -111,7 +111,7 @@ fi
 # clean BAM (soft-clip an alignment that hangs off the end 
 # of its reference sequence and set MAPQ to 0 if read is unmapped)
 echo "`${NOW}`cleaning merged BAM..."
-java -jar -Xmx4000m $PICARD_HOME/CleanSam.jar INPUT=$TMP_PATH_OUT_BAM OUTPUT=$TMP_PATH_OUT_BAM.clean VALIDATION_STRINGENCY=SILENT TMP_DIR=$TMPDIR
+java -jar -XX:+UseSerialGC -Xmx4000m $PICARD_HOME/CleanSam.jar INPUT=$TMP_PATH_OUT_BAM OUTPUT=$TMP_PATH_OUT_BAM.clean VALIDATION_STRINGENCY=SILENT TMP_DIR=$TMPDIR
 mv $TMP_PATH_OUT_BAM.clean $TMP_PATH_OUT_BAM
 
 # index output BAM
