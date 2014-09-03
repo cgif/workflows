@@ -277,7 +277,7 @@ if [ $IN_BAM_COUNT -eq 1 ]; then
 		chmod 660 $OUT_BAM.bai
 
 		echo "`${NOW}`INFO $SCRIPT_CODE deleting intermediate BAM files..."
-		rm $INPUT_DIR/$IN_BAM
+		rm $IN_BAM
 
 		#...if no, keep input BAM files for re-run
 	else

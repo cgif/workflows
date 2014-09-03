@@ -35,20 +35,8 @@ while (<CHUNKS>){
     $total_chunks = $chunk if $chunk > $total_chunks;
 }
 
-my $total_intervals = 0;
-if ($type eq "TARGETED" && $ref_intervals ne "null"){
-    open (INTERVALS, "$ref_intervals");
-    while (<INTERVALS>){
-        chomp();
-	next if /^\s*$/; # skip blank lines
-        my $interval = $1 if /^\S+\t\S+\t\S+\t\S+\t(\S+)/;
-        $total_intervals = $interval if $interval > $total_intervals;
-    }
-}
-
 my @sample_all = ();
 
-## TO DO - ensure that sample IDs are unique
 open (LIST, "$sample_list");
 while (<LIST>){
     push(@sample_all, $1) if /^(\S+)\s/;
@@ -59,7 +47,8 @@ my @sample = Uniq(@sample_all);
 #collect data from gatk log files
 foreach my $sample (@sample){
     foreach my $chunk (1..$total_chunks){
-	my $realignment_log = "$project_dir_analysis/$date/$sample/run/gatk3_realign_recal.$sample".".chunk_"."$chunk".".log";
+	my $chunk_formatted = sprintf("%03d", $chunk);
+	my $realignment_log = "$project_dir_analysis/$date/$sample/run/RR_${sample}_${chunk_formatted}.log";
 	if (-s $realignment_log){
    	    my $realignment_target = "$project_dir_analysis/$date/$sample/realignment/$sample".".chunk_"."$chunk".".RTC.intervals";
 	    if (-s $realignment_target){
@@ -83,7 +72,7 @@ foreach my $sample (@sample){
 	    }
 	}
 
-        my $recalibration_hap_caller_log = "$project_dir_analysis/$date/$sample/run/gatk3_print_reads_hap_caller.$sample".".chunk_"."$chunk".".log";
+        my $recalibration_hap_caller_log = "$project_dir_analysis/$date/$sample/run/PH_${sample}_${chunk_formatted}.log";
         if (-s $recalibration_hap_caller_log){
 	    my $recalibrated_bam = "$project_dir_analysis/$date/$sample/recalibration/$sample".".chunk_"."$chunk.realigned.recalibrated.bam";
 	    if (-s $recalibrated_bam){
@@ -101,7 +90,7 @@ foreach my $sample (@sample){
 	    }
 	}
 
-	my $recalibration_merge_log = "$project_dir_analysis/$date/$sample/run/gatk3_merge_recalibration_reports.$sample".".log";
+	my $recalibration_merge_log = "$project_dir_analysis/$date/$sample/run/MR_${sample}_000.log";
 	if (-s $recalibration_merge_log){
 	    my $recalibration_report = "$project_dir_results/$date/$sample/recalibration/reports/pre/$sample".".realigned.recal_data.grp";
 	    if (-s $recalibration_report){
@@ -111,7 +100,7 @@ foreach my $sample (@sample){
 	    }
 	}
 
-	my $merge_bam_gvcf_log = "$project_dir_analysis/$date/$sample/run/gatk3_merge_recal_chunk_bams_gvcfs.$sample".".log";
+	my $merge_bam_gvcf_log = "$project_dir_analysis/$date/$sample/run/MB_${sample}_000.log";
 	if (-s $merge_bam_gvcf_log){
 	    my $merged_gvcf = "$project_dir_results/$date/$sample/haplotypecaller/$sample".".genomic.vcf";
 	    if (-s $merged_gvcf){
@@ -131,7 +120,8 @@ foreach my $sample (@sample){
 }
 
 foreach my $chunk (1..$total_chunks){
-    my $genotypeGVCFs_log = "$project_dir_analysis/$date/multisample/run/gatk3_genotypeGVCFs.chunk_"."$chunk".".log";
+    my $chunk_formatted = sprintf("%03d", $chunk);
+    my $genotypeGVCFs_log = "$project_dir_analysis/$date/multisample/run/GG_00000000_${chunk_formatted}.log";
     if (-s $genotypeGVCFs_log){
 	my $genotypeGVCFs_grep = "";
 	$genotypeGVCFs_grep = `grep ERROR $genotypeGVCFs_log`;
@@ -144,7 +134,7 @@ foreach my $chunk (1..$total_chunks){
     }
 }
 
-my $recalibrate_vcf_log =  "$project_dir_analysis/$date/multisample/run/gatk3_recal_vcf.$project"."_multisample.log";
+my $recalibrate_vcf_log =  "$project_dir_analysis/$date/multisample/run/RV_00000000_000.log";
 if (-s $recalibrate_vcf_log){
     my $raw_vcf = "$project_dir_results/$date/multisample/genotypeGVCFs/$project"."_multisample.raw.vcf.gz";
     if (-s $raw_vcf){
@@ -228,7 +218,7 @@ foreach my $sample (sort @sample){
 	    if ($tag eq "recalibration_report"){
 		if ($chunk == 1){
 		    if (defined $sum{$sample}{$tag}){
-			my $recalibration_merge_plot_log = "$project_dir_analysis/$date/$sample/run/gatk3_collect_summary_metrics.$sample".".log";
+			my $recalibration_merge_plot_log = "$project_dir_analysis/$date/$sample/run/CS_${sample}_000.log";
 			if (-s $recalibration_merge_plot_log){
 			    my $pdf = "$project_dir_results/$date/$sample/recalibration/plots/post/$sample.realigned.recalibrated.recal_plot-1.jpeg";
 			    my $pdf_deployment = "$summary_deployment/$sample.jpeg";

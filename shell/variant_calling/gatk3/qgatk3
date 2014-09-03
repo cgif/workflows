@@ -663,30 +663,6 @@ function submitRealignmentAndRecalibrationJobs {
 	
 	echo 'PR_DEPENDENCY=afterok' >> $rerun_script
 
-	## moved higher up, to be able to run earlier in analysis
-	#configure script to print progress summary for submitted jobs
-	#if job is completed and log file is created in /run directory
-	#script examines whether the output files are in place and not empty
-#	echo "`$NOW`creating and configuring summary script..."
-#	local summary_script_path=$run_dir/summary_gatk.$sample.pl
-#	cp $BASEDIR/summary_gatk.pl $summary_script_path
-#	chmod 770 $summary_script_path
-
-#	sed -i -e "s/projectDirAnalysis/${ANALYSIS_DIR_PROJECT//\//\\/}/" $summary_script_path
-#	sed -i -e "s/projectDirResults/${RESULTS_DIR_PROJECT//\//\\/}/" $summary_script_path
-#	sed -i -e "s/#project/$PROJECT/" $summary_script_path
-#	sed -i -e "s/#today/$TODAY/" $summary_script_path
-#	sed -i -e "s/deploymentServer/$DEPLOYMENT_SERVER/" $summary_script_path
-#	sed -i -e "s/summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $summary_script_path
-#	sed -i -e "s/dataDeployment/${DATA_DEPLOYMENT//\//\\/}/" $summary_script_path
-#	sed -i -e "s/summaryResults/${ANALYSIS_DIR_MSVC//\//\\/}/" $summary_script_path
-#	sed -i -e "s/sampleList/${SAMPLE_LIST//\//\\/}/" $summary_script_path
-#	sed -i -e "s/refChunks/${REFERENCE_CHUNKS//\//\\/}/" $summary_script_path
-#	sed -i -e "s/refIntervals/null/" $summary_script_path
-#	sed -i -e "s/#type/$TYPE/" $summary_script_path
-#	sed -i -e "s/encryptedDir/$INC_DIR/" $summary_script_path
-
-
 	for chunk_name in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`; do 
 
 		if [[ $chunk_name != ""  ]]; then
