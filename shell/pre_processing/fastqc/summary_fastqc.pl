@@ -14,7 +14,7 @@ my $summary_deployment = "#summaryDeployment";
 my %sum = ();
 
 #open rawdata project directory
-opendir (PROJECT, "$fastq_dir") || print "Can't open $fastq_dir\n";
+opendir (PROJECT, "$report_dir") || print "Can't open $report_dir\n";
 
 #for each sample in the fastq directory... 
 while (defined(my $sample = readdir(PROJECT))){
@@ -24,7 +24,7 @@ while (defined(my $sample = readdir(PROJECT))){
     
     #assert that path is a directory path
     #skip if not
-    my $sample_dir = "$fastq_dir/$sample";
+    my $sample_dir = "$report_dir/$sample";
     next unless (-d "$sample_dir");
 
     #check for FastQC run log file; integrity and proper pairing of fastq files
@@ -58,14 +58,12 @@ while (defined(my $sample = readdir(PROJECT))){
     #open sample fastq directory
     opendir (SAMPLE, "$sample_dir") || print "Can't open $sample_dir\n";
     
-    #for each fastq file
-    while (defined(my $fastq = readdir(SAMPLE))){
+    #for each fastqc report
+    while (defined(my $fastqc_report = readdir(SAMPLE))){
     
-    	#check file fq/fastq file extension
-		next unless $fastq =~ /^(\S+)\.f.*q.*/;
-	
-		my $fastqc_report = "$1"."_fastqc";
-		
+    	#check fastqc extension
+		next unless $fastqc_report  =~ /^(\S+)_fastqc/;
+			
 		#if fastqc summary report exists...
         if (-e "$report_dir/$sample/$fastqc_report/summary.txt"){
 	    	

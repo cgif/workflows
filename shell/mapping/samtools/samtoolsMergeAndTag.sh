@@ -168,7 +168,7 @@ do
 			echo "`${NOW}`collecting base call quality and alignment summary metrics on read group level..."
 		        #alignment summary metrics, insert size metrics, quality score distribution, mean quality by cycle
 			OPTIONS="TMP_DIR=$TMPDIR VALIDATION_STRINGENCY=SILENT REFERENCE_SEQUENCE=$TMPDIR/tmp_reference.fa ASSUME_SORTED=true VERBOSITY=WARNING"
-			java -Xmx$JAVA_XMX -jar $PICARD_HOME/CollectMultipleMetrics.jar INPUT=$TMPDIR/$READ_GROUP.bam OUTPUT=$TMPDIR/$READ_GROUP.bam $OPTIONS PROGRAM=CollectAlignmentSummaryMetrics PROGRAM=QualityScoreDistribution PROGRAM=MeanQualityByCycle
+			java -XX:+UseSerialGC -Xmx$JAVA_XMX -jar $PICARD_HOME/CollectMultipleMetrics.jar INPUT=$TMPDIR/$READ_GROUP.bam OUTPUT=$TMPDIR/$READ_GROUP.bam $OPTIONS PROGRAM=CollectAlignmentSummaryMetrics PROGRAM=QualityScoreDistribution PROGRAM=MeanQualityByCycle
 
 			echo "`${NOW}`copying quality metrics to output directory..."
 			for METRIC in alignment_summary_metrics quality_by_cycle_metrics quality_by_cycle.pdf quality_distribution_metrics quality_distribution.pdf
@@ -253,7 +253,7 @@ do
 	
 		echo "`${NOW}`marking duplicates on library level..."
 		OPTIONS="METRICS_FILE=$TMPDIR/$LIBRARY.dupmark.stats ASSUME_SORTED=true TMP_DIR=$TMPDIR VALIDATION_STRINGENCY=SILENT PROGRAM_RECORD_ID=null VERBOSITY=WARNING"
-		java -Xmx$JAVA_XMX -jar $PICARD_HOME/MarkDuplicates.jar INPUT=$TMPDIR/$LIBRARY.bam OUTPUT=$TMPDIR/$LIBRARY.dupmark.bam $OPTIONS 
+		java -XX:+UseSerialGC -Xmx$JAVA_XMX -jar $PICARD_HOME/MarkDuplicates.jar INPUT=$TMPDIR/$LIBRARY.bam OUTPUT=$TMPDIR/$LIBRARY.dupmark.bam $OPTIONS 
 
 		echo "`${NOW}`removing unmarked BAM..."
 		rm $TMPDIR/$LIBRARY.bam
@@ -280,11 +280,11 @@ do
 	        #GC bias
 		echo "`${NOW}`collecting GC bias metrics on library level..."
 		OPTIONS="TMP_DIR=$TMPDIR VALIDATION_STRINGENCY=SILENT REFERENCE_SEQUENCE=tmp_reference.fa ASSUME_SORTED=true VERBOSITY=WARNING"
-		java -Xmx$JAVA_XMX -jar	$PICARD_HOME/CollectGcBiasMetrics.jar INPUT=$TMPDIR/$LIBRARY.dupmark.bam OUTPUT=$TMPDIR/$LIBRARY.dupmark.bam.gcBias CHART_OUTPUT=$TMPDIR/$LIBRARY.dupmark.bam.gcBias.pdf SUMMARY_OUTPUT=$TMPDIR/$LIBRARY.dupmark.bam.gcBiasSummary $OPTIONS
+		java -XX:+UseSerialGC -Xmx$JAVA_XMX -jar	$PICARD_HOME/CollectGcBiasMetrics.jar INPUT=$TMPDIR/$LIBRARY.dupmark.bam OUTPUT=$TMPDIR/$LIBRARY.dupmark.bam.gcBias CHART_OUTPUT=$TMPDIR/$LIBRARY.dupmark.bam.gcBias.pdf SUMMARY_OUTPUT=$TMPDIR/$LIBRARY.dupmark.bam.gcBiasSummary $OPTIONS
 
 		#insert size metrics
 		echo "`${NOW}`collecting insert size metrics on library level..."
-		java -Xmx$JAVA_XMX -jar	$PICARD_HOME/CollectInsertSizeMetrics.jar INPUT=$TMPDIR/$LIBRARY.dupmark.bam OUTPUT=$TMPDIR/$LIBRARY.dupmark.bam.insert_size_metrics HISTOGRAM_FILE=$TMPDIR/$LIBRARY.dupmark.bam.insert_size_histogram.pdf METRIC_ACCUMULATION_LEVEL=ALL_READS $OPTIONS
+		java -XX:+UseSerialGC -Xmx$JAVA_XMX -jar	$PICARD_HOME/CollectInsertSizeMetrics.jar INPUT=$TMPDIR/$LIBRARY.dupmark.bam OUTPUT=$TMPDIR/$LIBRARY.dupmark.bam.insert_size_metrics HISTOGRAM_FILE=$TMPDIR/$LIBRARY.dupmark.bam.insert_size_histogram.pdf METRIC_ACCUMULATION_LEVEL=ALL_READS $OPTIONS
 
 		echo "`${NOW}`copying output metrics to output directory..."
 		for METRIC in gcBias gcBias.pdf gcBiasSummary insert_size_metrics insert_size_histogram.pdf 
@@ -309,7 +309,7 @@ then
     	
 	echo "`${NOW}`merging library BAM files and replacing header..."
 	#echo "	java -jar -Xmx$JAVA_XMX $PICARD_HOME/MergeSamFiles.jar $LIBRARY_MERGED_BAM OUTPUT=$TMP_PATH_OUT_BAM.sorted.dupmark SORT_ORDER=coordinate USE_THREADING=true  VALIDATION_STRINGENCY=SILENT TMP_DIR=$TMPDIR"
-	java -jar -Xmx$JAVA_XMX $PICARD_HOME/MergeSamFiles.jar $LIBRARY_MERGED_BAM OUTPUT=$TMP_PATH_OUT_BAM.sorted.dupmark SORT_ORDER=coordinate USE_THREADING=true  VALIDATION_STRINGENCY=SILENT TMP_DIR=$TMPDIR VERBOSITY=WARNING
+	java -XX:+UseSerialGC -Xmx$JAVA_XMX -jar $PICARD_HOME/MergeSamFiles.jar $LIBRARY_MERGED_BAM OUTPUT=$TMP_PATH_OUT_BAM.sorted.dupmark SORT_ORDER=coordinate USE_THREADING=true  VALIDATION_STRINGENCY=SILENT TMP_DIR=$TMPDIR VERBOSITY=WARNING
         
 fi
 
@@ -332,7 +332,7 @@ echo "`${NOW}`------------------------------------------------------------------
 
 echo "`${NOW}`cleaning BAM file..."
 OPTIONS="TMP_DIR=$TMPDIR VALIDATION_STRINGENCY=SILENT VERBOSITY=WARNING"
-java -Xmx$JAVA_XMX -jar $PICARD_HOME/CleanSam.jar INPUT=$TMP_PATH_OUT_BAM.sorted.dupmark OUTPUT=$TMP_PATH_OUT_BAM.sorted.dupmark.clean $OPTIONS 
+java -XX:+UseSerialGC -Xmx$JAVA_XMX -jar $PICARD_HOME/CleanSam.jar INPUT=$TMP_PATH_OUT_BAM.sorted.dupmark OUTPUT=$TMP_PATH_OUT_BAM.sorted.dupmark.clean $OPTIONS 
 
 echo "`${NOW}`removing unclean BAM..."
 rm $TMP_PATH_OUT_BAM.sorted.dupmark
@@ -373,11 +373,11 @@ then
 
         #alignment summary metrics, insert size metrics, quality score distribution, mean quality by cycle
 	OPTIONS="TMP_DIR=$TMPDIR VALIDATION_STRINGENCY=SILENT REFERENCE_SEQUENCE=$TMPDIR/tmp_reference.fa ASSUME_SORTED=true VERBOSITY=WARNING"
-	java -Xmx$JAVA_XMX -jar $PICARD_HOME/CollectMultipleMetrics.jar INPUT=$TMP_PATH_OUT_BAM.sorted.dupmark.clean OUTPUT=$TMP_PATH_OUT_BAM $OPTIONS PROGRAM=CollectAlignmentSummaryMetrics PROGRAM=CollectInsertSizeMetrics PROGRAM=QualityScoreDistribution PROGRAM=MeanQualityByCycle
+	java -XX:+UseSerialGC -Xmx$JAVA_XMX -jar $PICARD_HOME/CollectMultipleMetrics.jar INPUT=$TMP_PATH_OUT_BAM.sorted.dupmark.clean OUTPUT=$TMP_PATH_OUT_BAM $OPTIONS PROGRAM=CollectAlignmentSummaryMetrics PROGRAM=CollectInsertSizeMetrics PROGRAM=QualityScoreDistribution PROGRAM=MeanQualityByCycle
 
         #GC bias
 	OPTIONS="TMP_DIR=$TMPDIR VALIDATION_STRINGENCY=SILENT REFERENCE_SEQUENCE=tmp_reference.fa ASSUME_SORTED=true VERBOSITY=WARNING"
-	java -Xmx$JAVA_XMX -jar $PICARD_HOME/CollectGcBiasMetrics.jar INPUT=$TMP_PATH_OUT_BAM.sorted.dupmark.clean OUTPUT=$TMP_PATH_OUT_BAM.gcBias CHART_OUTPUT=$TMP_PATH_OUT_BAM.gcBias.pdf SUMMARY_OUTPUT=$TMP_PATH_OUT_BAM.gcBiasSummary $OPTIONS 
+	java -XX:+UseSerialGC -Xmx$JAVA_XMX -jar $PICARD_HOME/CollectGcBiasMetrics.jar INPUT=$TMP_PATH_OUT_BAM.sorted.dupmark.clean OUTPUT=$TMP_PATH_OUT_BAM.gcBias CHART_OUTPUT=$TMP_PATH_OUT_BAM.gcBias.pdf SUMMARY_OUTPUT=$TMP_PATH_OUT_BAM.gcBiasSummary $OPTIONS 
 
 	echo "`${NOW}`copying quality metrics to output directory..."
 	for METRIC in alignment_summary_metrics gcBias gcBias.pdf gcBiasSummary insert_size_metrics insert_size_histogram.pdf quality_by_cycle_metrics quality_by_cycle.pdf quality_distribution_metrics quality_distribution.pdf
@@ -408,7 +408,7 @@ then
 	
         echo "`${NOW}`collecting metrics..."	
 	OPTIONS="TMP_DIR=$TMPDIR VALIDATION_STRINGENCY=SILENT METRIC_ACCUMULATION_LEVEL=ALL_READS REFERENCE_SEQUENCE=$TMPDIR/tmp_reference.fa VERBOSITY=WARNING"
-	java -Xmx$JAVA_XMX -jar $PICARD_HOME/CalculateHsMetrics.jar INPUT=$TMP_PATH_OUT_BAM.sorted.dupmark.clean OUTPUT=$TMP_PATH_OUT_BAM.hybridMetrics PER_TARGET_COVERAGE=$TMP_PATH_OUT_BAM.perTargetCoverage BAIT_INTERVALS=$TMPDIR/tmp_bait.int TARGET_INTERVALS=$TMPDIR/tmp_target.int $OPTIONS
+	java -XX:+UseSerialGC -Xmx$JAVA_XMX -jar $PICARD_HOME/CalculateHsMetrics.jar INPUT=$TMP_PATH_OUT_BAM.sorted.dupmark.clean OUTPUT=$TMP_PATH_OUT_BAM.hybridMetrics PER_TARGET_COVERAGE=$TMP_PATH_OUT_BAM.perTargetCoverage BAIT_INTERVALS=$TMPDIR/tmp_bait.int TARGET_INTERVALS=$TMPDIR/tmp_target.int $OPTIONS
 
 	echo "`${NOW}`copying metrics to $OUT_BAM.hybridMetrics..."
 	cp $TMP_PATH_OUT_BAM.hybridMetrics $OUT_BAM.hybridMetrics
@@ -438,14 +438,14 @@ then
 	#is not present.
 	echo "`${NOW}`collecting Picard Tartgeted PCR metrics..."	
 	OPTIONS="TMP_DIR=$TMPDIR VALIDATION_STRINGENCY=SILENT METRIC_ACCUMULATION_LEVEL=ALL_READS REFERENCE_SEQUENCE=tmp_reference.fa VERBOSITY=WARNING"
-	java -Xmx$JAVA_XMX -jar $PICARD_HOME/CollectTargetedPcrMetrics.jar INPUT=$TMP_PATH_OUT_BAM.sorted.dupmark.clean OUTPUT=$TMP_PATH_OUT_BAM.targetedPcrMetrics PER_TARGET_COVERAGE=$TMP_PATH_OUT_BAM.perTargetCoverage AMPLICON_INTERVALS=$TMPDIR/tmp_amplicon.intervals TARGET_INTERVALS=$TMPDIR/tmp_target.intervals $OPTIONS
+	java -XX:+UseSerialGC -Xmx$JAVA_XMX -jar $PICARD_HOME/CollectTargetedPcrMetrics.jar INPUT=$TMP_PATH_OUT_BAM.sorted.dupmark.clean OUTPUT=$TMP_PATH_OUT_BAM.targetedPcrMetrics PER_TARGET_COVERAGE=$TMP_PATH_OUT_BAM.perTargetCoverage AMPLICON_INTERVALS=$TMPDIR/tmp_amplicon.intervals TARGET_INTERVALS=$TMPDIR/tmp_target.intervals $OPTIONS
 	
 	#change filename of input file as GATK only
 	#accepts input BAM files with the .bam extension :-S
 	mv $TMP_PATH_OUT_BAM.sorted.dupmark.clean $TMP_PATH_OUT_BAM.sorted.dupmark.clean.bam
 	
 	echo "`${NOW}`collecting GATK amplicon coverage metrics..."	
-	java -Xmx$JAVA_XMX -jar $GATK_HOME/GenomeAnalysisTK.jar \
+	java -XX:+UseSerialGC -Xmx$JAVA_XMX -jar $GATK_HOME/GenomeAnalysisTK.jar \
 		-R tmp_reference.fa \
    		-T DepthOfCoverage \
    		--countType COUNT_FRAGMENTS \
@@ -490,7 +490,7 @@ then
 
         echo "`${NOW}`collecting metrics..."	
 	OPTIONS="TMP_DIR=$TMPDIR VALIDATION_STRINGENCY=SILENT METRIC_ACCUMULATION_LEVEL=ALL_READS REFERENCE_SEQUENCE=$TMPDIR/tmp_reference.fa VERBOSITY=WARNING"
-	java -Xmx$JAVA_XMX -jar $PICARD_HOME/CollectRnaSeqMetrics.jar INPUT=$TMP_PATH_OUT_BAM.sorted.dupmark.clean OUTPUT=$TMP_PATH_OUT_BAM.RnaSeqMetrics CHART_OUTPUT=$TMP_PATH_OUT_BAM.chartOutput RIBOSOMAL_INTERVALS=$TMPDIR/ribosomal.int REF_FLAT=$TMPDIR/annotation.refFlat STRAND_SPECIFICITY=NONE $OPTIONS
+	java -XX:+UseSerialGC -Xmx$JAVA_XMX -jar $PICARD_HOME/CollectRnaSeqMetrics.jar INPUT=$TMP_PATH_OUT_BAM.sorted.dupmark.clean OUTPUT=$TMP_PATH_OUT_BAM.RnaSeqMetrics CHART_OUTPUT=$TMP_PATH_OUT_BAM.chartOutput RIBOSOMAL_INTERVALS=$TMPDIR/ribosomal.int REF_FLAT=$TMPDIR/annotation.refFlat STRAND_SPECIFICITY=NONE $OPTIONS
 
 	echo "`${NOW}`copying metrics to $PATH_OUTPUT_DIR/$OUTPUT_BAM_PREFIX.RnaSeqMetrics...."
 	cp $TMP_PATH_OUT_BAM.RnaSeqMetrics $PATH_OUTPUT_DIR/$OUTPUT_BAM_PREFIX.RnaSeqMetrics
