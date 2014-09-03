@@ -1,0 +1,1916 @@
+#!/bin/bash
+
+# sets up directory structure and scripts to run GATK
+# variant analysis and submits jobs to queue
+
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+
+GATK_VERSION=3.2-2
+SAMTOOLS_VERSION=0.1.18
+#!!!Picard Version needs to be > 1.85 for ClipPrimerSequences 
+#in gatk3_realign_recalibrate.sh to work properly!!! 
+PICARD_VERSION=1.91
+R_VERSION=3.1.0
+BEDTOOLS_VERSION=2.13.3
+TABIX_VERSION=0.2.6
+NXTGENUTILS_VERSION=0.13.0
+JAVA_VERSION=jdk-7u25
+PATH_STRIP_INDEL_QUALS_SCRIPT=$BASEDIR/stripIndelQuals.sh
+
+module load samtools/$SAMTOOLS_VERSION
+module load bedtools/$BEDTOOLS_VERSION
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+#get the directory this script resides in
+GROUP_VOL_CGI=/groupvol/cgi
+DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
+DEPLOYMENT_BASE_DIR=/www/html/report
+QUEUE=pqcgi
+
+
+#GATK configuration
+
+#resources
+BUNDLE=/groupvol/cgi/resources/GATK_resource_bundle/2.8/b37
+
+INDELS_1000G=$BUNDLE/1000G_phase1.indels.b37.vcf
+INDELS_GOLDSTD=$BUNDLE/Mills_and_1000G_gold_standard.indels.b37.vcf
+HIGH_CONF_SNP_1000G=$BUNDLE/1000G_phase1.snps.high_confidence.b37.vcf
+DBSNP=$BUNDLE/dbsnp_138.b37.vcf
+HAPMAP_SITES=$BUNDLE/hapmap_3.3.b37.vcf
+OMNI_1000G=$BUNDLE/1000G_omni2.5.b37.vcf
+DBSNP_EX_POST_129=$BUNDLE/dbsnp_138.b37.excluding_sites_after_129.vcf
+
+#downsampling
+# although we set downsampling, HaplotypeCaller ignores it and uses 1000
+# http://gatkforums.broadinstitute.org/discussion/3989/downsampling-to-coverage-and-the-3-x-haplotypecaller
+WG_EXOME_SEQ_DOWNSAMPLING=250
+TARGET_SEQ_DOWNSAMPLING=2000
+
+DOWNSAMPLING=$WG_EXOME_SEQ_DOWNSAMPLING
+
+#BAM splitting
+BAM_SPLIT_MAX_THREADS=16
+
+#RealignerTargetCreator data threads
+RTC_DATATHREADS=2
+
+#RealignRecalibrate reserved CPUs
+#should be one more then RTC threads
+#as sometimes jobs are killed because
+#RealignTargetCreator uses more than
+#the specified data threads
+## not needed anymore, 
+## using -XX:+UseSerialGC with JVM fixesthe problem
+#RR_DATATHREADS=$(( $RTC_DATATHREADS + 1 ))
+RR_DATATHREADS=$RTC_DATATHREADS
+
+#PrintReads CPU threads
+PR_DATATHREADS=1
+#PR_CPUTHREADS=$(( $PR_DATATHREADS + 1 ))
+PR_CPUTHREADS=$PR_DATATHREADS
+
+#GenotypeGVCFs CPU threads
+GG_DATATHREADS=4
+
+#path to text file containing usage information
+USAGE="$BASEDIR/gatk3.usage"
+
+# default values for input arguments
+REFERENCE_DIR=$GROUP_VOL_CGI/resources/reference/eukaryote/human/hs37d5
+REFERENCE_FASTA=$REFERENCE_DIR/hs37d5.fa
+REFERENCE_DICT=$REFERENCE_DIR/hs37d5.dict
+REFERENCE_CHUNKS_GENOME=$REFERENCE_DIR/hs37d5.chunks.genome.bed
+REFERENCE_CHUNKS_EXOME=$REFERENCE_DIR/hs37d5.chunks.exome.bed
+REFERENCE_CHUNKS_TARGETED=$REFERENCE_DIR/hs37d5.chunks.targeted.bed
+IS_PROJECT_DIR=F
+TARGET_INTERVALS_BED=""
+REFERENCE_CHUNKS_USER=""
+PRIMER_COORD_OFFSET=10
+PED_FILE="none"
+SUBMIT="T"
+AUX_LIST=""
+
+
+#parse command line args
+while getopts "n:r:s:d:t:a:u:x:l:p:o:q:g" OPTION;
+do
+
+    case "$OPTION" in
+	n) PROJECT="$OPTARG";;
+	s) SAMPLE_LIST="$OPTARG";;
+	t) TYPE="$OPTARG";;
+	a) TARGET_INTERVALS_BED="$OPTARG";;
+	r) REFERENCE_FASTA="$OPTARG";;
+	d) REFERENCE_DICT="$OPTARG";;
+	u) REFERENCE_CHUNKS_USER="$OPTARG";;
+	x) AUX_LIST="$OPTARG";;
+	l) OUTPUT_SAMPLE_LIST="$OPTARG";;	
+	p) PRIMER_COORD_BED="$OPTARG";;
+	o) PRIMER_COORD_OFFSET="$OPTARG";;
+	q) PED_FILE="$OPTARG";;	
+	g) SUBMIT="F";;
+	h) cat $USAGE; exit 0;;
+	[?]) cat $USAGE; exit 1;;
+
+esac
+done
+
+
+#check if all required arguments are present...
+if [[ -z $PROJECT ]] || \
+   [[ -z $SAMPLE_LIST ]] || \
+   [[ -z $REFERENCE_FASTA ]] || \
+   [[ -z $REFERENCE_DICT ]] || \
+   [[ -z $TYPE ]]
+then
+
+        #...if not print usage and exit
+        cat $USAGE
+        exit 1
+fi
+
+#check if output sample list exist, if not, use the same as input.
+if [[ -z $OUTPUT_SAMPLE_LIST ]]; then
+	echo "`$NOW`INFO: output sample list not provided and is set to be the same as input sample list" 
+	OUTPUT_SAMPLE_LIST=$SAMPLE_LIST
+fi
+
+#check if input files and directories exist
+#and args are valid
+
+#check if sample list file exists
+if [[ ! -e $SAMPLE_LIST ]]; then
+	echo "`$NOW`ERROR: sample list file does not exist: $SAMPLE_LIST"
+	exit 1
+fi
+
+# if additional gVCFs are not used
+if [[ -z $AUX_LIST ]]; then
+	echo "`$NOW`INFO: no additional gVCF files argument is provided, only input bam files are used for variant calling"
+	AUX_FILES="F"
+else
+	AUX_FILES="T"
+fi
+
+#check if additional gVCFs sample list file exists 
+if [[ $AUX_FILES == "T" ]] && [[ ! -e $AUX_LIST ]]; then
+	echo "`$NOW`ERROR: additional gVCF sample list file does not exist: $AUX_LIST"
+	exit 1
+fi
+
+
+#check if reference fasta exists
+if [[ ! -e $REFERENCE_FASTA ]]; then
+	echo "`$NOW`ERROR: reference sequence file does not exist: $REFERENCE_FASTA"
+	exit 1
+fi
+
+#check if reference dictionary exists
+if [[ ! -e $REFERENCE_DICT ]]; then
+	echo "`$NOW`ERROR: reference dictionary file does not exist: $REFERENCE_DICT"
+	exit 1
+fi
+
+if [[ $TARGET_INTERVALS_BED != ""  ]] && [[ ! -e $TARGET_INTERVALS_BED ]]; then
+	echo "`$NOW`ERROR: target interval BED file does not exist: $TARGET_INTERVALS_BED"
+	exit 1
+fi
+    
+if [[ $PRIMER_COORD_BED != ""  ]] && [[ ! -e $PRIMER_COORD_BED ]]; then
+	echo "`$NOW`ERROR: primer/probe genomic coordinate BED file does not exist: $PRIMER_COORD_BED"
+	exit 1
+fi
+
+if [[ "$TYPE" == "TARGETED" ]]; then
+
+	#make sure target/amplicon intervals were supplied
+	if [[ $TARGET_INTERVALS_BED == ""  ]]; then
+		echo "`$NOW`ERROR: for targeted sequencing data target- or amplicon-coordinates in BED format have to be supplied via the -a command line argument."
+		exit 1
+	fi
+
+##TO DO -check if still necessary### not required
+	#for high coverage targeted sequencing data
+	#HaplotypeCaller will run too long if executed
+	#on all targets simultaneously
+	REFERENCE_CHUNKS=$REFERENCE_CHUNKS_TARGETED
+			
+	#set downsampling
+	DOWNSAMPLING=$TARGET_SEQ_DOWNSAMPLING
+
+elif [[ "$TYPE" == "EXOME" ]]; then
+
+	#make sure target/amplicon intervals were supplied
+	if [[ $TARGET_INTERVALS_BED == ""  ]]; then 
+		echo "`$NOW`ERROR: for exome sequencing data target coordinates in BED format have to be supplied via the -a command line argument"
+		exit 1
+	fi
+
+	#use exome chunks for exome sequencing
+	REFERENCE_CHUNKS=$REFERENCE_CHUNKS_EXOME
+
+elif [[ "$TYPE" == "WGS" ]]; then
+	#use exome chunks for exome sequencing
+	REFERENCE_CHUNKS=$REFERENCE_CHUNKS_GENOME
+
+else
+	echo "`$NOW`ERROR: invalid value for sequencing type option (-t) option : $TYPE."
+	echo "`$NOW`allowed values: WGS, EXOME, TARGETED."
+    exit 1
+fi
+
+
+if [[ "$REFERENCE_CHUNKS_USER" != "" ]] && [[ -e $REFERENCE_CHUNKS_USER ]]; then
+	REFERENCE_CHUNKS=$REFERENCE_CHUNKS_USER
+elif [[ "$REFERENCE_CHUNKS_USER" != "" ]] && [[ ! -e $REFERENCE_CHUNKS_USER ]]; then
+	echo "`$NOW`ERROR: user-defined chunk file does not exist: $REFERENCE_CHUNKS_USER"
+	exit 1
+fi
+
+
+#get chunk count
+TOTAL_CHUNK_COUNT=0
+
+for CHUNK_NAME in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`; do
+	if [[ $CHUNK_NAME != ""  ]]; then
+		TOTAL_CHUNK_COUNT=$(( $TOTAL_CHUNK_COUNT + 1 ))
+	fi
+done;
+
+#FUNCTIONS
+####################################################
+
+#creates job scripts
+function submitRealignmentAndRecalibrationJobs {
+
+	#get args
+	local input_bam=$1
+	local analysis_dir=$2
+	local results_dir=$3
+
+	local run_dir=$analysis_dir/run    
+	local input_bam_name=`basename $input_bam .bam`
+	local sample=$input_bam_name
+	local rerun_script=$run_dir/rerun.sh
+
+
+	#create directory structure for samples
+	mkdir -p $analysis_dir
+	mkdir -p $results_dir
+	mkdir -p $run_dir
+
+	mkdir -p $analysis_dir/chunks
+
+	#realignment
+	mkdir -p $analysis_dir/realignment
+	
+	#recalibration
+	mkdir -p $analysis_dir/recalibration/reports/pre
+	mkdir -p $analysis_dir/recalibration/reports/post
+#	mkdir -p $analysis_dir/recalibration/plots/post
+
+	mkdir -p $results_dir/recalibration/reports/pre
+	mkdir -p $results_dir/recalibration/reports/post
+	mkdir -p $results_dir/recalibration/plots/post
+
+	#haplotypecaller
+	mkdir -p $analysis_dir/haplotypecaller
+	mkdir -p $results_dir/haplotypecaller
+
+	#metrics
+#	mkdir -p $results_dir/metrics
+
+	#initialise rerun script
+	echo "#$sample" > $rerun_script
+	echo "" >> $rerun_script
+	echo 'NOW="date +%Y-%m-%d%t%T%t"' >>  $rerun_script
+	echo "" >>  $rerun_script
+	echo 'STAGE=$1' >> $rerun_script
+	echo 'IS_DEPENDING=$2' >> $rerun_script
+	echo -n 'SAMPLE="' >> $rerun_script
+	echo -n $sample >> $rerun_script
+	echo '"' >> $rerun_script
+	
+
+	echo 'if [[ -z $STAGE ]] || [[ $STAGE == "pre" ]]' >> $rerun_script
+	echo "then" >> $rerun_script
+	echo "" >> $rerun_script
+	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+	echo 'echo "`$NOW`PRE-PROCESSING"' >> $rerun_script
+	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+	echo 'echo ""' >> $rerun_script
+
+	#configure script to print progress summary for submitted jobs
+	#if job is completed and log file is created in /run directory
+	#script examines whether the output files are in place and not empty
+	echo "`$NOW`creating and configuring summary script..."
+	local summary_script_path=$run_dir/summary_gatk.$sample.pl
+	cp $BASEDIR/summary_gatk.pl $summary_script_path
+	chmod 770 $summary_script_path
+
+	sed -i -e "s/projectDirAnalysis/${ANALYSIS_DIR_PROJECT//\//\\/}/" $summary_script_path
+	sed -i -e "s/projectDirResults/${RESULTS_DIR_PROJECT//\//\\/}/" $summary_script_path
+	sed -i -e "s/#project/$PROJECT/" $summary_script_path
+	sed -i -e "s/#today/$TODAY/" $summary_script_path
+	sed -i -e "s/deploymentServer/$DEPLOYMENT_SERVER/" $summary_script_path
+	sed -i -e "s/summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $summary_script_path
+	sed -i -e "s/dataDeployment/${DATA_DEPLOYMENT//\//\\/}/" $summary_script_path
+	sed -i -e "s/summaryResults/${ANALYSIS_DIR_MSVC//\//\\/}/" $summary_script_path
+	sed -i -e "s/sampleList/${SAMPLE_LIST//\//\\/}/" $summary_script_path
+	sed -i -e "s/refChunks/${REFERENCE_CHUNKS//\//\\/}/" $summary_script_path
+	sed -i -e "s/refIntervals/null/" $summary_script_path
+	sed -i -e "s/#type/$TYPE/" $summary_script_path
+	sed -i -e "s/encryptedDir/$INC_DIR/" $summary_script_path
+
+
+
+	######### script 1: indel realignment and base call score recalibration
+
+	local recalibration_reports=""
+	local dependency_realign_recal=afterok
+
+	echo "`$NOW`====================================================================================="
+	echo "`$NOW`Split BAM, realign & recalibrate"
+	echo "`$NOW`====================================================================================="
+ 
+ 	
+	echo "`$NOW`splitting BAM files..."
+	local chunk_bed_name=`basename $REFERENCE_CHUNKS .bed`
+
+	#get chunk count
+	local chunk_ids=(`cut -f5 $REFERENCE_CHUNKS | uniq | awk '/^\s*$/ {next;} {print}'`)
+	local chunk_count=`cut -f5 $REFERENCE_CHUNKS | uniq | awk '/^\s*$/ {next;} {print}' | wc -l`
+	
+	#calculate number of jobs required
+	local job_count=`perl -e "use POSIX qw(ceil); print ceil($chunk_count/$BAM_SPLIT_MAX_THREADS);"`
+
+	echo "`$NOW`splitting input BAM $input_bam_name into $chunk_count chunks" 
+	echo "`$NOW`max. $BAM_SPLIT_MAX_THREADS chunks per job" 
+	echo "`$NOW`$job_count jobs required"
+
+	#initialise file to store job ids for
+	#realignment and recalibration job dependencies
+	echo -n "" > $run_dir/realign_recalibrate_dependencies.tsv
+
+	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+	echo 'echo "`$NOW`Split BAM, realign & recalibrate"' >> $rerun_script
+	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+	echo "#split" >> $rerun_script
+
+	echo 'SB_DEPENDENCY=afterok' >> $rerun_script
+
+	#for each subset of chunks...
+	local subset_count=0
+	for (( c=0; c<$chunk_count; c=c+$BAM_SPLIT_MAX_THREADS )); do
+	
+		local from=$c
+		local to=$(($c+$BAM_SPLIT_MAX_THREADS-1))
+
+		if [ $to -ge $chunk_count ]; then
+			to=$(($chunk_count-1)) 
+		fi
+
+		subset_count=$(($subset_count+1))
+		local subset_bed=$run_dir/$chunk_bed_name.subset_${subset_count}.bed
+
+		local last_subset=F
+
+		if [[ $subset_count -eq $job_count ]]; then
+			last_subset=T
+		fi
+
+		echo "`$NOW`processing chunk subset $subset_count of $job_count..."
+
+		#initialise subset BAM
+		echo -n "" > $subset_bed
+
+		#...create subset BED file
+		local subset_threads=0
+		for (( i=$from; i<=$to; i=i+1 )); do
+
+			local chunk_id=${chunk_ids[$i]}
+			cat $REFERENCE_CHUNKS | awk "{ if (\$5==$chunk_id) { print; } } " >> $subset_bed
+	
+			subset_threads=$(($subset_threads+1))
+		
+		done
+	
+		#calculate temp space
+		local file_size_gb=`du $input_bam | perl -e '$in=<>; $in; @tokens=split(/\t/, $in); $size=$tokens[0]; $size_mb=$size/1024; $size_gb=$size_mb/1024; printf("%.0f",$size_gb);'`
+		#echo $file_size_gb
+		local tmpspace=$(($file_size_gb*2))
+
+		local subset_count_formatted=`printf "%.3d\n" $subset_count`
+	
+		#...create and configuring job script
+		script_path=$run_dir/SB_${input_bam_name}_${subset_count_formatted}.sh
+		cp $BASEDIR/splitBam.sh $script_path
+
+		local output_dir=$analysis_dir/chunks
+
+		sed -i -e "s/#samtoolsVersion/$SAMTOOLS_VERSION/" $script_path
+		sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
+		sed -i -e "s/#sample/$sample/" $script_path
+		sed -i -e "s/#inputBam/${input_bam//\//\\/}/" $script_path
+		sed -i -e "s/#runDir/${run_dir//\//\\/}/" $script_path
+		sed -i -e "s/#outputDir/${output_dir//\//\\/}/" $script_path
+		sed -i -e "s/#chunkBed/${subset_bed//\//\\/}/" $script_path
+		sed -i -e "s/#threads/$subset_threads/" $script_path
+		sed -i -e "s/#tmpSpaceGb/$tmpspace/g" $script_path
+		sed -i -e "s/#subset/subset_${subset_count}/" $script_path
+		sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $script_path
+		sed -i -e "s/#lastSubset/$last_subset/" $script_path
+	
+		#submit job and save job ID to dependency variable
+		echo "`$NOW`submitting job script $script_path..."
+		
+   		log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+   		
+   		if [[ $SUBMIT == "T" ]]; then
+   			local job_id=`qsub -o $log_output_path $script_path` 
+		fi
+		
+		echo "`$NOW`job ID: $job_id"
+    		        
+		#write qsub to re-submission script
+		echo -n 'echo "`$NOW`submitting job script ' >> $rerun_script
+		echo -n $script_path >> $rerun_script
+		echo '..."' >> $rerun_script
+		echo -n 'JOB_ID=`' >> $rerun_script
+		echo -n "qsub -o $log_output_path $script_path" >> $rerun_script
+		echo '`' >> $rerun_script
+		echo 'SB_DEPENDENCY=$SB_DEPENDENCY:$JOB_ID' >> $rerun_script
+		echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
+		echo '$JOB_ID"' >> $rerun_script
+		echo "" >> $rerun_script
+	
+		#store job id for realignment and recalibration dependency
+		for (( i=$from; i<=$to; i=i+1 )); do
+	
+			local chunk_id=${chunk_ids[$i]}
+			echo -e "$chunk_id\t$job_id" >> $run_dir/realign_recalibrate_dependencies.tsv	
+		
+		done
+		
+	done;
+
+
+	
+	echo "`$NOW`realigning and recalibrating BAM files..."
+	
+	echo "#realign_recalibrat" >> $rerun_script
+
+	echo 'RR_DEPENDENCY=afterok' >> $rerun_script
+						
+	local chunk_count=0
+	for chunk_name in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`; do
+
+		if [[ $chunk_name != ""  ]]; then
+			
+			chunk_count=$(( $chunk_count + 1 ))			
+			local includes_unmapped=F
+
+			echo "`$NOW`-------------------------------------------------------------------------------------"
+			echo "`$NOW`chunk $chunk_count of $TOTAL_CHUNK_COUNT..."
+				
+			local chunk="chunk_$chunk_name"
+
+			local chunk_int=$analysis_dir/chunks/$chunk.intervals
+			local chunk_bed=$analysis_dir/chunks/$chunk.bed
+
+			echo "`$NOW`creating chunk interval file..."
+			#converting BED to interval list skipping blank lines
+			#converting to chr:start-end format instead of tab delimited
+			#format as GATK started to refuse parsing tab delimited format for some
+			#reason
+#			cat $REFERENCE_DICT > $chunk_int
+#			grep -P "chunk_${chunk_name}\." $REFERENCE_CHUNKS | awk '/^\s*$/ {next;} { print $1 "\t" $2+1 "\t" $3 "\t+\t" $4 }' > $chunk_int
+			grep -P "chunk_${chunk_name}\." $REFERENCE_CHUNKS | awk '/^\s*$/ {next;} { print $1 ":" $2+1 "-" $3 }' > $chunk_int
+ 		
+			echo "`$NOW`creating chunk BED file..."
+			grep -P "chunk_${chunk_name}\." $REFERENCE_CHUNKS > $chunk_bed
+
+			if [[ $chunk_count -eq $TOTAL_CHUNK_COUNT ]]; then 		
+				includes_unmapped=T
+			fi
+
+			local chunk_bam=$analysis_dir/chunks/$input_bam_name.$chunk.bam
+
+			echo "`$NOW`creating and submitting job script to realign and recalibrate chunk..."
+			
+			local chunk_formatted=`printf "%.3d\n" $chunk_name`
+
+			local script_path=$run_dir/RR_${sample}_${chunk_formatted}.sh
+			cp $BASEDIR/gatk3_realign_recalibrate.sh $script_path
+
+			sed -i -e "s/#gatkVersion/$GATK_VERSION/" $script_path
+			sed -i -e "s/#samtoolsVersion/$SAMTOOLS_VERSION/" $script_path
+			sed -i -e "s/#picardVersion/$PICARD_VERSION/" $script_path
+			sed -i -e "s/#rVersion/$R_VERSION/" $script_path	
+			sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
+	    	  	sed -i -e "s/#nxtGenUtilsVersion/$NXTGENUTILS_VERSION/" $script_path
+    	  
+			sed -i -e "s/#indels1000G/${INDELS_1000G//\//\\/}/" $script_path	
+			sed -i -e "s/#indelsGoldStd/${INDELS_GOLDSTD//\//\\/}/" $script_path
+			sed -i -e "s/#dbSnp/${DBSNP//\//\\/}/" $script_path
+    		
+			sed -i -e "s/#inputBam/${chunk_bam//\//\\/}/" $script_path
+			sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
+			sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+			sed -i -e "s/#analysisDir/${analysis_dir//\//\\/}/" $script_path
+			sed -i -e "s/#fragmentName/$chunk/" $script_path
+			sed -i -e "s/#dataThreads/$RR_DATATHREADS/" $script_path   
+			sed -i -e "s/#rtcDataThreads/$RTC_DATATHREADS/" $script_path
+			sed -i -e "s/#sample/$sample/" $script_path
+			sed -i -e "s/#includesUnmapped/$includes_unmapped/" $script_path
+			sed -i -e "s/#primerCoordBed/${PRIMER_COORD_BED//\//\\/}/" $script_path
+			sed -i -e "s/#primerCoordOffset/$PRIMER_COORD_OFFSET/" $script_path
+			sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $script_path
+			 
+			## change from GATKv2 pipeline - we output all reads, not just target region
+#			if [[ $TARGET_INTERVALS_BED != ""  ]]; then
+
+#				target_int=$ANALYSIS_DIR_MSVC/chunk_${chunk_name}_target_intervals.int
+#				sed -i -e "s/#fragmentFile/${target_int//\//\\/}/" $script_path
+#			else
+				sed -i -e "s/#fragmentFile/${chunk_int//\//\\/}/" $script_path
+#			fi
+
+			recalibration_reports="$recalibration_reports $analysis_dir/recalibration/reports/pre/$sample.$chunk.realigned.recal_data.grp"
+
+			#submit job and save job ID to dependency variable
+			local log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+    		
+			#get BAM split dependency
+			local split_dependency=`cat $run_dir/realign_recalibrate_dependencies.tsv | grep -P "^$chunk_name\t" | cut -f2` 
+    		
+			echo "`$NOW`$script_path"
+
+	   		if [[ $SUBMIT == "T" ]]; then
+				local job_id=`qsub -o $log_output_path -W depend=afterok:$split_dependency $script_path`
+			fi
+			
+			dependency_realign_recal="$dependency_realign_recal:$job_id"
+			echo "`$NOW`job ID: $job_id"
+    		        
+			#write qsub to re-submission script
+			echo -n 'echo "`$NOW`submitting job script ' >> $rerun_script
+			echo -n $script_path >> $rerun_script
+			echo '..."' >> $rerun_script
+			
+			echo -n 'JOB_ID=`' >> $rerun_script
+			echo -n "qsub -o $log_output_path -W depend=" >> $rerun_script
+			echo -n '$SB_DEPENDENCY ' >> $rerun_script
+			echo -n "$script_path" >> $rerun_script
+			echo '`' >> $rerun_script
+			
+			echo 'RR_DEPENDENCY=$RR_DEPENDENCY:$JOB_ID' >> $rerun_script
+			
+			echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
+			echo '$JOB_ID"' >> $rerun_script
+			echo "" >> $rerun_script
+
+			echo "`$NOW`-------------------------------------------------------------------------------------"
+		
+		fi
+
+	done
+
+
+	########## script 2: merge chunk recalibration reports
+
+	local dependency_merge_recal=afterok
+	local merged_recal_report=$results_dir/recalibration/reports/pre/$sample.realigned.recal_data.grp
+
+	#create and configure script to merge chunk recalibration reports
+
+	echo "`$NOW`====================================================================================="
+	echo "`$NOW`Merge recalibration reports"
+	echo "`$NOW`====================================================================================="
+	script_path=$run_dir/MR_${sample}_000.sh
+	cp $BASEDIR/gatk3_merge_recalibration_reports.sh $script_path
+
+	sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
+	sed -i -e "s/#recalibrationReports/${recalibration_reports//\//\\/}/" $script_path
+	sed -i -e "s/#mergedRecalibrationReport/${merged_recal_report//\//\\/}/" $script_path
+	sed -i -e "s/#nxtGenUtilsVersion/$NXTGENUTILS_VERSION/" $script_path
+
+	sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
+	sed -i -e "s/#sample/$sample/" $script_path
+	sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $script_path
+
+	#submit job and save job ID to dependency variable
+	log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+
+	echo "`$NOW`$script_path"
+
+	if [[ $SUBMIT == "T" ]]; then
+		job_id=`qsub -o $log_output_path -W depend=$dependency_realign_recal $script_path`
+	fi
+	
+	echo "`$NOW`job ID: $job_id"
+	dependency_merge_recal=$dependency_merge_recal:$job_id
+
+
+	#write qsub to re-submission script
+	#with new realign recalibration dependency
+	echo "#merge_recal_report" >> $rerun_script
+	
+	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+	echo 'echo "`$NOW`Merge recalibration reports"' >> $rerun_script
+	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+
+	
+	echo -n 'echo "`$NOW`submitting job script ' >> $rerun_script
+	echo -n $script_path >> $rerun_script
+	echo '..."' >> $rerun_script
+
+	echo -n 'JOB_ID=`' >> $rerun_script
+	echo -n "qsub -o $log_output_path -W depend=" >> $rerun_script
+	echo -n '$RR_DEPENDENCY ' >> $rerun_script
+	echo -n "$script_path" >> $rerun_script
+	echo '`' >> $rerun_script
+
+	echo 'MRR_DEPENDENCY=afterok:$JOB_ID' >> $rerun_script
+	
+	echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
+	echo '$JOB_ID"' >> $rerun_script
+	echo "" >> $rerun_script
+
+
+	#add sample to PrintReads dependency file
+	echo -n -e "$sample\t" >> $PRINT_READS_DEPENDENCY
+
+	#reset chunk count
+	chunk_count=0
+
+	echo "`$NOW`====================================================================================="
+	echo "`$NOW`Print reads"
+	echo "`$NOW`====================================================================================="
+
+
+	echo "#print_reads" >> $rerun_script
+	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+	echo 'echo "`$NOW`Print reads"' >> $rerun_script
+	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+
+	
+	echo 'PR_DEPENDENCY=afterok' >> $rerun_script
+
+	## moved higher up, to be able to run earlier in analysis
+	#configure script to print progress summary for submitted jobs
+	#if job is completed and log file is created in /run directory
+	#script examines whether the output files are in place and not empty
+#	echo "`$NOW`creating and configuring summary script..."
+#	local summary_script_path=$run_dir/summary_gatk.$sample.pl
+#	cp $BASEDIR/summary_gatk.pl $summary_script_path
+#	chmod 770 $summary_script_path
+
+#	sed -i -e "s/projectDirAnalysis/${ANALYSIS_DIR_PROJECT//\//\\/}/" $summary_script_path
+#	sed -i -e "s/projectDirResults/${RESULTS_DIR_PROJECT//\//\\/}/" $summary_script_path
+#	sed -i -e "s/#project/$PROJECT/" $summary_script_path
+#	sed -i -e "s/#today/$TODAY/" $summary_script_path
+#	sed -i -e "s/deploymentServer/$DEPLOYMENT_SERVER/" $summary_script_path
+#	sed -i -e "s/summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $summary_script_path
+#	sed -i -e "s/dataDeployment/${DATA_DEPLOYMENT//\//\\/}/" $summary_script_path
+#	sed -i -e "s/summaryResults/${ANALYSIS_DIR_MSVC//\//\\/}/" $summary_script_path
+#	sed -i -e "s/sampleList/${SAMPLE_LIST//\//\\/}/" $summary_script_path
+#	sed -i -e "s/refChunks/${REFERENCE_CHUNKS//\//\\/}/" $summary_script_path
+#	sed -i -e "s/refIntervals/null/" $summary_script_path
+#	sed -i -e "s/#type/$TYPE/" $summary_script_path
+#	sed -i -e "s/encryptedDir/$INC_DIR/" $summary_script_path
+
+
+	for chunk_name in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`; do 
+
+		if [[ $chunk_name != ""  ]]; then
+
+			chunk_count=$(( $chunk_count + 1 ))	
+			echo "`$NOW`-------------------------------------------------------------------------------------"	 
+			echo "`$NOW`chunk $chunk_count of $TOTAL_CHUNK_COUNT..."
+
+			chunk="chunk_$chunk_name"
+			local chunk_int=$analysis_dir/chunks/$chunk.intervals
+		
+			########## script 3: print reads with recalibrated quality scores 
+
+			#create and configure script to print reads with recalibrated quality scores 
+
+			local realigned_bam_file=$analysis_dir/realignment/$sample.$chunk.realigned.bam
+			local realigned_recalibrated_bam_file=$analysis_dir/recalibration/$sample.$chunk.realigned.recalibrated.bam
+			local genomic_vcf_file=$analysis_dir/haplotypecaller/$sample.$chunk.genomic.vcf
+			local includes_unmapped=F
+
+			if [[ $chunk_count -eq $TOTAL_CHUNK_COUNT ]]; then
+				includes_unmapped=T
+			fi
+
+			local chunk_formatted=`printf "%.3d\n" $chunk_name`
+
+			echo "`$NOW`creating and submitting job script to print recalibrated and run haplotype caller reads..."
+			script_path=$run_dir/PH_${sample}_${chunk_formatted}.sh
+			cp $BASEDIR/gatk3_print_reads_haplotype_caller.sh $script_path
+
+			sed -i -e "s/#gatkVersion/$GATK_VERSION/" $script_path
+			sed -i -e "s/#samtoolsVersion/$SAMTOOLS_VERSION/" $script_path
+			sed -i -e "s/#nextGenUtilsVersion/$NXTGENUTILS_VERSION/" $script_path
+			sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
+
+			sed -i -e "s/#cpuThreads/$PR_CPUTHREADS/" $script_path
+			sed -i -e "s/#nctThreads/$PR_DATATHREADS/" $script_path
+			sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
+			sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+			sed -i -e "s/#analysisDir/${analysis_dir//\//\\/}/" $script_path
+			sed -i -e "s/#sample/$sample/" $script_path
+			sed -i -e "s/#fragmentName/$chunk/" $script_path
+			sed -i -e "s/#realignedBamFile/${realigned_bam_file//\//\\/}/" $script_path
+			sed -i -e "s/#recalibrationReport/${merged_recal_report//\//\\/}/" $script_path
+			sed -i -e "s/#recalibratedBamOutput/${realigned_recalibrated_bam_file//\//\\/}/" $script_path
+			sed -i -e "s/#includesUnmapped/$includes_unmapped/" $script_path
+			sed -i -e "s/#downsamplingThreshold/$DOWNSAMPLING/" $script_path
+			sed -i -e "s/#genomicVCF/${genomic_vcf_file//\//\\/}/" $script_path
+			sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $script_path
+
+			## change from GATKv2 pipeline - we output all reads, not just target region
+
+#			if [[ $TARGET_INTERVALS_BED != ""  ]]; then
+
+#				target_int=$ANALYSIS_DIR_MSVC/chunk_${chunk_name}_target_intervals.int
+#				sed -i -e "s/#fragmentFile/${target_int//\//\\/}/" $script_path
+#			else
+				sed -i -e "s/#fragmentFile/${chunk_int//\//\\/}/" $script_path
+#			fi
+		
+			
+			
+			#submit job and save job ID to dependency variable
+			log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+
+			echo "`$NOW`$script_path"
+	   		if [[ $SUBMIT == "T" ]]; then
+				job_id=`qsub -o $log_output_path -W depend=$dependency_merge_recal $script_path`
+			fi
+			
+	        	echo "`$NOW`job ID: $job_id"
+ 
+			#write qsub to re-submission script
+    			#with new merge recalibration report dependency
+    			echo -n 'echo "`$NOW`submitting job script ' >> $rerun_script
+			echo -n $script_path >> $rerun_script
+			echo '..."' >> $rerun_script
+    		
+    		
+    			echo -n 'JOB_ID=`' >> $rerun_script
+			echo -n "qsub -o $log_output_path -W depend=" >> $rerun_script
+			echo -n '$MRR_DEPENDENCY ' >> $rerun_script
+			echo -n "$script_path" >> $rerun_script
+			echo '`' >> $rerun_script
+
+			echo 'PR_DEPENDENCY=$PR_DEPENDENCY:$JOB_ID' >> $rerun_script
+			
+			echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
+			echo '$JOB_ID"' >> $rerun_script
+			echo "" >> $rerun_script
+			echo -n 'echo -e "$SAMPLE\t$JOB_ID" >> ' >> $rerun_script
+			echo "$ANALYSIS_DIR_MSVC/run/pre.$chunk.dependencies.txt" >> $rerun_script
+
+			#store job ID in PrintReads dependencies file
+			if [[ $chunk_count -ne $TOTAL_CHUNK_COUNT ]]; then
+				echo -n -e "$job_id\t" >> $PRINT_READS_DEPENDENCY
+			else
+				echo "$job_id" >> $PRINT_READS_DEPENDENCY
+			fi
+			
+			echo "`$NOW`-------------------------------------------------------------------------------------"
+	
+		fi
+		# end of if [[ $chunk_name != ""  ]]
+
+	done
+
+	echo 'echo "`$NOW`-------------------------------------------------------------------------------------"' >> $rerun_script
+
+	echo "fi" >> $rerun_script
+	echo "" >> $rerun_script
+
+#       to reduce number of job submissions summary script now
+#       invoked from gatk3_print_reads_haplotype_caller.sh script
+#
+#	log_output_path=`echo $script_path | perl -pe 's/\.pl/\.log/g'`
+#	echo "`$NOW`$script_path"
+#	local sum_job_id=`qsub -q $QUEUE -o $log_output_path -j oe -W depend=afterany:$job_id -M cgi@imperial.ac.uk $script_path`
+#	echo "`$NOW`job ID: $sum_job_id"
+
+
+	#change permissions on all directories/files created
+	chmod -R 770 $analysis_dir
+	chmod -R 770 $results_dir
+
+}
+
+function submitGenotypeGVCFsJobs {
+
+	local analysis_dir=$1
+	local results_dir=$2
+#	local variant_caller=$3
+	local run_dir=$analysis_dir/run
+
+	local rerun_script=$run_dir/rerun.genotype_gVCFs.sh
+
+	#create output directories
+	mkdir -p $analysis_dir/chunks
+	mkdir -p $analysis_dir/genotypeGVCFs/metrics
+	mkdir -p $analysis_dir/genotypeGVCFs/recalibration
+
+	mkdir -p $results_dir/genotypeGVCFs
+	mkdir -p $results_dir/genotypeGVCFs/recalibration
+	
+	mkdir -p $run_dir
+
+	#intitialise rerun script
+	echo -n "" > $rerun_script
+	echo 'IS_DEPENDING=$1' >> $rerun_script
+	echo 'NOW="date +%Y-%m-%d%t%T%t"' >> $rerun_script
+
+	echo "`$NOW`"	
+	echo "`$NOW`"
+	echo "`$NOW`====================================================================================="
+	echo "`$NOW`Multi-sample genotypeGVCFs..."
+	echo "`$NOW`====================================================================================="
+
+	local chunk_count=0
+
+	local dependency_genotypeGVCFs=afterok
+	local sample=${PROJECT}_multisample
+	local raw_vcf_files=""
+
+	
+	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+	echo 'echo "`$NOW`Multi-sample genotypeGVCFs..."' >> $rerun_script
+	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+	echo "#variant_calling" >> $rerun_script
+	echo 'VC_DEPENDENCY=afterok' >> $rerun_script
+
+	local hc_intervals="null"
+
+	for chunk_name in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`; do	
+	
+		if [[ $chunk_name != ""  ]]; then 
+
+			chunk_count=$(( $chunk_count + 1 ))	
+			echo "`$NOW`-------------------------------------------------------------------------------------"	 
+			echo "`$NOW`chunk $chunk_count of $TOTAL_CHUNK_COUNT..."
+
+			chunk="chunk_$chunk_name"
+
+			local chunk_int=$analysis_dir/chunks/$chunk.intervals
+			local chunk_bed=$analysis_dir/chunks/$chunk.bed
+
+			echo "`$NOW`creating interval file..."
+			#converting BED to interval list skipping blank lines
+			#converting to chr:start-end format instead of tab delimited
+			#format as GATK started to refuse parsing tab delimited format for some
+			#reason
+			grep -P "chunk_${chunk_name}\." $REFERENCE_CHUNKS | awk '/^\s*$/ {next;} { print $1 ":" $2+1 "-" $3 }' > $chunk_int
+
+			echo "`$NOW`creating BED file..."
+			grep -P "chunk_${chunk_name}\." $REFERENCE_CHUNKS > $chunk_bed
+
+
+			#get PrintReads job IDs for multi-sample calling job
+			# dependencies
+			local dependency_print_reads=afterok
+			local job_id_column=$(( $chunk_count + 1 ))
+			for job_id_record in `cut -f$job_id_column $PRINT_READS_DEPENDENCY`; do
+
+				#check if job is still in the queue (either running or queuing)
+				#select jobs that are
+				#'Q'ueued
+				#'R'unning
+				#'H'eld
+				#'S'uspended
+				#'W'aiting
+				local alive=`qselect -s QRHSW | grep $job_id_record`
+				if [[ $alive != "" ]]; then
+#					echo "`$NOW`adding job $job_id_record to multi-sample variant calling job dependencies..."
+					dependency_print_reads="$dependency_print_reads:$job_id_record"
+#				else
+#					echo "`$NOW`job $job_id_record has finished. Not added to multi-sample variant calling job dependencies..."
+				fi			
+
+			done;
+
+			########## script 4: run genotypeGVCFs on gVCF chunks 
+
+			echo "`$NOW`creating and submitting job script to run genotypeGVCFs..."
+
+			local chunk_formatted=`printf "%.3d\n" $chunk_name`
+
+			local script_path=$run_dir/GG_00000000_${chunk_formatted}.sh
+			cp $BASEDIR/gatk3_genotypeGVCFs.sh $script_path
+				
+		  		
+			sed -i -e "s/#gatkVersion/$GATK_VERSION/" $script_path
+			sed -i -e "s/#samtoolsVersion/$SAMTOOLS_VERSION/" $script_path
+			sed -i -e "s/#picardVersion/$PICARD_VERSION/" $script_path
+			sed -i -e "s/#rVersion/$R_VERSION/" $script_path
+			sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
+			sed -i -e "s/#dataThreads/$GG_DATATHREADS/" $script_path
+
+			sed -i -e "s/#dbSnp/${DBSNP//\//\\/}/" $script_path	
+			sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+			sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
+			sed -i -e "s/#analysisDir/${analysis_dir//\//\\/}/" $script_path
+			sed -i -e "s/#sampleName/$sample/" $script_path
+			sed -i -e "s/#fragmentName/$chunk/" $script_path
+			sed -i -e "s/#pedFile/${PED_FILE//\//\\/}/" $script_path
+#			sed -i -e "s/#downsamplingThreshold/$DOWNSAMPLING/" $script_path
+			sed -i -e "s/#seqType/$TYPE/" $script_path
+			sed -i -e "s/#auxList/${AUX_LIST//\//\\/}/" $script_path
+
+			if [[ $TARGET_INTERVALS_BED != "" ]]; then
+				target_int=$ANALYSIS_DIR_MSVC/chunk_${chunk_name}_target_intervals.int
+				sed -i -e "s/#fragmentFile/${target_int//\//\\/}/" $script_path
+			else
+				sed -i -e "s/#fragmentFile/${chunk_int//\//\\/}/" $script_path
+			fi
+
+			#submit job and save job ID to dependency variable
+			local log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+    		
+			#submit job and save job ID to dependency variable
+			echo "`$NOW`$script_path"
+				
+			if [[ $SUBMIT == "T" ]]; then
+				local job_id=`qsub -o $log_output_path -W depend=$dependency_print_reads $script_path`
+			fi
+				
+			echo "`$NOW`job ID: $job_id"
+
+
+			#write qsub to re-submission script
+			echo "CHUNK=$chunk" >> $rerun_script
+					
+			echo 'if [[ "$IS_DEPENDING" == "TRUE" ]]' >> $rerun_script
+			echo 'then' >> $rerun_script
+			echo '   PR_DEPENDENCY=afterok' >> $rerun_script 
+			echo -n '    for JOB_ID in `cut -f2 ' >> $rerun_script
+			echo -n "$run_dir/pre.$chunk.dependencies.txt" >> $rerun_script
+			echo '`' >> $rerun_script
+			echo '    do' >> $rerun_script
+			echo '        ALIVE=`qselect -s QRHSW | grep $JOB_ID`' >> $rerun_script
+			echo '        if [[ $ALIVE != "" ]]' >> $rerun_script
+			echo '        then' >> $rerun_script
+			echo '            PR_DEPENDENCY=$PR_DEPENDENCY:$JOB_ID' >> $rerun_script
+			echo '        fi'  >> $rerun_script
+			echo '    done' >> $rerun_script
+			echo "" >> $rerun_script	
+			echo -n '    JOB_ID=`' >> $rerun_script
+			echo -n 'qsub -W depend=$PR_DEPENDENCY ' >> $rerun_script
+			echo -n "-o $log_output_path $script_path" >> $rerun_script
+			echo '`' >> $rerun_script
+			echo 'else' >> $rerun_script
+			echo -n '    JOB_ID=`' >> $rerun_script
+			echo -n "qsub -o $log_output_path $script_path" >> $rerun_script
+			echo '`' >> $rerun_script
+			echo 'fi' >> $rerun_script
+			echo 'VC_DEPENDENCY=$VC_DEPENDENCY:$JOB_ID' >> $rerun_script
+					
+			echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
+			echo '$JOB_ID"' >> $rerun_script
+			echo "" >> $rerun_script
+			dependency_genotypeGVCFs=$dependency_genotypeGVCFs:$job_id
+
+			raw_vcf_files="$raw_vcf_files $analysis_dir/genotypeGVCFs/$sample.$chunk.raw.vcf"
+
+			echo "`$NOW`-------------------------------------------------------------------------------------"
+
+		fi
+		# end of if [[ $chunk_name != ""  ]]
+
+	done;
+
+
+	######### script 5: merge, recalibrating and filtering raw VCF files 
+
+	echo "`$NOW`====================================================================================="
+	echo "`$NOW`Merge, recalibrate & filter VCF"
+	echo "`$NOW`====================================================================================="
+
+
+	#configure perl script to print progress summary for submitted jobs
+	#if job is completed and log file is created in /run directory
+	#script examines whether the output files are in place and not empty
+	echo "`$NOW`creating and submitting summary script..."
+	local summary_script_path=$run_dir/summary_gatk.$sample.pl
+	cp $BASEDIR/summary_gatk.pl $summary_script_path
+	chmod 770 $summary_script_path
+
+	sed -i -e "s/projectDirAnalysis/${ANALYSIS_DIR_PROJECT//\//\\/}/" $summary_script_path
+	sed -i -e "s/projectDirResults/${RESULTS_DIR_PROJECT//\//\\/}/" $summary_script_path
+	sed -i -e "s/#project/$PROJECT/" $summary_script_path
+	sed -i -e "s/#today/$TODAY/" $summary_script_path
+	sed -i -e "s/deploymentServer/$DEPLOYMENT_SERVER/" $summary_script_path
+	sed -i -e "s/summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $summary_script_path
+	sed -i -e "s/dataDeployment/${DATA_DEPLOYMENT//\//\\/}/" $summary_script_path
+	sed -i -e "s/summaryResults/${ANALYSIS_DIR_MSVC//\//\\/}/" $summary_script_path
+	sed -i -e "s/sampleList/${SAMPLE_LIST//\//\\/}/" $summary_script_path
+	sed -i -e "s/refChunks/${REFERENCE_CHUNKS//\//\\/}/" $summary_script_path
+	sed -i -e "s/refIntervals/${hc_intervals//\//\\/}/" $summary_script_path
+	sed -i -e "s/#type/$TYPE/" $summary_script_path
+	sed -i -e "s/encryptedDir/$INC_DIR/" $summary_script_path
+
+	# create a script for merging raw chunk VCF files, recalibrate the merged VCF file and filter
+	# calls that don't pass quality filter
+	# note: also could do recalibration by suplying all separate VCF files together
+	# but we want to keep raw calls file as well, so we merge them first
+
+	script_path=$run_dir/RV_00000000_000.sh
+	cp $BASEDIR/gatk3_recalibrate_vcf.sh $script_path
+
+	local analysis_dir_vc=$analysis_dir/genotypeGVCFs
+	local results_dir_vc=$results_dir/genotypeGVCFs
+
+	sed -i -e "s/#gatkVersion/$GATK_VERSION/" $script_path
+	sed -i -e "s/#rVersion/$R_VERSION/" $script_path
+	sed -i -e "s/#tabixVersion/$TABIX_VERSION/" $script_path	
+	sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
+
+	sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
+	sed -i -e "s/#indels1000G/${INDELS_1000G//\//\\/}/" $script_path	
+	sed -i -e "s/#indelsGoldStd/${INDELS_GOLDSTD//\//\\/}/" $script_path
+	sed -i -e "s/#Omni1000G/${OMNI_1000G//\//\\/}/" $script_path
+	sed -i -e "s/#highConfSnp1000G/${HIGH_CONF_SNP_1000G//\//\\/}/" $script_path
+
+	#!!!dbSnpExPost129 has to be replaced before dbSnp
+	#because otherwise the dbSnp part of the dbSnpExPost129
+	#variable would be replaced as well!!!
+	sed -i -e "s/#dbSnpExPost129/${DBSNP_EX_POST_129//\//\\/}/" $script_path
+	sed -i -e "s/#dbSnp/${DBSNP//\//\\/}/" $script_path
+
+	sed -i -e "s/#hapmapSites/${HAPMAP_SITES//\//\\/}/" $script_path	
+
+	sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+	sed -i -e "s/#analysisDir/${analysis_dir_vc//\//\\/}/" $script_path
+	sed -i -e "s/#resultsDir/${results_dir_vc//\//\\/}/" $script_path
+	sed -i -e "s/#sampleName/$sample/" $script_path
+	sed -i -e "s/#sampleList/${SAMPLE_LIST//\//\\/}/" $script_path
+	sed -i -e "s/#outputSampleList/${OUTPUT_SAMPLE_LIST//\//\\/}/" $script_path
+
+	#we have to use the roundabout Perl way here as there seems to be 
+        #a limit to the string length for either sed or the bash substitution 	
+	#and the raw VCF string can be very long if the number of amplicons
+	#is high!!!
+	raw_vcf_files=`echo $raw_vcf_files | perl -pe "s/\//forwardSlash/g"`
+	perl -i -pe "s/#rawVcfFiles/$raw_vcf_files/" $script_path
+	perl -i -pe "s/forwardSlash/\//g" $script_path
+
+	sed -i -e "s/#sequencingType/$TYPE/" $script_path
+
+ 	sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $script_path
+
+
+	log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+	echo "`$NOW`$script_path"
+
+	if [[ $SUBMIT == "T" ]];then
+		job_id=`qsub -o $log_output_path -W depend=$dependency_genotypeGVCFs $script_path`
+	fi
+	
+	DEPENDENCY_RECALIBRATE_VCF="$DEPENDENCY_RECALIBRATE_VCF:$job_id"
+
+	#commented out as
+	#not sure why final summary job should depend on
+	#VCF recalibration
+    #DEPENDENCY_COLLECT_SUMMARY_METRICS_ALL="$DEPENDENCY_COLLECT_SUMMARY_METRICS_ALL:$job_id"
+	echo "`$NOW`job ID: $job_id"
+
+	#write qsub to re-submission script
+	#with new Unified Genotyper dependency
+	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+	echo 'echo "`$NOW`Merge, recalibrate & filter VCF"' >> $rerun_script
+	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+	echo "" >> $rerun_script
+	echo "#vqsr" >> $rerun_script
+	echo -n 'JOB_ID=`' >> $rerun_script
+	echo -n "qsub -o $log_output_path -W depend=" >> $rerun_script
+	echo -n '$VC_DEPENDENCY ' >> $rerun_script
+	echo -n "$script_path" >> $rerun_script
+	echo '`' >> $rerun_script
+	
+	echo 'RC_DEPENDENCY=afterok:$JOB_ID' >> $rerun_script
+
+	echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
+	echo '$JOB_ID"' >> $rerun_script
+	echo "" >> $rerun_script
+	echo -n 'echo -e "genotypeGVCFs\t$JOB_ID" >> ' >> $rerun_script
+	echo "$ANALYSIS_DIR_MSVC/run/variant_calling.dependencies.txt" >> $rerun_script
+	echo "" >> $rerun_script
+
+
+#   to reduce number of job submissions script is now invoked from 
+#   gatk2_recalibrate_vcf_genome.sh
+#
+#	log_output_path=`echo $script_path | perl -pe 's/\.pl/\.log/g'`
+#	echo "`$NOW`$script_path"
+#	local sum_job_id=`qsub -q $QUEUE -o $log_output_path -j oe -W depend=afterany:$job_id -M cgi@imperial.ac.uk $script_path` 
+#	echo "`$NOW`job ID: $sum_job_id"        
+
+	#change permissions on all directories/files created
+	chmod -R 770 $analysis_dir
+	chmod -R 770 $results_dir
+}
+
+
+function submitPostProcessingJobs {
+
+	#get args
+	local sample=$1
+	local analysis_dir=$2
+	local results_dir=$3
+
+	local run_dir=$analysis_dir/run    
+
+	local rerun_script=$run_dir/rerun.sh
+
+	#recalibration
+	mkdir -p $results_dir/recalibration
+
+    #realignment
+#	mkdir -p $results_dir/realignment
+	
+	#rerun script
+	echo ""
+	
+	echo 'if [[ -z $STAGE ]] || [[ $STAGE == "post" ]]' >> $rerun_script
+	echo "then" >> $rerun_script
+	echo "" >> $rerun_script
+
+	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+	echo 'echo "`$NOW`POST-PROCESSING"' >> $rerun_script
+	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+	echo 'echo ""' >> $rerun_script
+	echo ""
+	########## script 6: merge realigned and recalibrated chunk BAM files
+	
+	
+	echo "`$NOW`====================================================================================="
+	echo "`$NOW`Merging realigned and recalibrated chunk BAM files"
+	echo "`$NOW`====================================================================================="
+	echo "" >> $rerun_script
+
+	local recalibrated_merged_bam_output_dir=$results_dir/recalibration
+	local recalibrated_input_dir=$analysis_dir/recalibration
+
+	local realigned_merged_bam_output_dir=$results_dir/realignment
+	local realigned_input_dir=$analysis_dir/realignment
+
+	local merged_gvcf_output_dir=$results_dir/haplotypecaller
+	local gvcf_input_dir=$analysis_dir/haplotypecaller
+
+
+	local dependency_merge_bam="afterok"
+
+#	local realigned_bam_files=""
+#	local realigned_merged_bam_prefix=$sample.realigned
+#	local realigned_merged_bam=$realigned_merged_bam_output_dir/$realigned_merged_bam_prefix.bam
+
+	local recalibrated_bam_files=""
+#	local recalibrated_merged_bam_prefix=$sample.realigned.recalibrated
+#	local recalibrated_merged_bam=$recalibrated_merged_bam_output_dir/$recalibrated_merged_bam_prefix.bam
+
+	local gvcf_files=""
+
+	local dependency_post_recal=afterok
+
+	local chunk_count=0	
+	for chunk_name in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`; do
+
+		if [[ $chunk_name != ""  ]]; then 
+
+			chunk_count=$(( $chunk_count + 1 ))	
+		
+			echo "`$NOW`chunk $chunk_count of $TOTAL_CHUNK_COUNT..."
+			chunk="chunk_$chunk_name"
+
+#			realigned_bam_files="$realigned_bam_files $sample.$chunk.realigned.bam"	   
+			recalibrated_bam_files="$recalibrated_bam_files $sample.$chunk.realigned.recalibrated.bam"
+			gvcf_files="$gvcf_files $sample.$chunk.genomic.vcf"
+		
+		fi
+
+	done;
+
+	echo "`$NOW`creating and submitting job script to merge realigned and recalibrated chunk BAMs..."
+		
+	#create and configure job script to merge realigned BAM files		
+	script_path=$run_dir/MB_${sample}_000.sh
+	cp $BASEDIR/gatk3_merge_recalibrated_bams_and_gvcfs.sh $script_path
+
+ 	sed -i -e "s/#samtoolsVersion/$SAMTOOLS_VERSION/" $script_path
+	sed -i -e "s/#picardVersion/$PICARD_VERSION/" $script_path
+	sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
+	sed -i -e "s/#gatkVersion/$GATK_VERSION/" $script_path
+	sed -i -e "s/#pathStripIndelQualsScript/${PATH_STRIP_INDEL_QUALS_SCRIPT//\//\\/}/" $script_path	
+	sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+	
+	sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
+	sed -i -e "s/#sample/$sample/" $script_path
+	sed -i -e "s/#inputDirRealigned/${realigned_input_dir//\//\\/}/" $script_path	
+	sed -i -e "s/#inputDirRecalibrated/${recalibrated_input_dir//\//\\/}/" $script_path	
+#	sed -i -e "s/#realignedBam/$realigned_bam_files/" $script_path
+	sed -i -e "s/#recalibratedBam/$recalibrated_bam_files/" $script_path
+	sed -i -e "s/#pathOutputDirRealigned/${realigned_merged_bam_output_dir//\//\\/}/" $script_path
+	sed -i -e "s/#pathOutputDirRecalibrated/${recalibrated_merged_bam_output_dir//\//\\/}/" $script_path
+	sed -i -e "s/#outputPrefix/$realigned_merged_bam_prefix/" $script_path
+
+	sed -i -e "s/#genomicVCFs/$gvcf_files/" $script_path
+	sed -i -e "s/#inputDirGVCF/${gvcf_input_dir//\//\\/}/" $script_path	
+	sed -i -e "s/#pathOutputDirGVCF/${merged_gvcf_output_dir//\//\\/}/" $script_path	
+
+
+	#submit job and save job ID to dependency variable
+	log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+
+	echo "`$NOW`$script_path"
+	
+	if [[ $SUBMIT == "T" ]]; then
+		job_id=`qsub -o $log_output_path -W depend=$DEPENDENCY_RECALIBRATE_VCF $script_path`
+	fi
+	
+	dependency_post_recal="$dependency_post_recal:$job_id"
+	
+	echo "`$NOW`job ID: $job_id"
+
+	#write qsub to re-submission script
+	echo "#merge_bam" >> $rerun_script
+	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+	echo 'echo "`$NOW`Merge realigned and recalibrated chunk BAM files"' >> $rerun_script
+	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+	echo "" >> $rerun_script
+	
+	echo -n 'echo "`$NOW`submitting job script ' >> $rerun_script
+	echo -n $script_path >> $rerun_script
+	echo '..."' >> $rerun_script
+			
+	echo 'if [[ "$IS_DEPENDING" == "TRUE" ]]' >> $rerun_script
+	echo 'then' >> $rerun_script
+	echo '   PR_DEPENDENCY=afterok' >> $rerun_script 
+	echo -n '    for JOB_ID in `grep $SAMPLE ' >> $rerun_script
+	echo -n "$ANALYSIS_DIR_MSVC/run/pre.$chunk.dependencies.txt | cut -f2" >> $rerun_script
+	echo '`' >> $rerun_script
+	echo '    do' >> $rerun_script
+	echo '        ALIVE=`qselect -s QRHSW | grep $JOB_ID`' >> $rerun_script
+	echo '        if [[ $ALIVE != "" ]]' >> $rerun_script
+	echo '        then' >> $rerun_script
+	echo '            PR_DEPENDENCY=$PR_DEPENDENCY:$JOB_ID' >> $rerun_script
+	echo '        fi'  >> $rerun_script
+	echo '    done' >> $rerun_script
+	echo "if [[ -f $ANALYSIS_DIR_MSVC/run/variant_calling.dependencies.txt ]]" >> $rerun_script
+	echo "    then" >> $rerun_script
+	echo -n '        for JOB_ID in `cut -f2 ' >> $rerun_script
+	echo -n "$ANALYSIS_DIR_MSVC/run/variant_calling.dependencies.txt" >> $rerun_script
+	echo '`' >> $rerun_script
+	echo '        do' >> $rerun_script
+	echo '            ALIVE=`qselect -s QRHSW | grep $JOB_ID`' >> $rerun_script
+	echo '            if [[ $ALIVE != "" ]]' >> $rerun_script
+	echo '            then' >> $rerun_script
+	echo '                PR_DEPENDENCY=$PR_DEPENDENCY:$JOB_ID' >> $rerun_script
+	echo '            fi'  >> $rerun_script
+	echo '         done' >> $rerun_script
+	echo "     fi" >> $rerun_script 
+	echo "" >> $rerun_script	
+	echo 'fi' >> $rerun_script
+			
+	echo 'if [[ -z $PR_DEPENDENCY ]]' >> $rerun_script
+	echo 'then' >> $rerun_script
+
+	echo -n 'JOB_ID=`' >> $rerun_script	
+	echo -n "qsub -o $log_output_path $script_path" >> $rerun_script
+	echo '`' >> $rerun_script
+
+	echo 'else' >> $rerun_script
+
+	echo -n 'JOB_ID=`' >> $rerun_script	
+	echo -n "qsub -o $log_output_path -W depend=" >> $rerun_script
+	echo -n '$PR_DEPENDENCY ' >> $rerun_script
+	echo -n "$script_path" >> $rerun_script
+	echo '`' >> $rerun_script
+
+	echo 'fi' >> $rerun_script
+
+	echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
+	echo '$JOB_ID"' >> $rerun_script
+	echo "" >> $rerun_script
+
+	echo 'MRB_DEPENDENCY=afterok:$JOB_ID' >> $rerun_script
+	echo "" >> $rerun_script
+	
+	
+	echo "`$NOW`done"
+
+
+
+	echo "`$NOW`====================================================================================="
+	echo "`$NOW`Recalibration and coverage reports"
+	echo "`$NOW`====================================================================================="
+
+	#rerun script
+	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+	echo 'echo "`$NOW`Recalibration and coverage reports"' >> $rerun_script
+	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+	
+	
+	#script 7: post-recalibration reports on chunks
+	local post_recalibration_reports=""
+	
+	echo "#post_recal_metrics" >> $rerun_script
+	
+	chunk_count=0
+	for chunk_name in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`; do
+
+		if [[ $chunk_name != ""  ]]; then 
+
+			chunk_count=$(( $chunk_count + 1 ))
+
+
+			echo "`$NOW`-------------------------------------------------------------------------------------"
+			echo "`$NOW`chunk $chunk_count of $TOTAL_CHUNK_COUNT..."
+				
+			local chunk="chunk_$chunk_name"
+
+			local chunk_int=$analysis_dir/chunks/$chunk.intervals
+			local chunk_bed=$analysis_dir/chunks/$chunk.bed
+			local chunk_bam=$analysis_dir/realignment/$sample.$chunk.realigned.bam
+
+			local chunk_pre_recalibration_report=$analysis_dir/recalibration/reports/pre/$sample.$chunk.realigned.recal_data.grp
+
+			echo "`$NOW`creating and submitting job script to get post-recalibration report on chunk..."
+
+			local chunk_formatted=`printf "%.3d\n" $chunk_name`
+			
+			local script_path=$run_dir/PM_${sample}_${chunk_formatted}.sh
+			cp $BASEDIR/gatk3_postrecalibration_metrics.sh $script_path
+
+			sed -i -e "s/#gatkVersion/$GATK_VERSION/" $script_path
+			sed -i -e "s/#samtoolsVersion/$SAMTOOLS_VERSION/" $script_path
+			sed -i -e "s/#picardVersion/$PICARD_VERSION/" $script_path
+			sed -i -e "s/#rVersion/$R_VERSION/" $script_path
+			sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
+    	  
+			sed -i -e "s/#indels1000G/${INDELS_1000G//\//\\/}/" $script_path	
+			sed -i -e "s/#indelsGoldStd/${INDELS_GOLDSTD//\//\\/}/" $script_path
+			sed -i -e "s/#dbSnp/${DBSNP//\//\\/}/" $script_path
+
+			sed -i -e "s/#inputBam/${chunk_bam//\//\\/}/" $script_path
+			sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
+			sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+			sed -i -e "s/#analysisDir/${analysis_dir//\//\\/}/" $script_path
+			sed -i -e "s/#resultsDir/${results_dir//\//\\/}/" $script_path	
+			sed -i -e "s/#fragmentName/$chunk/" $script_path
+			sed -i -e "s/#sample/$sample/" $script_path
+			sed -i -e "s/#preRecalibrationReport/${chunk_pre_recalibration_report//\//\\/}/" $script_path
+
+			## change from GATKv2 pipeline - we use all reads, not just target region
+#			if [[ $TARGET_INTERVALS_BED != ""  ]];then
+			
+#				target_int=$ANALYSIS_DIR_MSVC/chunk_${chunk_name}_target_intervals.int
+#				sed -i -e "s/#fragmentFile/${target_int//\//\\/}/" $script_path
+
+#			else
+				sed -i -e "s/#fragmentFile/${chunk_int//\//\\/}/" $script_path
+#			fi
+
+			post_recalibration_reports="$post_recalibration_reports $analysis_dir/recalibration/reports/post/$sample.$chunk.realigned.recalibrated.recal_data.grp"
+
+			#submit job and save job ID to dependency variable
+   			local log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+    		
+			echo "`$NOW`$script_path"
+			#local job_id=`qsub -o $log_output_path -W depend=$dependency_merge_bam $script_path`
+
+   			if [[ $SUBMIT == "T" ]]; then
+				local job_id=`qsub -o $log_output_path -W depend=$DEPENDENCY_RECALIBRATE_VCF $script_path`
+			fi
+			
+			dependency_post_recal="$dependency_post_recal:$job_id"
+	
+			echo "`$NOW`job ID: $job_id"
+	
+			#write qsub to re-submission script
+			#with new merge recalibrated BAM dependency
+			echo -n 'echo "`$NOW`submitting job script ' >> $rerun_script
+			echo -n $script_path >> $rerun_script
+			echo '..."' >> $rerun_script
+
+			echo 'if [[ -z $PR_DEPENDENCY ]]' >> $rerun_script
+			echo 'then' >> $rerun_script
+
+			echo -n 'JOB_ID=`' >> $rerun_script	
+			echo -n "qsub -o $log_output_path $script_path" >> $rerun_script
+			echo '`' >> $rerun_script
+
+			echo 'else' >> $rerun_script
+
+			echo -n 'JOB_ID=`' >> $rerun_script	
+			echo -n "qsub -o $log_output_path -W depend=" >> $rerun_script
+			echo -n '$PR_DEPENDENCY ' >> $rerun_script
+			echo -n "$script_path" >> $rerun_script
+			echo '`' >> $rerun_script
+
+			echo 'fi' >> $rerun_script
+
+			echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
+			echo '$JOB_ID"' >> $rerun_script
+			echo "" >> $rerun_script
+	    		
+			echo "`$NOW`-------------------------------------------------------------------------------------"
+		
+		fi
+
+	done
+	
+	#script 8: report generation
+	local merged_pre_recal_report=$results_dir/recalibration/reports/pre/$sample.realigned.recal_data.grp
+	local merged_post_recal_report=$results_dir/recalibration/reports/post/$sample.realigned.recalibrated.recal_data.grp
+	local post_recalibration_plots_output_dir=$results_dir/recalibration/plots/post/	
+		
+	echo "`$NOW`creating and submitting job script to generate summary metrics..."
+			
+	local script_path=$run_dir/CS_${sample}_000.sh
+	local summary_script_path=$run_dir/summary_gatk.$sample.pl
+	cp $BASEDIR/gatk3_collect_summary_metrics.sh $script_path
+
+	sed -i -e "s/#gatkVersion/$GATK_VERSION/" $script_path
+	sed -i -e "s/#rVersion/$R_VERSION/" $script_path
+	sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
+ 	sed -i -e "s/#nxtGenUtilsVersion/$NXTGENUTILS_VERSION/" $script_path
+    	  	
+   	sed -i -e "s/#analysisDir/${analysis_dir//\//\\/}/" $script_path
+	sed -i -e "s/#resultsDir/${results_dir//\//\\/}/" $script_path
+	sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
+
+# 	sed -i -e "s/#reaglignedRecalibratedBam/${recalibrated_merged_bam//\//\\/}/" $script_path
+ 	sed -i -e "s/#sample/$sample/" $script_path
+ 	sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+
+	sed -i -e "s/#mergedPreRecalibrationReport/${merged_pre_recal_report//\//\\/}/" $script_path
+ 	sed -i -e "s/#recalibrationReports/${post_recalibration_reports//\//\\/}/" $script_path
+ 	sed -i -e "s/#mergedPostRecalibrationReport/${merged_post_recal_report//\//\\/}/" $script_path
+ 	sed -i -e "s/#postRecalibrationPlotsOutputDir/${post_recalibration_plots_output_dir//\//\\/}/" $script_path
+ 	sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $script_path
+	sed -i -e "s/#sequencingType/$TYPE/" $script_path 	
+ 	
+	if [[ $TARGET_INTERVALS_BED != ""  ]]; then
+		sed -i -e "s/#targetIntervals/${TARGET_INTERVALS_INT//\//\\/}/" $script_path
+	else
+		sed -i -e "s/#targetIntervals/NULL/" $script_path
+	fi
+
+ 	sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $script_path
+
+
+ 	#submit job and save job ID to dependency variable
+   	local log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+    
+	echo "`$NOW`$script_path"
+	
+	if [[ $SUBMIT == "T" ]]; then
+		local job_id=`qsub -o $log_output_path -W depend=$dependency_post_recal $script_path`
+	fi
+	
+	echo "`$NOW`job ID: $job_id"
+
+	DEPENDENCY_COLLECT_SUMMARY_METRICS_ALL="$DEPENDENCY_COLLECT_SUMMARY_METRICS_ALL:$job_id"
+    
+	#write qsub to re-submission script
+	#with new post recalibration metrics dependency
+	echo "#summary_metrics" >> $rerun_script
+	
+	echo -n 'echo "`$NOW`submitting job script ' >> $rerun_script
+	echo -n $script_path >> $rerun_script
+	echo '..."' >> $rerun_script
+
+	echo -n 'JOB_ID=`' >> $rerun_script
+ 	echo -n "qsub -o $log_output_path -W depend=" >> $rerun_script
+	echo -n '$MRB_DEPENDENCY ' >> $rerun_script
+	echo -n "$script_path" >> $rerun_script
+	echo '`' >> $rerun_script
+
+	echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
+	echo '$JOB_ID"' >> $rerun_script
+	echo "" >> $rerun_script
+
+
+	echo 'echo "`$NOW`-------------------------------------------------------------------------------------"' >> $rerun_script
+
+	echo "fi" >> $rerun_script
+	echo "" >> $rerun_script
+
+
+	#print progress summary for submitted jobs
+	#if job is completed and log file is created in /run directory
+	#script examines whether the output files are in place and not empty
+
+#   to reduce number of job submissions script is now invoked from 
+#   gatk2_collect_summary_metrics.sh
+
+
+#	echo "`$NOW`creating and submitting summary script..."
+#	script_path=$run_dir/summary_gatk.$sample.pl
+#	log_output_path=`echo $script_path | perl -pe 's/\.pl/\.log/g'`
+#	echo "`$NOW`$script_path"
+#	local sum_job_id=`qsub -q $QUEUE -o $log_output_path -j oe -W depend=afterany:$job_id -M cgi@imperial.ac.uk $script_path` 
+#	echo "`$NOW`job ID: $sum_job_id"
+
+
+	echo "`$NOW`-------------------------------------------------------------------------------------"
+	chmod -R 770 $analysis_dir
+	chmod -R 770 $results_dir
+	
+}
+
+function submitMergeAndPlotMetricsJob {
+
+	#get args
+	local results_dir=$1
+	local analysis_dir=$2
+	local run_dir=$analysis_dir/run
+	local project_name=$3
+	local sample_summary="$project_name.$TODAY.sample_summary"	
+	local sample_interval_summary="$project_name.$TODAY.sample_interval_summary"
+	local sample_cumulative_coverage_proportions="$project_name.$TODAY.sample_cumulative_coverage_proportions"
+	local dependency_collect_summary_metrics_all=`cat $ALL_JOBS_DEPENDENCY`
+
+	echo "`$NOW`creating and submitting job script to merge and plot metrics..."
+		
+	#create and configure job script to merge realigned BAM files		
+	script_path=$run_dir/plot_summary_metrics.R
+	
+	cp $BASEDIR/plot_summary_metrics.R $script_path
+	
+ 	sed -i -e "s/#resultsDir/${results_dir//\//\\/}/" $script_path	
+ 	sed -i -e "s/#sampleIntervalSummary/$sample_interval_summary/" $script_path	
+ 	sed -i -e "s/#sampleCumulativeCoverageProportions/$sample_cumulative_coverage_proportions/" $script_path	
+
+	script_path=$run_dir/MM_00000000_000.sh
+	cp $BASEDIR/gatk3_merge_summary_metrics.sh $script_path
+	transpose_table_script=$BASEDIR/../../helper/transposeTable.R
+
+	sed -i -e "s/#rVersion/$R_VERSION/" $script_path
+ 	sed -i -e "s/#resultsDir/${results_dir//\//\\/}/" $script_path	
+ 	sed -i -e "s/#runDir/${run_dir//\//\\/}/" $script_path
+ 	sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
+ 	sed -i -e "s/#type/$TYPE/" $script_path
+	sed -i -e "s/#transposeTableScript/${transpose_table_script//\//\\/}/" $script_path
+	
+	local log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+    
+	echo "`$NOW`$script_path"
+	
+	if [[ $SUBMIT == "T" ]]; then
+		local job_id=`qsub -o $log_output_path -W depend=$dependency_collect_summary_metrics_all $script_path`
+	fi
+
+	#configure PHP scripts for coverage summary tables
+	
+	#sample summary
+	script_path=$run_dir/sample_summary.php
+	cp $BASEDIR/../../helper/tsvToHtmlTable.php $script_path
+
+ 	sed -i -e "s/#tsvFile/$sample_summary/" $script_path	
+ 	sed -i -e "s/#header/Sample Coverage Summary/" $script_path
+
+	#sample interval summary
+	script_path=$run_dir/sample_interval_summary.php
+	cp $BASEDIR/../../helper/tsvToHtmlTable.php $script_path
+
+ 	sed -i -e "s/#tsvFile/$sample_interval_summary/" $script_path	
+ 	sed -i -e "s/#header/Sample Interval Coverage Summary/" $script_path
+
+	#sample cumulative coverage proportions
+	script_path=$run_dir/sample_cumulative_coverage_proportions.php
+	cp $BASEDIR/../../helper/tsvToHtmlTable.php $script_path
+
+ 	sed -i -e "s/#tsvFile/$sample_cumulative_coverage_proportions/" $script_path	
+ 	sed -i -e "s/#header/Sample Cumulative Coverage Proportions/" $script_path
+
+	#copy tsvToXsl.pl script to run folder
+	cp $BASEDIR/../../helper/tsvToXls.pl $run_dir/
+
+
+	echo "`$NOW`job ID: $job_id"
+
+	echo "`$NOW`-------------------------------------------------------------------------------------"
+	
+}
+
+function submitCompUse {
+
+	echo "`$NOW`creating and submitting usage script..."
+	local script_path=$ANALYSIS_DIR_MSVC/run/US_00000000_000.sh
+	cp $BASEDIR/usage_gatk.sh $script_path
+
+	local usage_file="$RESULTS_DIR_MSVC/usage.$TODAY.txt"
+	local summary_script_path=$ANALYSIS_DIR_MSVC/run/summary_gatk.${PROJECT}_multisample.pl
+
+	sed -i -e "s/setupLog/${SETUP_LOG//\//\\/}/" $script_path
+	sed -i -e "s/usageFile/${usage_file//\//\\/}/" $script_path
+	sed -i -e "s/summaryScriptPath/${summary_script_path//\//\\/}/" $script_path
+
+	local log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+	local dependency_collect_summary_metrics_all=`cut -f1 $ALL_JOBS_DEPENDENCY`
+	
+	if [[ $SUBMIT == "T" ]]; then
+		local job_id=`qsub -q $QUEUE -o $log_output_path -W depend=$dependency_collect_summary_metrics_all $script_path` 
+	fi
+	
+	echo "`$NOW`job ID: $job_id"
+
+#	echo "`$NOW`creating and submitting summary script..."
+#	script_path=$ANALYSIS_DIR_MSVC/run/summary_gatk.${PROJECT}_multisample.pl
+#	log_output_path=`echo $script_path | perl -pe 's/\.pl/\.log/g'`
+#	echo "`$NOW`$script_path"
+#	local sum_job_id=`qsub -q $QUEUE -o $log_output_path -j oe -W depend=afterany:$job_id -M cgi@imperial.ac.uk $script_path` 
+#	echo "`$NOW`job ID: $sum_job_id"
+
+}
+
+
+
+
+####################################################
+####################################################
+
+DEPENDENCY_RECALIBRATE_VCF=afterok
+DEPENDENCY_COLLECT_SUMMARY_METRICS_ALL=afterok
+
+
+ANALYSIS_DIR_PROJECT=$GROUP_VOL_CGI/analysis/$PROJECT/gatk3
+RESULTS_DIR_PROJECT=$GROUP_VOL_CGI/results/$PROJECT/gatk3
+
+#create and set permissions for analysis project parent directory    
+mkdir -p $ANALYSIS_DIR_PROJECT
+chmod 770 $ANALYSIS_DIR_PROJECT
+    
+#create and set permissions for results project parent directory
+mkdir -p $RESULTS_DIR_PROJECT
+chmod 770 $RESULTS_DIR_PROJECT
+
+#set up directory structure for multi-sample variant calling
+mkdir -p $ANALYSIS_DIR_PROJECT/$TODAY
+chmod 770 $ANALYSIS_DIR_PROJECT/$TODAY
+    
+mkdir -p $RESULTS_DIR_PROJECT/$TODAY
+chmod 770 $RESULTS_DIR_PROJECT/$TODAY
+	
+ANALYSIS_DIR_MSVC=$ANALYSIS_DIR_PROJECT/$TODAY/multisample
+RESULTS_DIR_MSVC=$RESULTS_DIR_PROJECT/$TODAY/multisample
+
+#create and set permissions for multi-sample variant calling analysis directory
+mkdir -p $ANALYSIS_DIR_MSVC
+chmod 770 $ANALYSIS_DIR_MSVC
+    
+#create and set permissions for multi-sample variant calling results directory
+mkdir -p $RESULTS_DIR_MSVC
+chmod 770 $RESULTS_DIR_MSVC
+
+#create and set permissions for multi-sample metrics results directory
+mkdir -p $RESULTS_DIR_MSVC/metrics
+chmod 770 $RESULTS_DIR_MSVC/metrics
+
+#intialise log files
+RUN_LOG=$ANALYSIS_DIR_MSVC/run.log
+echo -n "" > $RUN_LOG
+echo -e "DATE\tTIME\tSCRIPT\tSAMPLE\tCHUNK\tSTEP\tSTATUS" >> $RUN_LOG
+
+SETUP_LOG=$ANALYSIS_DIR_MSVC/setup.log
+echo -n "" > $SETUP_LOG
+
+#redirect stdout and stderr to terminal and log file
+exec > >(tee $SETUP_LOG)
+exec 2>&1
+
+    #from here redirect stdout and stderr to log file ONLY
+#    exec > $SETUP_LOG
+#    exec 2>&1
+
+echo "`$NOW`setting up GATK3 run..."
+echo "`$NOW`GATK version: $GATK_VERSION"
+echo "`$NOW`samtools version: $SAMTOOLS_VERSION"
+echo "`$NOW`Picard version: $PICARD_VERSION"
+echo "`$NOW`R version: $R_VERSION"
+echo "`$NOW`BED tools version: $BEDTOOLS_VERSION"
+echo "`$NOW`TABIX version: $TABIX_VERSION"
+echo "`$NOW`NxtGenUtils version: $NXTGENUTILS_VERSION"
+echo "`$NOW`project   : $PROJECT"
+echo "`$NOW`sequencing type   : $TYPE"
+echo "`$NOW`reference sequence: $REFERENCE_FASTA"
+echo "`$NOW`chunk coordinates : $REFERENCE_CHUNKS"
+
+
+#setup realignment and recalibration jobs
+echo "`$NOW`analysis directory: $ANALYSIS_DIR_PROJECT"
+echo "`$NOW`results directory: $RESULTS_DIR_PROJECT"
+    
+#initialise file to store PrintReads dependencies for genotypeGVCFs jobs
+PRINT_READS_DEPENDENCY=$ANALYSIS_DIR_MSVC/print_reads_dependencies.tsv
+echo -n "" > $PRINT_READS_DEPENDENCY
+
+#initialise file to store dependencies for usage_gatk script
+ALL_JOBS_DEPENDENCY=$ANALYSIS_DIR_MSVC/all_jobs_dependencies.tsv
+echo -n "" > $ALL_JOBS_DEPENDENCY
+	
+#create target interval file
+    
+    
+if [[ $TARGET_INTERVALS_BED != ""  ]]; then
+    echo "`$NOW`exome/amplicon coordinates: $TARGET_INTERVALS_BED"
+
+	TARGET_INTERVALS_INT=$ANALYSIS_DIR_MSVC/target_intervals.intervals
+	#converting BED to interval list skipping blank lines
+	#converting to chr:start-end format instead of tab delimited
+	#format as GATK started to refuse parsing tab delimited format for some
+	#reason	
+	cat $TARGET_INTERVALS_BED | awk '/^\s*$/ {next;} { print $1 ":" $2+1 "-" $3 }' > $TARGET_INTERVALS_INT
+		
+	#create chunk target intervals
+	for CHUNK_NAME in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`; do
+		if [[ $CHUNK_NAME != ""  ]]; then	
+			CHUNK_INTERVALS_BED=$ANALYSIS_DIR_MSVC/chunk_${CHUNK_NAME}_intervals.bed
+			CHUNK_TARGET_INTERVALS_BED=$ANALYSIS_DIR_MSVC/chunk_${CHUNK_NAME}_target_intervals.bed
+			CHUNK_TARGET_INTERVALS_INT=$ANALYSIS_DIR_MSVC/chunk_${CHUNK_NAME}_target_intervals.int
+												
+			#create chunk intervals bed
+			grep -P "chunk_${CHUNK_NAME}\." $REFERENCE_CHUNKS > $CHUNK_INTERVALS_BED
+				
+			#create chunk target intervals bed
+			intersectBed -wa -a $TARGET_INTERVALS_BED -b $CHUNK_INTERVALS_BED > $CHUNK_TARGET_INTERVALS_BED
+				
+			#create chunk target intervals intervals file
+			cat $CHUNK_TARGET_INTERVALS_BED | awk '/^\s*$/ {next;} { print $1 ":" $2+1 "-" $3 }' > $CHUNK_TARGET_INTERVALS_INT
+		fi
+	done
+fi
+
+echo "`$NOW`see setup log file for more details: $SETUP_LOG"
+
+
+#create deployment directory
+SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/gatk3/$TODAY
+DATA_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/data
+ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
+scp -r ${BASEDIR}/../../resources/images/error.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+scp -r ${BASEDIR}/../../resources/images/tick.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+scp -r ${BASEDIR}/../../resources/images/warning.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+ssh $DEPLOYMENT_SERVER "chmod -R 664 $SUMMARY_DEPLOYMENT/*png" > /dev/null 2>&1
+
+#create encrypted directory to save vcf files accessable by user
+INC_DIR=`date | md5sum | head -c 15`
+ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $DATA_DEPLOYMENT/$INC_DIR" > /dev/null 2>&1
+
+# check that there are no duplicated sample names (duplicated all entry is ok, it will be used only once)
+
+if [[ $AUX_LIST != "" ]]; then 
+	DUPLICATED_IDS=`cat $SAMPLE_LIST $AUX_LIST | sort | uniq | cut -f1 | sort | uniq -d`
+	if [[ -n $DUPLICATED_IDS ]]; then
+		echo "duplicated sample IDs:
+$DUPLICATED_IDS
+check sample lists"
+		exit 1
+	else 
+		echo "INFO: sample ID check OK, no duplicates found"
+	fi
+else
+	DUPLICATED_IDS=`cat $SAMPLE_LIST | sort | uniq | cut -f1 | sort | uniq -d`
+	if [[ -n $DUPLICATED_IDS ]]; then
+		echo "ERROR: duplicated sample IDs:
+$DUPLICATED_IDS
+check sample lists"
+		exit 1
+	else 
+		echo "INFO: sample ID check OK, no duplicates found"
+	fi
+fi 
+
+# check that output sample list is a subset of input + additional samples
+
+if [[ $OUTPUT_SAMPLE_LIST != $SAMPLE_LIST ]]; then
+	cut -f1 $SAMPLE_LIST $AUX_LIST | sort | uniq > $ANALYSIS_DIR_PROJECT/$TODAY/temp_in_list.txt
+	cut -f1 $OUTPUT_SAMPLE_LIST | sort | uniq > $ANALYSIS_DIR_PROJECT/$TODAY/temp_out_list.txt
+	SAMPLES_ONLY_OUTPUT=`comm -13 $ANALYSIS_DIR_PROJECT/$TODAY/temp_in_list.txt $ANALYSIS_DIR_PROJECT/$TODAY/temp_out_list.txt`
+	rm $ANALYSIS_DIR_PROJECT/$TODAY/temp_in_list.txt $ANALYSIS_DIR_PROJECT/$TODAY/temp_out_list.txt
+
+	if [[ -n $SAMPLES_ONLY_OUTPUT ]]; then
+		echo "ERROR: samples present in output, but not among input or additional samples:
+$SAMPLES_ONLY_OUTPUT
+check sample lists"
+		exit 1
+	else 
+		echo "INFO: output sample ID check OK, all samples present in input"
+	fi
+fi 
+
+
+
+#check that input bam files exist for each sample 
+sort $SAMPLE_LIST | uniq | while read SAMPLE DATE SAMPLE_PROJECT; do
+	if [[ "$SAMPLE" != "" ]]; then
+#		echo "`$NOW`cheching input bam existance for $SAMPLE"
+    	IN_BAM_SAMPLE=$GROUP_VOL_CGI/results/$SAMPLE_PROJECT/mergetag/$DATE/$SAMPLE/$SAMPLE.bam
+		if [[ ! -e $IN_BAM_SAMPLE ]]; then
+       		echo "`$NOW`ERROR: input bam for $SAMPLE does not exist: $IN_BAM_SAMPLE"
+			echo "check $SAMPLE_LIST file"
+        	exit 1
+#		else
+#			echo "INFO: input bam check ok - $IN_BAM_SAMPLE is present"
+		fi
+	fi
+done;
+
+#check that additional GVCFs exist (make sure that there are no duplicated entries)
+if [[ $AUX_LIST != "" ]]; then
+	sort $AUX_LIST | uniq | while read SAMPLE GVCF; do
+    	if [[ "$SAMPLE" != "" ]]; then
+#	    	echo "`$NOW`cheching input GVCF existance for $SAMPLE"
+			if [[ ! -e $GVCF ]]; then
+        		echo "`$NOW`ERROR: input genomic vcf for $SAMPLE does not exist: $GVCF"
+				echo "check $AUX_LIST file"
+        		exit 1
+#			else 
+#				echo "INFO: input GVCF file check ok - $GVCF is present"
+			fi    
+		fi
+	done;
+fi
+
+#now we can submit jobs for each sample (make sure that all entries are unique)...
+#get sample count from sample list skipping blank lines
+TOTAL_SAMPLE_COUNT=`sort $SAMPLE_LIST | uniq | awk '/^\s*$/ {next;} { print; }' | wc -l`
+SAMPLE_COUNT=0
+ 
+sort $SAMPLE_LIST | uniq | while read SAMPLE DATE SAMPLE_PROJECT; do
+    if [[ "$SAMPLE" != "" ]]; then
+	    SAMPLE_COUNT=$(( $SAMPLE_COUNT + 1 ))
+	    echo "`$NOW`"
+	    echo "`$NOW`"
+	    echo "`$NOW`processing sample $SAMPLE_COUNT of $TOTAL_SAMPLE_COUNT: $SAMPLE"
+	
+    	IN_BAM_SAMPLE=$GROUP_VOL_CGI/results/$SAMPLE_PROJECT/mergetag/$DATE/$SAMPLE/$SAMPLE.bam
+	    ANALYSIS_DIR_SAMPLE=$ANALYSIS_DIR_PROJECT/$TODAY/$SAMPLE
+	    RESULTS_DIR_SAMPLE=$RESULTS_DIR_PROJECT/$TODAY/$SAMPLE
+
+	    submitRealignmentAndRecalibrationJobs $IN_BAM_SAMPLE \
+						$ANALYSIS_DIR_SAMPLE \
+						$RESULTS_DIR_SAMPLE 
+	fi
+done;
+
+#submit GenotypeGVCFs
+submitGenotypeGVCFsJobs $ANALYSIS_DIR_MSVC \
+					   $RESULTS_DIR_MSVC
+
+             	      		
+		
+#now that the important stuff is done we can run 
+#the post-processing and -analysis steps
+    
+SAMPLE_COUNT=0    
+sort $SAMPLE_LIST | uniq | while read SAMPLE DATE; do
+	if [[ "$SAMPLE" != "" ]]; then
+	    SAMPLE_COUNT=$(( $SAMPLE_COUNT + 1 ))
+	    echo "`$NOW`"
+		echo "`$NOW`"
+		echo "`$NOW`post-processing sample $SAMPLE_COUNT of $TOTAL_SAMPLE_COUNT: $SAMPLE"
+	
+		ANALYSIS_DIR_SAMPLE=$ANALYSIS_DIR_PROJECT/$TODAY/$SAMPLE
+		RESULTS_DIR_SAMPLE=$RESULTS_DIR_PROJECT/$TODAY/$SAMPLE
+
+		submitPostProcessingJobs $SAMPLE \
+					 $ANALYSIS_DIR_SAMPLE \
+               		 	     	$RESULTS_DIR_SAMPLE 
+	fi	    
+
+	echo -n "$DEPENDENCY_COLLECT_SUMMARY_METRICS_ALL" > $ALL_JOBS_DEPENDENCY    	   
+done; 
+
+#merge and plot summary statistics
+submitMergeAndPlotMetricsJob $RESULTS_DIR_MSVC \
+							$ANALYSIS_DIR_MSVC \
+							$PROJECT
+
+#collect data on using computational resources
+submitCompUse
+
+echo "`$NOW`"
+echo "`$NOW`Jobs status can be monitored at $DEPLOYMENT_SERVER/report/project/$PROJECT/gatk3/$TODAY"
+		                          
+
+
+
