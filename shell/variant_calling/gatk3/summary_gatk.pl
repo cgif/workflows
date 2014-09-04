@@ -72,14 +72,18 @@ foreach my $sample (@sample){
 	    }
 	}
 
-        my $recalibration_hap_caller_log = "$project_dir_analysis/$date/$sample/run/HC_${sample}_${chunk_formatted}.log";
-        if (-s $recalibration_hap_caller_log){
+        my $recalibration_print_reads_log = "$project_dir_analysis/$date/$sample/run/PR_${sample}_${chunk_formatted}.log";
+        if (-s $recalibration_print_reads_log){
 	    my $recalibrated_bam = "$project_dir_analysis/$date/$sample/recalibration/$sample".".chunk_"."$chunk.realigned.recalibrated.bam";
 	    if (-s $recalibrated_bam){
 		$sum{$sample}{$chunk}{'recalibrated_bam'} = "PASS";
 	    }else{
 		$sum{$sample}{$chunk}{'recalibrated_bam'} = "FAIL";
 	    }
+	}
+
+        my $hap_caller_log = "$project_dir_analysis/$date/$sample/run/HC_${sample}_${chunk_formatted}.log";
+        if (-s $hap_caller_log){
 	    my $haplotype_caller_grep = "";
 	    $haplotype_caller_grep = `grep ERROR $recalibration_hap_caller_log`;
 	    my $hc_gvcf_chunk = "$project_dir_analysis/$date/$sample/haplotypecaller/$sample".".chunk_"."$chunk.genomic.vcf";
