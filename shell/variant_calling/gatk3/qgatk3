@@ -71,7 +71,7 @@ RTC_DATATHREADS=2
 RR_DATATHREADS=$RTC_DATATHREADS
 
 #PrintReads CPU threads
-PR_DATATHREADS=1
+PR_DATATHREADS=4
 #PR_CPUTHREADS=$(( $PR_DATATHREADS + 1 ))
 PR_CPUTHREADS=$PR_DATATHREADS
 
@@ -680,7 +680,6 @@ function submitRealignmentAndRecalibrationJobs {
 
 			local realigned_bam_file=$analysis_dir/realignment/$sample.$chunk.realigned.bam
 			local realigned_recalibrated_bam_file=$analysis_dir/recalibration/$sample.$chunk.realigned.recalibrated.bam
-			local genomic_vcf_file=$analysis_dir/haplotypecaller/$sample.$chunk.genomic.vcf
 			local includes_unmapped=F
 
 			if [[ $chunk_count -eq $TOTAL_CHUNK_COUNT ]]; then
@@ -689,8 +688,8 @@ function submitRealignmentAndRecalibrationJobs {
 
 			local chunk_formatted=`printf "%.3d\n" $chunk_name`
 
-			echo "`$NOW`creating and submitting job script to print recalibrated and run haplotype caller reads..."
-			script_path=$run_dir/PH_${sample}_${chunk_formatted}.sh
+			echo "`$NOW`creating and submitting job script to print recalibrated reads..."
+			script_path=$run_dir/PR_${sample}_${chunk_formatted}.sh
 			cp $BASEDIR/gatk3_print_reads_haplotype_caller.sh $script_path
 
 			sed -i -e "s/#gatkVersion/$GATK_VERSION/" $script_path
@@ -709,8 +708,6 @@ function submitRealignmentAndRecalibrationJobs {
 			sed -i -e "s/#recalibrationReport/${merged_recal_report//\//\\/}/" $script_path
 			sed -i -e "s/#recalibratedBamOutput/${realigned_recalibrated_bam_file//\//\\/}/" $script_path
 			sed -i -e "s/#includesUnmapped/$includes_unmapped/" $script_path
-			sed -i -e "s/#downsamplingThreshold/$DOWNSAMPLING/" $script_path
-			sed -i -e "s/#genomicVCF/${genomic_vcf_file//\//\\/}/" $script_path
 			sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $script_path
 
 			## change from GATKv2 pipeline - we output all reads, not just target region
@@ -756,13 +753,79 @@ function submitRealignmentAndRecalibrationJobs {
 			echo -n 'echo -e "$SAMPLE\t$JOB_ID" >> ' >> $rerun_script
 			echo "$ANALYSIS_DIR_MSVC/run/pre.$chunk.dependencies.txt" >> $rerun_script
 
-			#store job ID in PrintReads dependencies file
-			if [[ $chunk_count -ne $TOTAL_CHUNK_COUNT ]]; then
-				echo -n -e "$job_id\t" >> $PRINT_READS_DEPENDENCY
-			else
-				echo "$job_id" >> $PRINT_READS_DEPENDENCY
+#			#store job ID in PrintReads dependencies file
+#			if [[ $chunk_count -ne $TOTAL_CHUNK_COUNT ]]; then
+#				echo -n -e "$job_id\t" >> $PRINT_READS_DEPENDENCY
+#			else
+#				echo "$job_id" >> $PRINT_READS_DEPENDENCY
+#			fi
+			
+			########## script: run haplotype caller
+
+			local PR_HC_DEPENDENCY=afterok
+
+			local genomic_vcf_file=$analysis_dir/haplotypecaller/$sample.$chunk.genomic.vcf
+
+			echo "`$NOW`creating and submitting job script to run haplotype caller..."
+			script_path=$run_dir/HC_${sample}_${chunk_formatted}.sh
+			cp $BASEDIR/gatk3_haplotype_caller.sh $script_path
+
+			sed -i -e "s/#gatkVersion/$GATK_VERSION/" $script_path
+			sed -i -e "s/#samtoolsVersion/$SAMTOOLS_VERSION/" $script_path
+			sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
+
+			sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
+			sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+			sed -i -e "s/#analysisDir/${analysis_dir//\//\\/}/" $script_path
+			sed -i -e "s/#sample/$sample/" $script_path
+			sed -i -e "s/#fragmentName/$chunk/" $script_path
+			sed -i -e "s/#recalibratedBam/${realigned_recalibrated_bam_file//\//\\/}/" $script_path
+			sed -i -e "s/#downsamplingThreshold/$DOWNSAMPLING/" $script_path
+			sed -i -e "s/#genomicVCF/${genomic_vcf_file//\//\\/}/" $script_path
+			sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $script_path
+			sed -i -e "s/#fragmentFile/${chunk_int//\//\\/}/" $script_path
+		
+			
+			#submit job and save job ID to dependency variable
+			log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+
+			echo "`$NOW`$script_path"
+	   		if [[ $SUBMIT == "T" ]]; then
+				job_id_hc=`qsub -o $log_output_path -W depend=$PR_HC_DEPENDENCY:$job_id $script_path`
 			fi
 			
+	        	echo "`$NOW`job ID: $job_id_hc"
+ 
+			#write qsub to re-submission script
+    			#with new merge recalibration report dependency
+#    			echo -n 'echo "`$NOW`submitting job script ' >> $rerun_script
+#			echo -n $script_path >> $rerun_script
+#			echo '..."' >> $rerun_script
+    		
+    		
+#    			echo -n 'JOB_ID=`' >> $rerun_script
+#			echo -n "qsub -o $log_output_path -W depend=" >> $rerun_script
+#			echo -n '$MRR_DEPENDENCY ' >> $rerun_script
+#			echo -n "$script_path" >> $rerun_script
+#			echo '`' >> $rerun_script
+
+#			echo 'PR_DEPENDENCY=$PR_DEPENDENCY:$JOB_ID' >> $rerun_script
+#			
+#			echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
+#			echo '$JOB_ID"' >> $rerun_script
+#			echo "" >> $rerun_script
+#			echo -n 'echo -e "$SAMPLE\t$JOB_ID" >> ' >> $rerun_script
+#			echo "$ANALYSIS_DIR_MSVC/run/pre.$chunk.dependencies.txt" >> $rerun_script
+
+			#store job ID in PrintReads dependencies file
+			if [[ $chunk_count -ne $TOTAL_CHUNK_COUNT ]]; then
+				echo -n -e "$job_id_hc\t" >> $PRINT_READS_DEPENDENCY
+			else
+				echo "$job_id_hc" >> $PRINT_READS_DEPENDENCY
+			fi
+			
+
+
 			echo "`$NOW`-------------------------------------------------------------------------------------"
 	
 		fi
@@ -1742,6 +1805,7 @@ echo "`$NOW`see setup log file for more details: $SETUP_LOG"
 SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/gatk3/$TODAY
 DATA_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/data
 ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
+ssh $DEPLOYMENT_SERVER "chmod -R 775 $DEPLOYMENT_BASE_DIR/project/$PROJECT" > /dev/null 2>&1
 scp -r ${BASEDIR}/../../resources/images/error.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
 scp -r ${BASEDIR}/../../resources/images/tick.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
 scp -r ${BASEDIR}/../../resources/images/warning.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1

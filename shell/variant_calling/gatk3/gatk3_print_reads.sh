@@ -3,7 +3,7 @@
 ## script to run GATK for counting covariates before base quality recalibration
 
 #PBS -l walltime=48:00:00
-#PBS -l select=1:ncpus=#cpuThreads:mem=7gb
+#PBS -l select=1:ncpus=#cpuThreads:mem=25gb
 
 #PBS -M cgi@imperial.ac.uk
 #PBS -m ae
@@ -20,11 +20,11 @@ module load java/#javaVersion
 
 NXTGENUTILS_HOME=/groupvol/cgi/bin/nxtgen-utils-#nextGenUtilsVersion
 
-JAVA_XMX=6G
+JAVA_XMX=24G
 NCT=#nctThreads
 RUN_LOG=#runLog
 
-SCRIPT_CODE="GATKPRHC"
+SCRIPT_CODE="GATKPRRE"
 
 
 LOG_INFO="`$NOW`INFO $SCRIPT_CODE"
@@ -42,10 +42,8 @@ RECALIBRATION_REPORT=#recalibrationReport
 RECALIBRATED_OUTPUT_BAM=#recalibratedBamOutput
 FRAGMENT_FILE=#fragmentFile
 FRAGMENT=#fragmentName
-GENOMIC_VCF=#genomicVCF
 INCLUDES_UNMAPPED=#includesUnmapped
 SUMMARY_SCRIPT_PATH=#summaryScriptPath
-DOWNSAMPLING=#downsamplingThreshold
 
 mkdir $TMPDIR/tmp
 
@@ -116,37 +114,6 @@ else
 fi
 
 echo -e "`${NOW}`$SCRIPT_CODE\t$SAMPLE\t$FRAGMENT\trecalibrated_bam\t$STATUS" >> $RUN_LOG
-
-#########################################################
-# run HaplotypeCaller on realigned recalibrated BAM file
-#########################################################
-## although we set up downsampling, it seems that HaplotypeCaller ignores it and uses hardcoded threshold of 1000
-## http://gatkforums.broadinstitute.org/discussion/3989/downsampling-to-coverage-and-the-3-x-haplotypecaller
-## -nct is not used, because it sometimes cause HaplotypeCaller to fail
-
-java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
-	-T HaplotypeCaller \
-	-dcov $DOWNSAMPLING \
-	-R $TMPDIR/reference.fa \
-	-I $TMPDIR/realigned.recalibrated.bam \
-	-ERC GVCF \
-	--variant_index_type LINEAR \
-	--variant_index_parameter 128000 \
-	-o $TMPDIR/HCgenomic.vcf \
-	-rf BadCigar \
-	$INTERVAL_ARG
-
-echo "`${NOW}`INFO $SCRIPT_CODE copying gVCF to output directory $ANALYSIS_DIR..."
-cp $TMPDIR/HCgenomic.vcf $GENOMIC_VCF
-
-#logging
-STATUS=OK
-if [[ ! -s $GENOMIC_VCF ]]
-then
-	STATUS=FAILED
-fi
-
-echo -e "`${NOW}`$SCRIPT_CODE\t$SAMPLE\t$FRAGMENT\tgenomic_vcf\t$STATUS" >> $RUN_LOG
 
 #run summary script
 perl $SUMMARY_SCRIPT_PATH

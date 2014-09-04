@@ -72,7 +72,7 @@ foreach my $sample (@sample){
 	    }
 	}
 
-        my $recalibration_hap_caller_log = "$project_dir_analysis/$date/$sample/run/PH_${sample}_${chunk_formatted}.log";
+        my $recalibration_hap_caller_log = "$project_dir_analysis/$date/$sample/run/HC_${sample}_${chunk_formatted}.log";
         if (-s $recalibration_hap_caller_log){
 	    my $recalibrated_bam = "$project_dir_analysis/$date/$sample/recalibration/$sample".".chunk_"."$chunk.realigned.recalibrated.bam";
 	    if (-s $recalibrated_bam){
