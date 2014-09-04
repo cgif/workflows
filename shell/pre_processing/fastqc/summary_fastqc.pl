@@ -19,8 +19,8 @@ opendir (PROJECT, "$report_dir") || print "Can't open $report_dir\n";
 #for each sample in the fastq directory... 
 while (defined(my $sample = readdir(PROJECT))){
 
-	#skip . and ..
-    next if $sample =~ /^\./;
+	#skip . and .. and multisample directory
+    next if ($sample =~ /^\./ || $sample =~ /^multisample$/);
     
     #assert that path is a directory path
     #skip if not
@@ -62,7 +62,7 @@ while (defined(my $sample = readdir(PROJECT))){
     while (defined(my $fastqc_report = readdir(SAMPLE))){
     
     	#check fastqc extension
-		next unless $fastqc_report  =~ /^(\S+)_fastqc/;
+		next unless $fastqc_report  =~ /^(\S+)_fastqc$/;
 			
 		#if fastqc summary report exists...
         if (-e "$report_dir/$sample/$fastqc_report/summary.txt"){
