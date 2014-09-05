@@ -125,7 +125,8 @@ function submitJobs {
 #if the input path is a directory...
 if [ -d $INPUT_PATH ] ; then
 
-    PROJECT=`basename $INPUT_PATH`
+    PROJECT=`dirname $INPUT_PATH`
+    PROJECT=`basename $PROJECT`
 
     #create and set permissions for analysis project parent directory
     mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT
