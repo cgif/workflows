@@ -197,7 +197,9 @@ ssh $DEPLOYMENT_SERVER "mkdir -p $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
 ssh $DEPLOYMENT_SERVER "chmod  775 $DEPLOYMENT_BASE_DIR/project/$PROJECT/mergetag" > /dev/null 2>&1
 ssh $DEPLOYMENT_SERVER "chmod  775 $DEPLOYMENT_BASE_DIR/project/$PROJECT/mergetag/$TODAY" > /dev/null 2>&1
 
-scp -r ${BASEDIR}/*png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+scp -r ${BASEDIR}/../../resources/images/error.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+scp -r ${BASEDIR}/../../resources/images/warning.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+scp -r ${BASEDIR}/../../resources/images/tick.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
 ssh $DEPLOYMENT_SERVER "chmod -R 664 $SUMMARY_DEPLOYMENT/*png" > /dev/null 2>&1
 
 
@@ -373,14 +375,14 @@ then
 
 	OUTPUT_FILE=$PROJECT.$TODAY.targetedPcrMetrics
         HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
-        cp $BASEDIR/tsvToHtmlTable.php $HTML_PATH
+        cp $BASEDIR/../../helper/tsvToHtmlTable.php $HTML_PATH
         sed -i -e "s/#header/Targeted PCR Metrics/" $HTML_PATH
         sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
 	cat $BASEDIR/picardTargetPcrMetricsColumnDescriptions.txt >> $HTML_PATH
 
 	OUTPUT_FILE=$PROJECT.$TODAY.perTargetCoverage
         HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
-        cp $BASEDIR/tsvToHtmlTable.php $HTML_PATH
+        cp $BASEDIR/../../helper/tsvToHtmlTable.php $HTML_PATH
         sed -i -e "s/#header/Target coverage/" $HTML_PATH
         sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
 
@@ -407,14 +409,14 @@ then
 
 	OUTPUT_FILE=$PROJECT.$TODAY.hybridMetrics
         HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
-        cp $BASEDIR/tsvToHtmlTable.php $HTML_PATH
+        cp $BASEDIR/../../helper/tsvToHtmlTable.php $HTML_PATH
         sed -i -e "s/#header/Hybrid Sequencing Metrics/" $HTML_PATH
         sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
 	cat $BASEDIR/picardHybridSequencingMetricsColumnDescriptions.txt >> $HTML_PATH
 
 	OUTPUT_FILE=$PROJECT.$TODAY.perTargetCoverage
         HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
-        cp $BASEDIR/tsvToHtmlTable.php $HTML_PATH
+        cp $BASEDIR/../../helper/tsvToHtmlTable.php $HTML_PATH
         sed -i -e "s/#header/Target coverage/" $HTML_PATH
         sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
 
@@ -438,7 +440,7 @@ then
 
 	OUTPUT_FILE=$PROJECT.$TODAY.RnaSeqMetrics
         HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
-        cp $BASEDIR/tsvToHtmlTable.php $HTML_PATH
+        cp $BASEDIR/../../helper/tsvToHtmlTable.php $HTML_PATH
         sed -i -e "s/#header/RNA-Seq Metrics/" $HTML_PATH
         sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
 	cat $BASEDIR/picardRnaSeqMetricsColumnDescriptions.txt >> $HTML_PATH
@@ -470,7 +472,7 @@ then
 
 	    OUTPUT_FILE=$PROJECT.$TODAY.alignment_summary_metrics.$CATEGORY
             HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
-            cp $BASEDIR/tsvToHtmlTable.php $HTML_PATH
+            cp $BASEDIR/../../helper/tsvToHtmlTable.php $HTML_PATH
             sed -i -e "s/#header/Alignment Summary Metrics $CATEGORY/" $HTML_PATH
             sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
 	    cat $BASEDIR/picardAlignmentSummaryMetricsColumnDescription.txt >> $HTML_PATH
@@ -504,4 +506,4 @@ LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.pl/\.log/g'`
 echo "`$NOW`submitting last summary script: $SCRIPT_PATH"
 SUM_JOB_ID=`qsub -q $QUEUE -o $LOG_PATH -j oe -W depend=$METRIC_MERGING_DEPENDECIES -M cgi@imperial.ac.uk $SCRIPT_PATH` 
 echo "`$NOW`job ID: $SUM_JOB_ID"
-echo "`$NOW`progress and summary can be seen at $DEPLOYMENT_SERVER/$SUMMARY_DEPLOYMENT"
+echo "`$NOW`progress and summary can be seen at $DEPLOYMENT_SERVER/report/project/$PROJECT/mergetag/$TODAY"
