@@ -34,14 +34,20 @@ call.cnvs <- function (exon.counts.file,
                        all.samples.file,		# file containing a list of all samples, one per line
 		       annotations.file,		# file with all required annotations listed
 		       all.exons.output,		# output Rdata file saving the ExomeDepth object
-		       cnv.calls.file) {		# output text file containing CNV calls
+		       cnv.calls.file,			# output text file containing CNV calls
+			bam.suffix) {			# suffix for bam file, default '.filtered.bam'
 
         library(ExomeDepth)
         load(exon.counts.file)
 
 	#convert exon counts object into dataframe 
 	exon.counts.dafr <- as(exon.counts[, colnames(exon.counts)], 'data.frame')
-        names(exon.counts.dafr) <- c("space", "start", "end", "width", "names", paste(scan(all.samples.file, what = 'character')))
+	print(head(exon.counts.dafr))
+#        names(exon.counts.dafr) <- c("space", "start", "end", "width", "names", paste(scan(all.samples.file, what = 'character')))
+
+	#remove bam file suffix from column names
+	names(exon.counts.dafr) <- gsub(names(exon.counts.dafr), pattern = paste(bam.suffix), replacement = '')
+
 	print(head(exon.counts.dafr)) 
 
 	#read a test sample

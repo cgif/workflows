@@ -23,6 +23,7 @@ TARGET=#target
 PED_FILE=#pedFile
 CHROM_X=#chromX
 ANNOTATIONS=#annotations
+BAM_SUFFIX='#bamSuffix'
 
 SAMPLE=`basename $RESULTS_DIR`
 PROJECT_RESULTS_DIR=`dirname $RESULTS_DIR`
@@ -59,6 +60,7 @@ all.samples.file <- '$TMPDIR/all.sample.list'
 annotations.file <- '$TMPDIR/annotations.list'
 all.exons.output <- '$TMPDIR/${SAMPLE}.all.exons.autosomes.Rdata'
 cnv.calls.file <- '$TMPDIR/${SAMPLE}.cnv.calls.autosomes.Rdata'
+bam.suffix <- '$BAM_SUFFIX'
 
 call.cnvs(exon.counts.file = exon.counts.file,
           target.bed = target.bed,
@@ -67,7 +69,8 @@ call.cnvs(exon.counts.file = exon.counts.file,
           all.samples.file = all.samples.file,
           annotations.file = annotations.file,
 	  all.exons.output = all.exons.output,
-	  cnv.calls.file = cnv.calls.file)
+	  cnv.calls.file = cnv.calls.file,
+	  bam.suffix = bam.suffix)
 
 
 exon.counts.file <- '$TMPDIR/exon.counts.chrX.Rdata'
@@ -75,6 +78,7 @@ target.bed <- '$TMPDIR/target.chrX.bed'
 ref.samples.file <- '$TMPDIR/ref.chrX.sample.list'
 all.exons.output <- '$TMPDIR/${SAMPLE}.all.exons.chrX.Rdata'
 cnv.calls.file <- '$TMPDIR/${SAMPLE}.cnv.calls.chrX.Rdata'
+bam.suffix <- '$BAM_SUFFIX'
 
 call.cnvs(exon.counts.file = exon.counts.file,
           target.bed = target.bed,
@@ -83,7 +87,8 @@ call.cnvs(exon.counts.file = exon.counts.file,
           all.samples.file = all.samples.file,
           annotations.file = annotations.file,
 	  all.exons.output = all.exons.output,
-	  cnv.calls.file = cnv.calls.file)
+	  cnv.calls.file = cnv.calls.file,
+	  bam.suffix = bam.suffix)
 
     " > $R_SCRIPT
 
@@ -112,6 +117,7 @@ all.samples.file <- '$TMPDIR/all.sample.list'
 annotations.file <- '$TMPDIR/annotations.list'
 all.exons.output <- '$TMPDIR/${SAMPLE}.all.exons.Rdata'
 cnv.calls.file <- '$TMPDIR/${SAMPLE}.cnv.calls.Rdata'
+bam.suffix <- '$BAM_SUFFIX'
 
 call.cnvs(exon.counts.file = exon.counts.file,
           target.bed = target.bed,
@@ -120,7 +126,8 @@ call.cnvs(exon.counts.file = exon.counts.file,
           all.samples.file = all.samples.file,
           annotations.file = annotations.file,
 	  all.exons.output = all.exons.output,
-	  cnv.calls.file = cnv.calls.file)
+	  cnv.calls.file = cnv.calls.file,
+	  bam.suffix = bam.suffix)
     " > $R_SCRIPT
 
 fi
