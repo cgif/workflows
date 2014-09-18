@@ -31,7 +31,6 @@ USAGE="$BASEDIR/qbwape.usage"
 READS_PER_RUN=10000000
 THREADS_PER_RUN=2
 PATH_REFERENCE_FASTA=$GROUP_VOL_CGI/resources/reference/eukaryote/human/hs37d5/bwa_indexed/hs37d5.fa.gz
-IS_PROJECT_DIR=F
 MULT_READS=F
 PATTERN_READ_1='_R1_'
 PATTERN_READ_2='_R2_'
@@ -45,15 +44,15 @@ SPLITFASTQ_THREADS=4
 
 #TODO: have to do conversion for Illumina 1.3 formated files with Michael's perl script
  
-while getopts "i:r:t:p:f:chm" option; do
+while getopts "i:n:r:t:p:f:hm" option; do
     case "$option" in
 	
 	i) INPUT_PATH="$OPTARG";;
+	n) PROJECT="$OPTARG";;
 	r) PATH_REFERENCE_FASTA="$OPTARG";;
 	t) PATTERN_READ_1="$OPTARG";;
 	p) PATTERN_READ_2="$OPTARG";;
 	f) echo "-f option is not supported by the current version of bwa";;
-	c) IS_PROJECT_DIR=T;;
 	m) MULT_READS=T;;
 	h) cat "$USAGE"; exit 0;;
 	[?]) cat "$USAGE"; exit 1;;
@@ -62,7 +61,7 @@ esac
 done
 
 #check if required arguments are missing
-if [ -z $INPUT_PATH ]
+if [ -z $INPUT_PATH ] || [ -z $PROJECT ]
 
     then
     cat "$USAGE"
@@ -89,8 +88,7 @@ function submitJobs {
 	DEPLOYMENT_SERVER=${10}
 	SUMMARY_DEPLOYMENT=${11}
 	SUMMARY_RESULTS=${12}
-	TRUE_PROJECT_DIR=${13}
-	MULT_READS=${14}
+	MULT_READS=${13}
 
 	PATH_SCRIPTS_DIR=$PATH_RUN_DIR/run      
 	PATH_MAPPING_DIR=$PATH_RUN_DIR/mapping
@@ -146,23 +144,23 @@ function submitJobs {
 		for FASTQ in `ls --color=never $PATH_READS_DIRECTORY/*.f*q* | grep $PATTERN_READ_2`
 		do	
 
-		FASTQ=`basename $FASTQ`
+		    FASTQ=`basename $FASTQ`
 
-    	FASTQ_REPLACE=`echo $FASTQ | perl -pe "s/$PATTERN_READ_2/$PATTERN_READ_1/"`
+    		    FASTQ_REPLACE=`echo $FASTQ | perl -pe "s/$PATTERN_READ_2/$PATTERN_READ_1/"`
 
-    	if [ "$FASTQ_REPLACE" = "$FASTQ_READ1" ]; 
-    	then
+    		    if [ "$FASTQ_REPLACE" = "$FASTQ_READ1" ]; 
+    		    then
 			FASTQ_READ2=$FASTQ       
-    	fi
-    	done;
+    		    fi
+    		done;
 
 		FASTQ_READ1_NO_EXT=`basename $FASTQ_READ1 .gz`
-    	FASTQ_READ2_NO_EXT=`basename $FASTQ_READ2 .gz`
+    		FASTQ_READ2_NO_EXT=`basename $FASTQ_READ2 .gz`
 
 		PATH_READS_FASTQ_READ1=$PATH_READS_DIRECTORY/$FASTQ_READ1_NO_EXT
 		PATH_READS_FASTQ_READ2=$PATH_READS_DIRECTORY/$FASTQ_READ2_NO_EXT
              
-	     #check if mate file found
+	         #check if mate file found
 		if [ -z $FASTQ_READ2 ]
 		then
 			cat "No mate file found for $FASTQ_READ1. Skipped." >> $SETUP_LOG
@@ -247,7 +245,6 @@ function submitJobs {
 		sed -i -e "s/#patternRead2/$PATTERN_READ_2/" $SCRIPT_PATH
 		sed -i -e "s/#threadsPerRun/$THREADS_PER_RUN/" $SCRIPT_PATH
 		sed -i -e "s/#queue/$QUEUE/" $SCRIPT_PATH
-		sed -i -e "s/#isProjectDir/$IS_PROJECT_DIR/" $SCRIPT_PATH
 		sed -i -e "s/#walltimeHoursPerRun/$WALLTIME_HOURS_PER_RUN/" $SCRIPT_PATH
 		sed -i -e "s/#pathScriptsDir/${PATH_SCRIPTS_DIR//\//\\/}/" $SCRIPT_PATH
 		sed -i -e "s/#pathResultsDir/${PATH_RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
@@ -268,128 +265,6 @@ function submitJobs {
 		JOB_ID=`qsub -W depend=$SPLIT_DEPENDENCIES -o $LOG_PATH $SCRIPT_PATH` 
 		echo $JOB_ID >> $SETUP_LOG
 
-#		LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
-#		echo "`$NOW`submitting merging script:" >> $SETUP_LOG
-#		echo "`$NOW`samtoolsMerge.$OUTPUT_PREFIX.sh" >> $SETUP_LOG
-#		echo -n "`$NOW`" >> $SETUP_LOG
-#
-#		MERGE_JOB_ID=`qsub  -q $QUEUE -o $LOG_OUTPUT_PATH -W depend=$MERGE_DEPENDENCIES $SCRIPT_PATH`
-#		echo $MERGE_JOB_ID >> $SETUP_LOG
-
-#		#split read1 file
-#		gzip -cd $PATH_READS_FASTQ_READ1 \
-#			| split -d -l $LINES_PER_FILE - \
-#		$PATH_TMP_DIR/${FASTQ_READ1_NO_EXT}_split/$FASTQ_READ1_NO_EXT.
-#
-#		#split read2 file
-#		gzip -cd $PATH_READS_FASTQ_READ2 \
-#			| split -d -l $LINES_PER_FILE - \
-#			$PATH_TMP_DIR/${FASTQ_READ1_NO_EXT}_split/$FASTQ_READ2_NO_EXT.
-#
-#		chmod -R 770 $PATH_TMP_DIR/${FASTQ_READ1_NO_EXT}_split
-
-		#setup job to submit mapping scripts
-		
-
-#		#variables to store job dependencies
-#		MERGE_DEPENDENCIES=afterok
-#
-#		#variable to store files to merge
-#		MERGE_FILES=""
-#
-#		#for each subset of reads...
-#		echo "`$NOW`submitting mapping scripts:" >> $SETUP_LOG
-#		for FASTQ_READ1_SPLIT in `ls --color=never $PATH_TMP_DIR/${FASTQ_READ1_NO_EXT}_split/*.f*q* | grep -v $PATTERN_READ_2`
-#		do
-#        
-#			#remove path information
-#			FASTQ_READ1_SPLIT=`basename $FASTQ_READ1_SPLIT`
-#
-#			#get name of read2 fastq by preplacing read pair tag
-#			FASTQ_READ2_SPLIT=`echo $FASTQ_READ1_SPLIT | perl -pe "s/$PATTERN_READ_1/$PATTERN_READ_2/"`
-#
-#			PATH_READS_FASTQ_READ1_SPLIT=$PATH_TMP_DIR/${FASTQ_READ1_NO_EXT}_split/$FASTQ_READ1_SPLIT
-#			PATH_READS_FASTQ_READ2_SPLIT=$PATH_TMP_DIR/${FASTQ_READ1_NO_EXT}_split/$FASTQ_READ2_SPLIT
-#    
-#			#output prefix
-#			OUTPUT_PREFIX=$FASTQ_READ1_SPLIT.vs.$REFERENCE_FASTA_NAME
-#
-#			SCRIPT_PATH=$PATH_SCRIPTS_DIR/bwaAlignPe.$OUTPUT_PREFIX.sh
-#			cp $BASEDIR/bwaAlignPe.sh $SCRIPT_PATH
-#			chmod 770 $SCRIPT_PATH
-#
-#			#set variables 
-#			sed -i -e "s/walltimeHours/$WALLTIME_HOURS_PER_RUN/" $SCRIPT_PATH  
-#			sed -i -e "s/threads/$THREADS_PER_RUN/" $SCRIPT_PATH
-#			sed -i -e "s/outputPrefix/$OUTPUT_PREFIX/" $SCRIPT_PATH
-#			sed -i -e "s/multReads/$MULT_READS/" $SCRIPT_PATH
-#			sed -i -e "s/pathOutputDir/${PATH_MAPPING_DIR//\//\\/}/" $SCRIPT_PATH
-#			sed -i -e "s/pathReferenceFastaNoExt/${PATH_REFERENCE_FASTA_NO_EXT//\//\\/}/" $SCRIPT_PATH
-#			sed -i -e "s/pathReadsFastqRead1NoExt/${PATH_READS_FASTQ_READ1_SPLIT//\//\\/}/" $SCRIPT_PATH
-#			sed -i -e "s/pathReadsFastqRead2NoExt/${PATH_READS_FASTQ_READ2_SPLIT//\//\\/}/" $SCRIPT_PATH
-#
-#			#submit job and save job ID to dependency variable 
-#			LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
-#			echo "`$NOW`bwaAlignPe.$OUTPUT_PREFIX.sh" >> $SETUP_LOG
-#			echo -n "`$NOW`" >> $SETUP_LOG
-#			JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
-#			echo $JOB_ID >> $SETUP_LOG
-#           MERGE_DEPENDENCIES=$MERGE_DEPENDENCIES:$JOB_ID 
-#			MERGE_FILES="$MERGE_FILES $OUTPUT_PREFIX.unsorted.bam"
-#
-#		done;
-#  
-#		#submit merging jobs
-#    
-#		#create directory structure for merged bam files 
-#		#each file will contain the same reads as in the original fastq file
-#
-#		echo "`$NOW`creating BWA results directory $PATH_RESULTS_DIR" >> $SETUP_LOG
-#		mkdir -m 770 -p $PATH_RESULTS_DIR
-#		
-#		# change permissions for the parent directories:
-#		chmod -R 770 $PATH_RESULTS_DIR
-# 
-#		OUTPUT_PREFIX=$FASTQ_READ1_NO_EXT.vs.$REFERENCE_FASTA_NAME
-#
-#		SCRIPT_PATH=$PATH_SCRIPTS_DIR/samtoolsMerge.$OUTPUT_PREFIX.sh
-#		cp $BASEDIR/../samtools/samtoolsMergeAndDelete.sh $SCRIPT_PATH
-#		chmod 770 $SCRIPT_PATH
-#
-#		sed -i -e "s/outputPrefix/$OUTPUT_PREFIX/" $SCRIPT_PATH
-#		sed -i -e "s/inputDir/${PATH_MAPPING_DIR//\//\\/}/" $SCRIPT_PATH
-#		sed -i -e "s/pathOutputDir/${PATH_RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
-#		sed -i -e "s/inBam/\"${MERGE_FILES//\//\\/}\"/" $SCRIPT_PATH
-#
-#		LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
-#		echo "`$NOW`submitting merging script:" >> $SETUP_LOG
-#		echo "`$NOW`samtoolsMerge.$OUTPUT_PREFIX.sh" >> $SETUP_LOG
-#		echo -n "`$NOW`" >> $SETUP_LOG
-#
-#		MERGE_JOB_ID=`qsub  -q $QUEUE -o $LOG_OUTPUT_PATH -W depend=$MERGE_DEPENDENCIES $SCRIPT_PATH`
-#		echo $MERGE_JOB_ID >> $SETUP_LOG
-#
-#		SUMMARY_SCRIPT=$PATH_SCRIPTS_DIR/summary_bwa.$OUTPUT_PREFIX.pl
-#		cp $BASEDIR/summary_bwa.pl $SUMMARY_SCRIPT
-#		chmod 770 $SUMMARY_SCRIPT
-#
-#		sed -i -e "s/isProject/$TRUE_PROJECT_DIR/" $SUMMARY_SCRIPT
-#		sed -i -e "s/projectDirAnalysis/${PATH_RUN_DIR//\//\\/}/" $SUMMARY_SCRIPT
-#		sed -i -e "s/projectDirResults/${PATH_RESULTS_DIR//\//\\/}/" $SUMMARY_SCRIPT
-#		sed -i -e "s/Today/$TODAY/" $SUMMARY_SCRIPT
-#		sed -i -e "s/deploymentServer/$DEPLOYMENT_SERVER/" $SUMMARY_SCRIPT
-#		sed -i -e "s/summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SUMMARY_SCRIPT
-#		sed -i -e "s/summaryResults/${SUMMARY_RESULTS//\//\\/}/" $SUMMARY_SCRIPT
-#
-#		SUM_DEPENDENCIES=afterany:$MERGE_JOB_ID
-#		SUMMARY_LOG=`echo $SUMMARY_SCRIPT | perl -pe 's/\.pl/\.log/g'`
-#		echo "`$NOW`submitting summary script:" >> $SETUP_LOG
-#		echo "`$NOW`$SUMMARY_SCRIPT" >> $SETUP_LOG
-#		echo -n "`$NOW`" >> $SETUP_LOG
-#
-#		SUM_JOB_ID=`qsub -q $QUEUE -o $SUMMARY_LOG  -j oe -W depend=$SUM_DEPENDENCIES -M cgi@imperial.ac.uk $SUMMARY_SCRIPT`
-#		echo $SUM_JOB_ID >> $SETUP_LOG
-
 	done;
 
 	echo "`$NOW`done"
@@ -397,11 +272,9 @@ function submitJobs {
 }
 
 #if the input path is a CGI project directory...
-if [ -d $INPUT_PATH ] && [ "$IS_PROJECT_DIR" = "T" ]; then
+if [ -d $INPUT_PATH ]; then
 
     echo "`$NOW`input path is CGI project directory"
-
-	PROJECT=`basename $INPUT_PATH`
 
     #create and set permissions for analysis project parent directory
     mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT
@@ -425,11 +298,11 @@ if [ -d $INPUT_PATH ] && [ "$IS_PROJECT_DIR" = "T" ]; then
 
     SUMMARY_RESULTS=$GROUP_VOL_CGI/results/$PROJECT/bwa/$TODAY
     SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/bwa/$TODAY
-    ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $SUMMARY_DEPLOYMENT"
-    scp -r ${BASEDIR}/../../resources/images/error.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/
-    scp -r ${BASEDIR}/../../resources/images/tick.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/
-    scp -r ${BASEDIR}/../../resources/images/warning.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/
-    ssh $DEPLOYMENT_SERVER "chmod -R 664 $SUMMARY_DEPLOYMENT/*png"
+    ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
+    scp -r ${BASEDIR}/../../resources/images/error.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+    scp -r ${BASEDIR}/../../resources/images/tick.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+    scp -r ${BASEDIR}/../../resources/images/warning.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+    ssh $DEPLOYMENT_SERVER "chmod -R 664 $SUMMARY_DEPLOYMENT/*png" > /dev/null 2>&1
 
     #for each sample directory...
     for SAMPLE in `ls --color=never $INPUT_PATH`
@@ -471,7 +344,6 @@ if [ -d $INPUT_PATH ] && [ "$IS_PROJECT_DIR" = "T" ]; then
                                    $DEPLOYMENT_SERVER \
                                    $SUMMARY_DEPLOYMENT \
                                    $SUMMARY_RESULTS \
-                                   $IS_PROJECT_DIR \
                                    $MULT_READS
 		
 		else
@@ -483,62 +355,6 @@ if [ -d $INPUT_PATH ] && [ "$IS_PROJECT_DIR" = "T" ]; then
     done;
 
     echo "`$NOW`progress and summary of bwa runs can be seen at $DEPLOYMENT_SERVER/report/project/$PROJECT/bwa/$TODAY/"
-
-
-elif [ -d $INPUT_PATH ]; then
-
- echo "`$NOW`input path is fastq file directory"
-
-    FASTQ_DIR=$INPUT_PATH
-    FASTQ_DIR_NAME=`basename $INPUT_PATH`
-
-    #count fastq files in directory		
-    FASTQ_COUNT=`ls --color=never $INPUT_PATH/*.f*q* | wc -l`
-
-    if [ $FASTQ_COUNT -gt 0 ]; then
-
-    	#create and set permissions for analysis parent directory
-	mkdir -p $GROUP_VOL_CGI/analysis/bwa/other/$FASTQ_DIR_NAME
-	chmod 770 $GROUP_VOL_CGI/analysis/bwa/other/$FASTQ_DIR_NAME
-
- 	#create and set permissions for results parent directory
-   	mkdir -p $GROUP_VOL_CGI/results/bwa/other/$FASTQ_DIR_NAME
-    	chmod 770 $GROUP_VOL_CGI/results/bwa/other/$FASTQ_DIR_NAME
-
-        #...output directory path
-	PATH_RUN_DIR=$GROUP_VOL_CGI/analysis/bwa/other/$FASTQ_DIR_NAME/$TODAY
-	PATH_OUT_DIR=$GROUP_VOL_CGI/results/bwa/other/$FASTQ_DIR_NAME/$TODAY			
-
-        #set up directories for summary of bwa runs and write down running script
-        SUMMARY_RESULTS=$GROUP_VOL_CGI/results/bwa/other/$FASTQ_DIR_NAME/$TODAY
-        mkdir -p $SUMMARY_RESULTS
-        chmod 770 $SUMMARY_RESULTS
-
-        SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/other/bwa/$FASTQ_DIR_NAME/$TODAY
-        ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $SUMMARY_DEPLOYMENT"
-        scp -r $BASEDIR/*png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/
-        ssh $DEPLOYMENT_SERVER "chmod -R 664 $SUMMARY_DEPLOYMENT/*png"
-
-			
-	#create, configure and submit job scripts
-			submitJobs $FASTQ_DIR \
-                                   $PATH_REFERENCE_FASTA \
-                                   $PATH_RUN_DIR \
-                                   $PATH_OUT_DIR \
-                                   $PATTERN_READ_1 \
-                                   $PATTERN_READ_2 \
-                                   $THREADS_PER_RUN \
-                                   $READS_PER_RUN \
-				   $WALLTIME_HOURS_PER_RUN \
-                                   $DEPLOYMENT_SERVER \
-                                   $SUMMARY_DEPLOYMENT \
-                                   $SUMMARY_RESULTS \
-                                   $IS_PROJECT_DIR \
-                                   $MULT_READS
-		
-    else
-	echo "`$NOW`directory $FASTQ_DIR does not contain any fastq files (.fq or .fastq file extension)"
-    fi
 
 else
     echo "`$NOW`Error: Input path is not a directory."
