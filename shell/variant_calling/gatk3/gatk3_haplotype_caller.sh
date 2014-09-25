@@ -67,7 +67,6 @@ INTERVAL_ARG="-L $TMPDIR/fragment.intervals"
 
 java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
 	-T HaplotypeCaller \
-	-dcov $DOWNSAMPLING \
 	-R $TMPDIR/reference.fa \
 	-I $TMPDIR/realigned.recalibrated.bam \
 	-ERC GVCF \
