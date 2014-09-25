@@ -14,6 +14,7 @@ TODAY=`date +%Y-%m-%d`
 
 # script containing R functions
 R_FUNCTIONS=$BASEDIR/exomeDepth_target.R
+MAKE_BED=$BASEDIR/multisample_bed.pl
 
 TARGET="/groupvol/cgi/resources/annotations/Agilent_SureSelect_Human_All_Exon_V4+UTRs.targets.geneIDs.bed"
 ANNOTATIONS=$BASEDIR/annotation.txt
@@ -107,6 +108,8 @@ echo "`$NOW`$EC_JOB_ID"
 # calling CNVs
 ##############
 
+CC_DEPENDENCIES=afterok
+
 for SAMPLE in `cut -f 2 $PED_FILE | grep -v '#'`
 do
 
@@ -116,6 +119,7 @@ do
 
 	SCRIPT_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/exomeDepth/$TODAY/$SAMPLE/run
 	mkdir -p $SCRIPT_DIR
+	chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/exomeDepth/$TODAY/$SAMPLE
 	chmod 770 $SCRIPT_DIR
 
 	RESULTS_DIR=$GROUP_VOL_CGI/results/$PROJECT/exomeDepth/$TODAY/$SAMPLE
@@ -127,7 +131,7 @@ do
 	# R script
 	R_SCRIPT=$SCRIPT_DIR/${SAMPLE}.callCNVs.R
 
-	#create general job script
+	#create job script
 	SCRIPT_PATH=$SCRIPT_DIR/${SAMPLE}.callCNVs.sh
 	cp $BASEDIR/callCNVs.sh $SCRIPT_PATH
 
@@ -144,8 +148,36 @@ do
 	#submit job 
 	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
 	echo "`$NOW`$SCRIPT_PATH"
-	JOB_ID=`qsub -q pqcgi -W depend=afterok:$EC_JOB_ID -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
-	echo "`$NOW`$JOB_ID"
+	CC_JOB_ID=`qsub -q pqcgi -W depend=afterok:$EC_JOB_ID -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+	echo "`$NOW`$CC_JOB_ID"
+
+	CC_DEPENDENCIES=$CC_DEPENDENCIES:$CC_JOB_ID
 
 done
+
+########################################################
+# merging outputs for all samples and creating bed file
+########################################################
+
+#create job script
+SCRIPT_PATH=$SCRIPT_DIR/${PROJECT}.mergeOutputs.sh
+cp $BASEDIR/mergeOutputs.sh $SCRIPT_PATH
+
+sed -i -e "s/#pedFile/${PED_FILE//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#makeBed/${MAKE_BED//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#resultsFolder/${MS_RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#project/$PROJECT/" $SCRIPT_PATH
+
+chmod 770 $SCRIPT_PATH
+	
+#submit job 
+LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+echo "`$NOW`$SCRIPT_PATH"
+MO_JOB_ID=`qsub -q pqcgi -W depend=$CC_DEPENDENCIES -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+echo "`$NOW`$MO_JOB_ID"
+	
+
+
+
+
 
