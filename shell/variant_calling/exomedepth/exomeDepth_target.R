@@ -31,11 +31,11 @@ call.cnvs <- function (exon.counts.file,
                        target.bed,
 		       test.sample,			# test sample name as in exon.counts.file object
 		       ref.samples.file,		# file containing a list of reference samples, one per line
-                       all.samples.file,		# file containing a list of all samples, one per line
 		       annotations.file,		# file with all required annotations listed
 		       all.exons.output,		# output Rdata file saving the ExomeDepth object
 		       cnv.calls.file,			# output text file containing CNV calls
-			bam.suffix) {			# suffix for bam file, default '.filtered.bam'
+		       summary.file,			# output summary file
+			bam.suffix) {			# suffix for bam files, default '.bam'
 
         library(ExomeDepth)
         load(exon.counts.file)
@@ -43,12 +43,30 @@ call.cnvs <- function (exon.counts.file,
 	#convert exon counts object into dataframe 
 	exon.counts.dafr <- as(exon.counts[, colnames(exon.counts)], 'data.frame')
 	print(head(exon.counts.dafr))
-#        names(exon.counts.dafr) <- c("space", "start", "end", "width", "names", paste(scan(all.samples.file, what = 'character')))
 
 	#remove bam file suffix from column names
 	names(exon.counts.dafr) <- gsub(names(exon.counts.dafr), pattern = paste(bam.suffix), replacement = '')
 
-	print(head(exon.counts.dafr)) 
+        #make sure there are no chr prefix in chr name
+        exon.counts.dafr$chromosome <- gsub(as.character(exon.counts.dafr$space),
+                                           pattern = 'chr',
+                                           replacement ='')
+
+        
+	print(head(exon.counts.dafr))
+
+        #subset autosomes and X chromosome
+
+        exon.counts.dafr.autosomes <- subset(exon.counts.dafr, chromosome %in% c(1:22))
+	print(tail(exon.counts.dafr.autosomes))
+	print(nrow(exon.counts.dafr.autosomes))
+        exon.counts.dafr.X <- subset(exon.counts.dafr, chromosome == "X")
+	print(tail(exon.counts.dafr.X))
+	print(nrow(exon.counts.dafr.X))
+
+        #analyse autosomes
+
+        #analyse X chromosome
 
 	#read a test sample
 	my.test <- paste('exon.counts.dafr$', test.sample, sep = "")
@@ -62,7 +80,12 @@ call.cnvs <- function (exon.counts.file,
 		     		          reference.counts = my.reference.set,
 	                                  bin.length = (exon.counts.dafr$end - exon.counts.dafr$start)/1000,
 					  formula = 'cbind(test, reference) ~ 1')
+
+	#print choice of reference samples
+	message("size of reference set: ", length(my.choice$reference.choice))
+
         print(my.choice$reference.choice)
+	cat('reference set samples: ', my.choice$reference.choice, "\n")
         print(my.choice$summary.stats)
 
 	# construct a reference set
@@ -99,6 +122,12 @@ call.cnvs <- function (exon.counts.file,
                                    min.overlap = 0.0001,
                                    column.name = 'geneID')
 
+	#annotate CNVs with common CNVs
+	data(Conrad.hg19)
+        all.exons <- AnnotateExtra(x = all.exons,
+                                   reference.annotation = Conrad.hg19.common.CNVs,
+                                   min.overlap = 0.5,
+                                   column.name = 'Conrad.hg19')
 
 	#annotate CNVs with data from public databases
         annotations <- read.table(annotations.file, col.names = c("db","cutoff","path"), as.is=TRUE)
@@ -118,5 +147,45 @@ call.cnvs <- function (exon.counts.file,
                                            column.name = annotations$db[i])
 	}
 
-        write.table(x = all.exons@CNV.calls, file = cnv.calls.file, quote = FALSE, row.names = FALSE)
+	# rank CNVs by BF:
+	cnv.calls <- (all.exons@CNV.calls[ order ( all.exons@CNV.calls$BF, decreasing = TRUE),])
+
+	cnv.calls$size <- cnv.calls$end - cnv.calls$start
+	cnv.calls$sample <- test.sample
+
+	# reorder for clarity
+	my.block <- c('sample', 'id', 'type', 'nexons', 'size', 'chromosome', 'start', 'end', 'BF', 'reads.expected', 'reads.observed', 'reads.ratio') 
+	my.names <-  c(subset(my.block, my.block %in% names(cnv.calls)), subset(names(cnv.calls), ! (names(cnv.calls) %in% my.block) ) )
+
+#        write.table(x = all.exons@CNV.calls, file = cnv.calls.file, quote = FALSE, row.names = FALSE)
+	write.table(x = cnv.calls[,my.names], file = cnv.calls.file, quote = FALSE, row.names = FALSE, sep = "\t")
+
+	# now collect summary statistics for this sample
+	summary = data.frame(id = test.sample)
+
+	cor.test.reference <- cor(all.exons@test, all.exons@reference)
+	message('Once more: Correlation between reference and tests count is ', signif(cor.test.reference, 5))
+	summary$cor.test.reference[1] <- signif(cor.test.reference, 5)
+	summary$size.ref.set[1] <- length(my.choice$reference.choice)
+
+	summary$total.cnvs[1] <- nrow(all.exons@CNV.calls)
+	summary$del.count[1] <- sum(all.exons@CNV.calls$type == 'deletion')
+	summary$dup.count[1] <- sum(all.exons@CNV.calls$type == 'duplication')
+	summary$proportion.del[1] <- format(summary$del.count/summary$total.cnvs, digits = 3)
+	summary$proportion.dup[1] <- format(summary$dup.count/summary$total.cnvs, digits = 3)
+	summary$count.nonConrad[1] <- sum(is.na(all.exons@CNV.calls$Conrad.hg19))
+
+	summary$ref.set[1] <- gsub(", ",",",toString(my.choice$reference.choice))
+
+
+#	print(summary)
+#	summary.file <- paste(cnv.calls.file, ".summary", sep = '')
+	write.table(x = summary, file = summary.file, quote = FALSE, row.names = FALSE, sep = "\t")
+
+#	cor.test.reference <- cor(all.exons@test, all.exons@reference)
+#	message('Once more: Correlation between reference and tests count is ', signif(cor.test.reference, 5))
+#	summary$cor.test.reference[1] <- signif(cor.test.reference, 5)
+
+	print(summary)
+
 }
