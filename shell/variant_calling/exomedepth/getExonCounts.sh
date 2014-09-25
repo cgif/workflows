@@ -12,7 +12,6 @@
 # load modules
 
 module load R/3.1.0
-module load samtools/0.1.18
 
 NOW="date +%Y-%m-%d%t%T%t"
 
@@ -22,9 +21,6 @@ R_SCRIPT=#Rscript
 TARGET=#target
 BAM_LIST=#BamList
 RESULTS_DIR=#resultsFolder
-CHROMOSOMES=#chromosomes
-
-R_SCRIPT=${R_SCRIPT}.${CHROMOSOMES}.R
 
 echo "`$NOW`creating R script for counting reads per exon"
 echo "`$NOW`R script: $R_SCRIPT"
@@ -42,21 +38,16 @@ while read BAM_PATH; do
 	echo "$TMPDIR/$SAMPLE.bam" >> $TMPDIR/bam.list
 done < $BAM_LIST
 
-if [[ $CHROMOSOMES == "autosomes" ]]; then
-	grep -Pv '^[X|Y]\s' $TARGET > $TMPDIR/target.bed
-elif [[ $CHROMOSOMES == "X_chromosome" ]]; then
-	grep -P '^X\s' $TARGET > $TMPDIR/target.bed
-else
-	echo "illegal value for chromosomes $CHROMOSOMES"
-	exit 1
-fi
+echo "`$NOW`copying target file to $TMPDIR"
+
+cp $TARGET $TMPDIR/target.bed
 
 echo "
 source('$R_FUNCTIONS')
 
 target.bed <- '$TMPDIR/target.bed'
 bam.files <- '$TMPDIR/bam.list'
-exon.counts.file <- '$TMPDIR/exon.counts.${CHROMOSOMES}.Rdata'
+exon.counts.file <- '$TMPDIR/exon.counts.Rdata'
 
 get.exon.counts(target.bed = target.bed,
                 bam.files = bam.files,

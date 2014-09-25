@@ -77,15 +77,15 @@ mkdir -p $GROUP_VOL_CGI/results/$PROJECT/exomeDepth/$TODAY/multisample
 chmod 770 $GROUP_VOL_CGI/results/$PROJECT/exomeDepth/$TODAY/multisample
 MS_RESULTS_DIR=$GROUP_VOL_CGI/results/$PROJECT/exomeDepth/$TODAY/multisample
 
-echo "`$NOW`creating and submitting job script for exon counts for autosomes"
+echo "`$NOW`creating and submitting job script for exon counts"
 
 # create R script
-MS_R_SCRIPT=$MS_SCRIPT_DIR/${PROJECT}.getExonCounts
+MS_R_SCRIPT=$MS_SCRIPT_DIR/${PROJECT}.getExonCounts.R
 #echo -n "" > $MS_R_SCRIPT
 #chmod 770 $MS_R_SCRIPT
 
 # create job script
-SCRIPT_PATH=$MS_SCRIPT_DIR/${PROJECT}.getExonCounts.autosomes.sh
+SCRIPT_PATH=$MS_SCRIPT_DIR/${PROJECT}.getExonCounts.sh
 cp $BASEDIR/getExonCounts.sh $SCRIPT_PATH
 chmod 770 $SCRIPT_PATH
 
@@ -94,41 +94,14 @@ sed -i -e "s/#Rscript/${MS_R_SCRIPT//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#target/${TARGET//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#BamList/${BAM_LIST//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#resultsFolder/${MS_RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
-sed -i -e "s/#chromosomes/autosomes/" $SCRIPT_PATH
+
 
 # submit job 
 LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
 echo "`$NOW`$SCRIPT_PATH"
 
-EC_AUTO_JOB_ID=`qsub -q pqcgi -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
-echo "`$NOW`$EC_AUTO_JOB_ID"
-
-echo "`$NOW`creating and submitting job script for exon counts for X chromosome"
-
-# create R script
-MS_R_SCRIPT=$MS_SCRIPT_DIR/${PROJECT}.getExonCounts
-#echo -n "" > $MS_R_SCRIPT
-#chmod 770 $MS_R_SCRIPT
-
-# create job script
-SCRIPT_PATH=$MS_SCRIPT_DIR/${PROJECT}.getExonCounts.X_chromosome.sh
-cp $BASEDIR/getExonCounts.sh $SCRIPT_PATH
-chmod 770 $SCRIPT_PATH
-
-sed -i -e "s/#Rfunctions/${R_FUNCTIONS//\//\\/}/" $SCRIPT_PATH
-sed -i -e "s/#Rscript/${MS_R_SCRIPT//\//\\/}/" $SCRIPT_PATH
-sed -i -e "s/#target/${TARGET//\//\\/}/" $SCRIPT_PATH
-sed -i -e "s/#BamList/${BAM_LIST//\//\\/}/" $SCRIPT_PATH
-sed -i -e "s/#resultsFolder/${MS_RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
-sed -i -e "s/#chromosomes/X_chromosome/" $SCRIPT_PATH
-
-# submit job 
-LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
-echo "`$NOW`$SCRIPT_PATH"
-
-EC_X_JOB_ID=`qsub -q pqcgi -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
-echo "`$NOW`$EC_X_JOB_ID"
-
+EC_JOB_ID=`qsub -q pqcgi -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+echo "`$NOW`$EC_JOB_ID"
 
 ##############
 # calling CNVs
@@ -152,10 +125,10 @@ do
 	echo "`$NOW`creating and submitting job script for CNV calling"
 
 	# R script
-	R_SCRIPT=$SCRIPT_DIR/${SAMPLE}.callCNVs
+	R_SCRIPT=$SCRIPT_DIR/${SAMPLE}.callCNVs.R
 
 	#create general job script
-	SCRIPT_PATH=$SCRIPT_DIR/${SAMPLE}.callCNVs
+	SCRIPT_PATH=$SCRIPT_DIR/${SAMPLE}.callCNVs.sh
 	cp $BASEDIR/callCNVs.sh $SCRIPT_PATH
 
 	sed -i -e "s/#Rfunctions/${R_FUNCTIONS//\//\\/}/" $SCRIPT_PATH
@@ -166,34 +139,13 @@ do
 	sed -i -e "s/#annotations/${ANNOTATIONS//\//\\/}/" $SCRIPT_PATH
 	sed -i -e "s/#bamSuffix/$BAM_SUFFIX/" $SCRIPT_PATH
 
-	#job script for autosomes
-	SCRIPT_PATH_AUTO=$SCRIPT_DIR/${SAMPLE}.callCNVs.autosomes.sh
-	cp $SCRIPT_PATH $SCRIPT_PATH_AUTO
-	chmod 770 $SCRIPT_PATH_AUTO
+	chmod 770 $SCRIPT_PATH
 	
-	sed -i -e "s/#chromosomes/autosomes/" $SCRIPT_PATH_AUTO
-
 	#submit job 
-	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH_AUTO | perl -pe 's/\.sh/\.log/g'`
-	echo "`$NOW`$SCRIPT_PATH_AUTO"
-	JOB_ID=`qsub -q pqcgi -W depend=afterok:$EC_AUTO_JOB_ID -o $LOG_OUTPUT_PATH $SCRIPT_PATH_AUTO`
+	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+	echo "`$NOW`$SCRIPT_PATH"
+	JOB_ID=`qsub -q pqcgi -W depend=afterok:$EC_JOB_ID -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
 	echo "`$NOW`$JOB_ID"
-
-	#job script for X chromosome
-	SCRIPT_PATH_X=$SCRIPT_DIR/${SAMPLE}.callCNVs.X_chromosome.sh
-	cp $SCRIPT_PATH $SCRIPT_PATH_X
-	chmod 770 $SCRIPT_PATH_X
-	
-	sed -i -e "s/#chromosomes/X_chromosome/" $SCRIPT_PATH_X
-
-	#submit job 
-	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH_X | perl -pe 's/\.sh/\.log/g'`
-	echo "`$NOW`$SCRIPT_PATH_X"
-	JOB_ID=`qsub -q pqcgi -W depend=afterok:$EC_X_JOB_ID -o $LOG_OUTPUT_PATH $SCRIPT_PATH_X`
-	echo "`$NOW`$JOB_ID"
-
-	#delete general script
-	rm $SCRIPT_PATH	
 
 done
 
