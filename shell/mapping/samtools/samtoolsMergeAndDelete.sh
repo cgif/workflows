@@ -125,6 +125,28 @@ samtools flagstat $TMP_PATH_OUT_BAM > $TMP_PATH_OUT_BAM.flagstat
 echo "`${NOW}`creating md5 checksum..."
 md5sum $TMP_PATH_OUT_BAM > $TMP_PATH_OUT_BAM.md5
 
+#make sure that output has correct number of reads...
+OUTPUT_READ_COUNT=`cat $TMP_PATH_OUT_BAM.flagstat | head -n 1 | cut -f 1 -d ' '`
+
+echo "`${NOW}`input reads (read1 + read2): $INPUT_READ_COUNT"
+echo "`${NOW}`reads in output: $OUTPUT_READ_COUNT"
+
+#...if yes, delete input BAM files
+if [ $OUTPUT_READ_COUNT -eq $INPUT_READ_COUNT ]
+then
+	echo "`${NOW}`deleting intermediate BAM files..."
+	for BAM in $IN_BAM
+	do
+	    rm $INPUT_DIR/$BAM
+	    echo "`${NOW}` deleting $INPUT_DIR/$BAM"
+	done
+
+#...if no, keep input BAM files for re-run
+else
+	echo "`${NOW}`WARNING!!! Output BAM does not contain the same number of reads as the input files!"
+        echo "`${NOW}`keeping intermediate BAM files for re-run..."  	 
+fi
+
 # copy merged BAM, index, flagstat report and index
 # to destination folder
 echo "`${NOW}`copying merged BAM to $OUT_BAM..."
@@ -143,21 +165,5 @@ echo "`${NOW}`copying md5sum to $OUT_BAM.md5"
 cp $TMP_PATH_OUT_BAM.md5 $OUT_BAM.md5
 chmod 640 $OUT_BAM.md5
 
-#make sure that output has correct number of reads...
-OUTPUT_READ_COUNT=`cat $TMP_PATH_OUT_BAM.flagstat | head -n 1 | cut -f 1 -d ' '`
 
-echo "`${NOW}`input reads (read1 + read2): $INPUT_READ_COUNT"
-echo "`${NOW}`reads in output: $OUTPUT_READ_COUNT"
-
-#...if yes, delete input BAM files
-if [ $OUTPUT_READ_COUNT -eq $INPUT_READ_COUNT ]
-then
-	echo "`${NOW}`deleting intermediate BAM files..."
-	rm $IN_BAM
-
-#...if no, keep input BAM files for re-run
-else
-	echo "`${NOW}`WARNING!!! Output BAM does not contain the same number of reads as the input files!"
-        echo "`${NOW}`keeping intermediate BAM files for re-run..."  		 
-fi
 
