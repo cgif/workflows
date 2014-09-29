@@ -21,122 +21,105 @@ R_SCRIPT=#Rscript
 RESULTS_DIR=#resultsFolder
 TARGET=#target
 PED_FILE=#pedFile
-CHROM_X=#chromX
 ANNOTATIONS=#annotations
 BAM_SUFFIX='#bamSuffix'
 
 SAMPLE=`basename $RESULTS_DIR`
 PROJECT_RESULTS_DIR=`dirname $RESULTS_DIR`
 
-if [[ "$CHROM_X" == "T" ]] 
-then
+# select reference sets
+FAMILY=`grep $SAMPLE $PED_FILE|cut -f 1|uniq`
+ 
+#for autosomes, select unrelated samples for reference set
+grep -Pv "$FAMILY\t" $PED_FILE | grep -v "#" | cut -f 2 > $TMPDIR/ref.autosomes.sample.list
 
-    cut -f 2 $PED_FILE | grep -v "#" > $TMPDIR/all.sample.list
+#for X chromosome, select unrelated same sex samples for reference set
+SEX=`grep -P "$FAMILY\t$SAMPLE" $PED_FILE|cut -f 5` 
+grep -Pv "$FAMILY\t" $PED_FILE | grep -v "#" | cut -f 2,5 | grep -P "\t$SEX" | cut -f 1 > $TMPDIR/ref.X_chromosome.sample.list
 
-    #select unrelated proband samples for reference set
-    FAMILY=`grep $SAMPLE $PED_FILE|cut -f 1|uniq` 
-    cat $PED_FILE | awk '$7 == "1"' | grep -Pv "$FAMILY\t" | cut -f 2 > $TMPDIR/ref.autosomes.sample.list
+echo "`$NOW`copying exon counts file to $TMPDIR"
 
-    #chromosome X targets will be analysed against same sex reference set
-    SEX=`grep -P "$FAMILY\t$SAMPLE" $PED_FILE|cut -f 5` 
-    cat $PED_FILE | awk '$7 == "1"' | grep -Pv "$FAMILY\t" | cut -f 2,5 | grep -P "\t$SEX" | cut -f 1 > $TMPDIR/ref.chrX.sample.list
+cp $PROJECT_RESULTS_DIR/multisample/exon.counts.Rdata $TMPDIR
 
-    cp $PROJECT_RESULTS_DIR/multisample/exon.counts.autosomes.Rdata $TMPDIR/exon.counts.autosomes.Rdata
-    cp $PROJECT_RESULTS_DIR/multisample/exon.counts.chrX.Rdata $TMPDIR/exon.counts.chrX.Rdata
+echo "`$NOW`copying target and annotations list files to $TMPDIR"
 
-    grep -Pv '^[X|Y]\s' $TARGET > $TMPDIR/target.autosomes.bed
-    grep -P '^X\s' $TARGET > $TMPDIR/target.chrX.bed
+cp $TARGET $TMPDIR/target.bed
+cp $ANNOTATIONS $TMPDIR/annotations.list
 
-    cp $ANNOTATIONS $TMPDIR/annotations.list
+echo "`$NOW`writing R script"
 
-    echo "
-source('$R_FUNCTIONS')
-
-exon.counts.file <- '$TMPDIR/exon.counts.autosomes.Rdata'
-target.bed <- '$TMPDIR/target.autosomes.bed'
-test.sample <- '$SAMPLE'
-ref.samples.file <- '$TMPDIR/ref.autosomes.sample.list'
-all.samples.file <- '$TMPDIR/all.sample.list'
-annotations.file <- '$TMPDIR/annotations.list'
-all.exons.output <- '$TMPDIR/${SAMPLE}.all.exons.autosomes.Rdata'
-cnv.calls.file <- '$TMPDIR/${SAMPLE}.cnv.calls.autosomes.Rdata'
-bam.suffix <- '$BAM_SUFFIX'
-
-call.cnvs(exon.counts.file = exon.counts.file,
-          target.bed = target.bed,
-	  test.sample = test.sample,
-	  ref.samples.file = ref.samples.file,
-          all.samples.file = all.samples.file,
-          annotations.file = annotations.file,
-	  all.exons.output = all.exons.output,
-	  cnv.calls.file = cnv.calls.file,
-	  bam.suffix = bam.suffix)
-
-
-exon.counts.file <- '$TMPDIR/exon.counts.chrX.Rdata'
-target.bed <- '$TMPDIR/target.chrX.bed'
-ref.samples.file <- '$TMPDIR/ref.chrX.sample.list'
-all.exons.output <- '$TMPDIR/${SAMPLE}.all.exons.chrX.Rdata'
-cnv.calls.file <- '$TMPDIR/${SAMPLE}.cnv.calls.chrX.Rdata'
-bam.suffix <- '$BAM_SUFFIX'
-
-call.cnvs(exon.counts.file = exon.counts.file,
-          target.bed = target.bed,
-	  test.sample = test.sample,
-	  ref.samples.file = ref.samples.file,
-          all.samples.file = all.samples.file,
-          annotations.file = annotations.file,
-	  all.exons.output = all.exons.output,
-	  cnv.calls.file = cnv.calls.file,
-	  bam.suffix = bam.suffix)
-
-    " > $R_SCRIPT
-
-else
-
-    cut -f 2 $PED_FILE | grep -v "#" > $TMPDIR/all.sample.list
-
-    #select unrelated AND unaffected proband samples for reference set
-    FAMILY=`grep $SAMPLE $PED_FILE|cut -f 1|uniq` 
-    cat $PED_FILE | awk '$7 == "1"' | grep -Pv "$FAMILY\t" | cut -f 2 > $TMPDIR/ref.sample.list
-
-    cp $PROJECT_RESULTS_DIR/multisample/exon.counts.Rdata $TMPDIR/exon.counts.Rdata
-
-    cp $TARGET $TMPDIR/target.bed
-
-    cp $ANNOTATIONS $TMPDIR/annotations.list
-
-    echo "
+echo "
 source('$R_FUNCTIONS')
 
 exon.counts.file <- '$TMPDIR/exon.counts.Rdata'
-target.bed <- '$TMPDIR/target.bed'
-test.sample <- '$SAMPLE'
-ref.samples.file <- '$TMPDIR/ref.sample.list'
-all.samples.file <- '$TMPDIR/all.sample.list'
-annotations.file <- '$TMPDIR/annotations.list'
-all.exons.output <- '$TMPDIR/${SAMPLE}.all.exons.Rdata'
-cnv.calls.file <- '$TMPDIR/${SAMPLE}.cnv.calls.Rdata'
+exon.counts.autosomes.file <- '$TMPDIR/exon.counts.autosomes.tsv'
+exon.counts.X.file <- '$TMPDIR/exon.counts.X_chromosome.tsv'
 bam.suffix <- '$BAM_SUFFIX'
 
-call.cnvs(exon.counts.file = exon.counts.file,
-          target.bed = target.bed,
-	  test.sample = test.sample,
-	  ref.samples.file = ref.samples.file,
-          all.samples.file = all.samples.file,
-          annotations.file = annotations.file,
-	  all.exons.output = all.exons.output,
-	  cnv.calls.file = cnv.calls.file,
-	  bam.suffix = bam.suffix)
-    " > $R_SCRIPT
+make.dafr(exon.counts.file = exon.counts.file,
+		exon.counts.autosomes.file = exon.counts.autosomes.file,
+		exon.counts.X.file = exon.counts.X.file,
+		bam.suffix)
 
-fi
+target.bed <- '$TMPDIR/target.bed'
+test.sample <- '$SAMPLE'
+annotations.file <- '$TMPDIR/annotations.list'
+prefix <- '$TMPDIR/${SAMPLE}'
+cnv.output <- '$TMPDIR/${SAMPLE}.cnv.calls'
 
+#for autosomes:
+exon.counts.dafr.file <- '$TMPDIR/exon.counts.autosomes.tsv'
+ref.samples.file <- '$TMPDIR/ref.autosomes.sample.list'
+analysis.subset <- 'autosomes'
+
+call.cnvs(exon.counts.dafr.file = exon.counts.dafr.file,
+		test.sample = test.sample,
+		ref.samples.file = ref.samples.file,
+		annotations.file = annotations.file,
+		analysis.subset = analysis.subset,
+		prefix = prefix,
+		target.bed = target.bed)
+
+#for X chromosome:
+exon.counts.dafr.file <- '$TMPDIR/exon.counts.X_chromosome.tsv'
+ref.samples.file <- '$TMPDIR/ref.X_chromosome.sample.list'
+analysis.subset <- 'X_chromosome'
+
+call.cnvs(exon.counts.dafr.file = exon.counts.dafr.file,
+		test.sample = test.sample,
+		ref.samples.file = ref.samples.file,
+		annotations.file = annotations.file,
+		analysis.subset = analysis.subset,
+		prefix = prefix,
+		target.bed = target.bed)
+
+" > $R_SCRIPT
+
+chmod 770 $R_SCRIPT
 echo "`${NOW}`calling CNVs"
 
 R CMD BATCH --no-save --no-restore $R_SCRIPT ${R_SCRIPT}.log
 
+echo "`${NOW}`merging outputs for $SAMPLE"
+
+AUTO=$TMPDIR/${SAMPLE}.cnv.calls.autosomes.tsv
+CHRX=$TMPDIR/${SAMPLE}.cnv.calls.X_chromosome.tsv
+ALL=$TMPDIR/${SAMPLE}.cnv.calls.all.tsv
+
+cp $AUTO $ALL
+tail -n +2 $CHRX >> $ALL
+
+AUTO_SUM=$TMPDIR/${SAMPLE}.cnv.calls.autosomes.summary.tsv
+CHRX_SUM=$TMPDIR/${SAMPLE}.cnv.calls.X_chromosome.summary.tsv
+ALL_SUM=$TMPDIR/${SAMPLE}.cnv.calls.all.summary.tsv
+
+cp $AUTO_SUM $ALL_SUM
+tail -n +2 $CHRX_SUM >> $ALL_SUM
+
 echo "`${NOW}`done"
 
 cp $TMPDIR/$SAMPLE*Rdata $RESULTS_DIR/
+cp $TMPDIR/$SAMPLE*tsv $RESULTS_DIR/
+
 chmod 660 $RESULTS_DIR/*
+chmod 660 ${R_SCRIPT}.log

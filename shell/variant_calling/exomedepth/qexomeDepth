@@ -14,25 +14,24 @@ TODAY=`date +%Y-%m-%d`
 
 # script containing R functions
 R_FUNCTIONS=$BASEDIR/exomeDepth_target.R
+MAKE_BED=$BASEDIR/multisample_bed.pl
 
 TARGET="/groupvol/cgi/resources/annotations/Agilent_SureSelect_Human_All_Exon_V4+UTRs.targets.geneIDs.bed"
-ANNOTATIONS=$BASEDIR/annotations.txt
-CHROM_X=F
-BAM_SUFFIX='.filtered.bam'
+ANNOTATIONS=$BASEDIR/annotation.txt
+BAM_SUFFIX='.bam'
 
-USAGE="USAGE: qgetExonCounts -i <list_of_bam_files_with_path> -n <project> -t <target_bed_with_path; default [/groupvol/cgi/resources/annotations/Agilent_SureSelect_Human_All_Exon_V4+UTRs.targets.geneIDs.bed]> -e <ped_file> -X <compare_chrX_targets_against_same_sex_individuals> -a <list_of_required_annotations>"
+USAGE="USAGE: qgetExonCounts -i <list_of_bam_files_with_path> -n <project> -t <target_bed_with_path; default [/groupvol/cgi/resources/annotations/Agilent_SureSelect_Human_All_Exon_V4+UTRs.targets.geneIDs.bed]> -e <ped_file> -a <list_of_required_annotations>"
  
 #parse command line args
-while getopts "i:n:t:e:a:s:Xh" option; do
+while getopts "i:n:t:e:a:sh" option; do
     case "$option" in
 	
 	i) BAM_LIST="$OPTARG";;
 	n) PROJECT="$OPTARG";;
 	t) TARGET="$OPTARG";;
         e) PED_FILE="$OPTARG";;
-	X) CHROM_X=T;;
 	a) ANNOTATIONS="$OPTARG";;
-	s) BAM_SUFFIX="$OPTARG";;
+	s) BAM_SUFFIX="$OPTARG";;	
 	h) echo "$USAGE";;
 	[?]) echo "$USAGE";;
 
@@ -83,8 +82,8 @@ echo "`$NOW`creating and submitting job script for exon counts"
 
 # create R script
 MS_R_SCRIPT=$MS_SCRIPT_DIR/${PROJECT}.getExonCounts.R
-echo -n "" > $MS_R_SCRIPT
-chmod 770 $MS_R_SCRIPT
+#echo -n "" > $MS_R_SCRIPT
+#chmod 770 $MS_R_SCRIPT
 
 # create job script
 SCRIPT_PATH=$MS_SCRIPT_DIR/${PROJECT}.getExonCounts.sh
@@ -96,7 +95,7 @@ sed -i -e "s/#Rscript/${MS_R_SCRIPT//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#target/${TARGET//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#BamList/${BAM_LIST//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#resultsFolder/${MS_RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
-sed -i -e "s/#chromX/$CHROM_X/" $SCRIPT_PATH
+
 
 # submit job 
 LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
@@ -109,48 +108,76 @@ echo "`$NOW`$EC_JOB_ID"
 # calling CNVs
 ##############
 
+CC_DEPENDENCIES=afterok
+
 for SAMPLE in `cut -f 2 $PED_FILE | grep -v '#'`
 do
 
-    # make folders 
-    echo "`$NOW`################################################"
-    echo "`$NOW`creating directory structure for sample $SAMPLE"
+	# make folders 
+	echo "`$NOW`################################################"
+	echo "`$NOW`creating directory structure for sample $SAMPLE"
 
-    SCRIPT_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/exomeDepth/$TODAY/$SAMPLE/run
-    mkdir -p $SCRIPT_DIR
-    chmod 770 $SCRIPT_DIR
+	SCRIPT_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/exomeDepth/$TODAY/$SAMPLE/run
+	mkdir -p $SCRIPT_DIR
+	chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/exomeDepth/$TODAY/$SAMPLE
+	chmod 770 $SCRIPT_DIR
 
-    RESULTS_DIR=$GROUP_VOL_CGI/results/$PROJECT/exomeDepth/$TODAY/$SAMPLE
-    mkdir -p $RESULTS_DIR
-    chmod 770 $RESULTS_DIR
+	RESULTS_DIR=$GROUP_VOL_CGI/results/$PROJECT/exomeDepth/$TODAY/$SAMPLE
+	mkdir -p $RESULTS_DIR
+	chmod 770 $RESULTS_DIR
 
-    echo "`$NOW`creating and submitting job script for CNV calling"
+	echo "`$NOW`creating and submitting job script for CNV calling"
 
-    # create R script
-    R_SCRIPT=$SCRIPT_DIR/${SAMPLE}.callCNVs.R
-    echo -n "" > $R_SCRIPT
-    chmod 770 $R_SCRIPT
+	# R script
+	R_SCRIPT=$SCRIPT_DIR/${SAMPLE}.callCNVs.R
 
-    #create job script
-    SCRIPT_PATH=$SCRIPT_DIR/${SAMPLE}.callCNVs.sh
-    cp $BASEDIR/callCNVs.sh $SCRIPT_PATH
-    chmod 770 $SCRIPT_PATH
+	#create job script
+	SCRIPT_PATH=$SCRIPT_DIR/${SAMPLE}.callCNVs.sh
+	cp $BASEDIR/callCNVs.sh $SCRIPT_PATH
 
-    sed -i -e "s/#Rfunctions/${R_FUNCTIONS//\//\\/}/" $SCRIPT_PATH
-    sed -i -e "s/#Rscript/${R_SCRIPT//\//\\/}/" $SCRIPT_PATH
-    sed -i -e "s/#resultsFolder/${RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
-    sed -i -e "s/#target/${TARGET//\//\\/}/" $SCRIPT_PATH
-    sed -i -e "s/#pedFile/${PED_FILE//\//\\/}/" $SCRIPT_PATH
-    sed -i -e "s/#chromX/$CHROM_X/" $SCRIPT_PATH
-    sed -i -e "s/#annotations/${ANNOTATIONS//\//\\/}/" $SCRIPT_PATH
-    sed -i -e "s/#bamSuffix/$BAM_SUFFIX/" $SCRIPT_PATH
+	sed -i -e "s/#Rfunctions/${R_FUNCTIONS//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/#Rscript/${R_SCRIPT//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/#resultsFolder/${RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/#target/${TARGET//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/#pedFile/${PED_FILE//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/#annotations/${ANNOTATIONS//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/#bamSuffix/$BAM_SUFFIX/" $SCRIPT_PATH
 
-    #submit job 
-    LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
-    echo "`$NOW`$SCRIPT_PATH"
+	chmod 770 $SCRIPT_PATH
+	
+	#submit job 
+	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+	echo "`$NOW`$SCRIPT_PATH"
+	CC_JOB_ID=`qsub -q pqcgi -W depend=afterok:$EC_JOB_ID -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+	echo "`$NOW`$CC_JOB_ID"
 
-    JOB_ID=`qsub -q pqcgi -W depend=afterok:$EC_JOB_ID -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
-    echo "`$NOW`$JOB_ID"
+	CC_DEPENDENCIES=$CC_DEPENDENCIES:$CC_JOB_ID
 
 done
+
+########################################################
+# merging outputs for all samples and creating bed file
+########################################################
+
+#create job script
+SCRIPT_PATH=$SCRIPT_DIR/${PROJECT}.mergeOutputs.sh
+cp $BASEDIR/mergeOutputs.sh $SCRIPT_PATH
+
+sed -i -e "s/#pedFile/${PED_FILE//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#makeBed/${MAKE_BED//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#resultsFolder/${MS_RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#project/$PROJECT/" $SCRIPT_PATH
+
+chmod 770 $SCRIPT_PATH
+	
+#submit job 
+LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+echo "`$NOW`$SCRIPT_PATH"
+MO_JOB_ID=`qsub -q pqcgi -W depend=$CC_DEPENDENCIES -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+echo "`$NOW`$MO_JOB_ID"
+	
+
+
+
+
 
