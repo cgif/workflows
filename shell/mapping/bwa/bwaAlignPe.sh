@@ -95,10 +95,6 @@ else
 
 fi
 
-echo "`${NOW}`copying ${TMP_PATH_ALN_BAM_PREFIX}.bam to $PATH_ALN_BAM"
-cp $TMP_PATH_ALN_BAM_PREFIX.bam $PATH_ALN_BAM
-chmod 640 $PATH_ALN_BAM
-
 echo "`${NOW}`listing the files in temporary folder for debugging"
 echo "`ls -l $TMPDIR`"
 
@@ -110,14 +106,21 @@ echo "`${NOW}`reads in output: $OUTPUT_READ_COUNT"
 
 if [ $OUTPUT_READ_COUNT -ge $INPUT_READ_COUNT ]
 then
+
 	echo "`${NOW}`deleting temporary fastq files of read subset..."
 	echo "`${NOW}`$PATH_READS_FASTQ1_NO_EXT"	
 	rm $PATH_READS_FASTQ1_NO_EXT
 	echo "`${NOW}`$PATH_READS_FASTQ2_NO_EXT"
-	rm $PATH_READS_FASTQ2_NO_EXT
+        rm $PATH_READS_FASTQ2_NO_EXT
+
 else
-	echo "`${NOW}`WARNING!!! Output BAM does not contain the same number of reads as the input files!"
+
+	echo "`${NOW}`WARNING!!! Output BAM contains less reads then the input fastq file!"
 	echo "`${NOW}`keeping temporary fastq files of read subset for re-run" 	
+
 fi
 
+echo "`${NOW}`copying ${TMP_PATH_ALN_BAM_PREFIX}.bam to $PATH_ALN_BAM"
+cp $TMP_PATH_ALN_BAM_PREFIX.bam $PATH_ALN_BAM
+chmod 640 $PATH_ALN_BAM
 

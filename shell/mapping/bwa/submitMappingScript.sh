@@ -35,7 +35,7 @@ TODAY=#today
 DEPLOYMENT_SERVER=#deploymentServer
 SUMMARY_DEPLOYMENT=#summaryDeployment
 SUMMARY_RESULTS=#summaryResults
-TRUE_PROJECT_DIR=#isProjectDir
+TRUE_PROJECT_DIR=T
 
 #variables to store job dependencies
 MERGE_DEPENDENCIES=afterok

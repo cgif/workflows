@@ -30,7 +30,7 @@ USAGE="$BASEDIR/qbwape.usage"
 
 READS_PER_RUN=10000000
 THREADS_PER_RUN=2
-PATH_REFERENCE_FASTA=$GROUP_VOL_CGI/resources/reference/eukaryote/human/hs37d5/bwa_indexed/hs37d5.fa.gz
+PATH_REFERENCE_FASTA=$GROUP_VOL_CGI/resources/reference/eukaryote/human/hs37d5/bwa_indexed/hs37d5.fa
 MULT_READS=F
 PATTERN_READ_1='_R1_'
 PATTERN_READ_2='_R2_'
