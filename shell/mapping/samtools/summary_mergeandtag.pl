@@ -48,17 +48,33 @@ foreach $sample (keys %data){
         $sum{$sample}{'0'}{'0'}{'merge_sample'} = "FAIL" if `grep 'Number of reads before and after merging is not the same' $log`;
 
 	$flagstat="$project_dir_results/$date/$sample/$sample".".bam.flagstat";
-	open (FLAGSTAT, "$flagstat");
-	while(<FLAGSTAT>){
-	    $sum{$sample}{'0'}{'0'}{'total'} = $1 if /^(\d+) \+ \d+ in total \(/;
-	    $sum{$sample}{'0'}{'0'}{'duplicates'} = $1 if /^(\d+) \+ \d+ duplicates$/;
-	    $sum{$sample}{'0'}{'0'}{'mapped'} = $1 if /^(\d+) \+ \d+ mapped \(/;
-	    $sum{$sample}{'0'}{'0'}{'paired'} = $1 if /^(\d+) \+ \d+ properly paired \(/;
+	if (-s $flagstat){
+
+	    open (FLAGSTAT, "$flagstat");
+	    while(<FLAGSTAT>){
+	        $sum{$sample}{'0'}{'0'}{'total'} = $1 if /^(\d+) \+ \d+ in total \(/;
+	        $sum{$sample}{'0'}{'0'}{'duplicates'} = $1 if /^(\d+) \+ \d+ duplicates$/;
+	        $sum{$sample}{'0'}{'0'}{'mapped'} = $1 if /^(\d+) \+ \d+ mapped \(/;
+	        $sum{$sample}{'0'}{'0'}{'paired'} = $1 if /^(\d+) \+ \d+ properly paired \(/;
+            }
+
+	    $sum{$sample}{'0'}{'0'}{'duplicates_pct'} = ($sum{$sample}{'0'}{'0'}{'duplicates'}/$sum{$sample}{'0'}{'0'}{'total'})*100;
+	    $sum{$sample}{'0'}{'0'}{'mapped_pct'} = ($sum{$sample}{'0'}{'0'}{'mapped'}/$sum{$sample}{'0'}{'0'}{'total'})*100;
+	    $sum{$sample}{'0'}{'0'}{'paired_pct'} = ($sum{$sample}{'0'}{'0'}{'paired'}/$sum{$sample}{'0'}{'0'}{'total'})*100;
+
+	}else{
+
+	    $sum{$sample}{'0'}{'0'}{'total'} = "NA";
+	    $sum{$sample}{'0'}{'0'}{'duplicates'} = "NA";
+	    $sum{$sample}{'0'}{'0'}{'mapped'} = "NA";
+	    $sum{$sample}{'0'}{'0'}{'paired'} = "NA";
+
+	    $sum{$sample}{'0'}{'0'}{'duplicates_pct'} = "NA";
+	    $sum{$sample}{'0'}{'0'}{'mapped_pct'} = "NA";
+	    $sum{$sample}{'0'}{'0'}{'paired_pct'} = "NA";
+
 	}
 
-	$sum{$sample}{'0'}{'0'}{'duplicates_pct'} = ($sum{$sample}{'0'}{'0'}{'duplicates'}/$sum{$sample}{'0'}{'0'}{'total'})*100;
-	$sum{$sample}{'0'}{'0'}{'mapped_pct'} = ($sum{$sample}{'0'}{'0'}{'mapped'}/$sum{$sample}{'0'}{'0'}{'total'})*100;
-	$sum{$sample}{'0'}{'0'}{'paired_pct'} = ($sum{$sample}{'0'}{'0'}{'paired'}/$sum{$sample}{'0'}{'0'}{'total'})*100;
     }
 }
 
