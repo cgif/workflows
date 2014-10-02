@@ -52,7 +52,7 @@ make.dafr <- function (exon.counts.file,
 
     #subset autosomes and X chromosome
 
-    exon.counts.dafr.autosomes <- subset(exon.counts.dafr, chromosome %in% c(1:22))
+    exon.counts.dafr.autosomes <- subset(exon.counts.dafr, chromosome != "X" & chromosome != "Y")
     print(tail(exon.counts.dafr.autosomes))
     print(nrow(exon.counts.dafr.autosomes))
     write.table(x = exon.counts.dafr.autosomes,
@@ -126,16 +126,16 @@ call.cnvs <- function (exon.counts.dafr.file,
     output.file <- paste(prefix, 'all.exons', analysis.subset, 'Rdata', sep = '.')
     save(all.exons, file = output.file)
 
-    #annotate CNVs with target names
-    targets <- read.table(target.bed, col.names = c("chromosome","start","end","name"))
-    targets.GRanges <- GRanges(seqnames = targets$chromosome,
-                               IRanges(start = targets$start,end = targets$end),
-                               names = targets$name)
-
-    all.exons <- AnnotateExtra(x = all.exons,
-                               reference.annotation = targets.GRanges,
-                               min.overlap = 0.0001,
-                               column.name = 'geneID')
+    #annotate CNVs with target names - added to annotations, this creates duplicate entries
+#    targets <- read.table(target.bed, col.names = c("chromosome","start","end","name"))
+#    targets.GRanges <- GRanges(seqnames = targets$chromosome,
+#                               IRanges(start = targets$start,end = targets$end),
+#                               names = targets$name)
+#
+#    all.exons <- AnnotateExtra(x = all.exons,
+#                               reference.annotation = targets.GRanges,
+#                               min.overlap = 0.0001,
+#                               column.name = 'geneID')
 
     #annotate CNVs with common CNVs
     data(Conrad.hg19)
@@ -188,9 +188,13 @@ call.cnvs <- function (exon.counts.dafr.file,
     summary$total.cnvs[1] <- nrow(all.exons@CNV.calls)
     summary$del.count[1] <- sum(all.exons@CNV.calls$type == 'deletion')
     summary$dup.count[1] <- sum(all.exons@CNV.calls$type == 'duplication')
+#	summary$min.length[1] <- min(all.exons@CNV.calls$size)
+#	summary$max.length[1] <- max(all.exons@CNV.calls$size)
+#	summary$median.length[1] <- median(all.exons@CNV.calls$size)
     summary$proportion.del[1] <- format(summary$del.count/summary$total.cnvs, digits = 3)
     summary$proportion.dup[1] <- format(summary$dup.count/summary$total.cnvs, digits = 3)
     summary$count.nonConrad[1] <- sum(is.na(all.exons@CNV.calls$Conrad.hg19))
+	summary$count.nonDGV[1] <- sum(is.na(all.exons@CNV.calls$DGV))
 
     summary$ref.set[1] <- gsub(", ",",",toString(my.choice$reference.choice))
 

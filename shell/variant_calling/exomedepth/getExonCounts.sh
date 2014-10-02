@@ -21,6 +21,7 @@ R_SCRIPT=#Rscript
 TARGET=#target
 BAM_LIST=#BamList
 RESULTS_DIR=#resultsFolder
+SUMMARY_SCRIPT_PATH=#summaryScriptPath
 
 echo "`$NOW`creating R script for counting reads per exon"
 echo "`$NOW`R script: $R_SCRIPT"
@@ -64,6 +65,9 @@ chmod 660 ${R_SCRIPT}.log
 
 cp $TMPDIR/*.Rdata $RESULTS_DIR
 chmod 660 $RESULTS_DIR/*
+
+#run summary script
+perl $SUMMARY_SCRIPT_PATH
 
 ls -al
 

@@ -23,6 +23,8 @@ TARGET=#target
 PED_FILE=#pedFile
 ANNOTATIONS=#annotations
 BAM_SUFFIX='#bamSuffix'
+SUMMARY_SCRIPT_PATH=#summaryScriptPath
+
 
 SAMPLE=`basename $RESULTS_DIR`
 PROJECT_RESULTS_DIR=`dirname $RESULTS_DIR`
@@ -116,10 +118,13 @@ ALL_SUM=$TMPDIR/${SAMPLE}.cnv.calls.all.summary.tsv
 cp $AUTO_SUM $ALL_SUM
 tail -n +2 $CHRX_SUM >> $ALL_SUM
 
-echo "`${NOW}`done"
+#run summary script
+perl $SUMMARY_SCRIPT_PATH
 
 cp $TMPDIR/$SAMPLE*Rdata $RESULTS_DIR/
 cp $TMPDIR/$SAMPLE*tsv $RESULTS_DIR/
 
 chmod 660 $RESULTS_DIR/*
 chmod 660 ${R_SCRIPT}.log
+
+echo "`${NOW}`done"

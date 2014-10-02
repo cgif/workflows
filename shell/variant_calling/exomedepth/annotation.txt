@@ -1,4 +1,7 @@
-DGV	0.5	/groupvol/cgi/resources/annotations/GRCh37_hg19_DGV_variants.2013-07-23.multisampleCNV.bed
-ISCA	0.5	/groupvol/cgi/resources/annotations/ISCA_Pathogenic+Curated_CNVs_hg19_2012-06-14.bed
-ClinVar	0.5	/groupvol/cgi/resources/annotations/clinvar_variant_summary.2013-10-17.pathogenic.50bp.bed
-DECIPHER	0.5	/groupvol/cgi/resources/annotations/decipher-hg19_13-11-26.bed
+ENSEMBL.GENE	0.0001	/groupvol/cgi/resources/annotations/eukaryote/human/GRCh37/CNV_annotations/GRCh37_Ensembl_genes.bed
+ENSEMBL.EXON	0.0001	/groupvol/cgi/resources/annotations/eukaryote/human/GRCh37/CNV_annotations/GRCh37_Ensembl_exons.bed
+GENE.NAME	0.0001	/groupvol/cgi/resources/annotations/eukaryote/human/GRCh37/CNV_annotations/GRCh37_HUGO_genes.bed
+DGV	0.5	/groupvol/cgi/resources/annotations/eukaryote/human/GRCh37/CNV_annotations/GRCh37_hg19_DGV_variants.2013-07-23.multisampleCNV.bed
+ISCA	0.5	/groupvol/cgi/resources/annotations/eukaryote/human/GRCh37/CNV_annotations/ISCA_Pathogenic+Curated_CNVs_hg19_2012-06-14.bed
+ClinVar	0.5	/groupvol/cgi/resources/annotations/eukaryote/human/GRCh37/CNV_annotations/clinvar_variant_summary_2014_09_16.pathogenic.50bp.bed
+DECIPHER	0.5	/groupvol/cgi/resources/annotations/eukaryote/human/GRCh37/CNV_annotations/decipher-hg19_14-09-18.bed

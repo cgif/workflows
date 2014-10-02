@@ -15,10 +15,16 @@ TODAY=`date +%Y-%m-%d`
 # script containing R functions
 R_FUNCTIONS=$BASEDIR/exomeDepth_target.R
 MAKE_BED=$BASEDIR/multisample_bed.pl
+combine_calls_path=$BASEDIR/combineCalls.pl
+
 
 TARGET="/groupvol/cgi/resources/annotations/Agilent_SureSelect_Human_All_Exon_V4+UTRs.targets.geneIDs.bed"
+EXONS_PATH="/groupvol/cgi/resources/annotations/eukaryote/human/GRCh37/CNV_annotations/GRCh37_Ensembl_exons_genes.txt"
 ANNOTATIONS=$BASEDIR/annotation.txt
 BAM_SUFFIX='.bam'
+
+DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
+DEPLOYMENT_BASE_DIR=/www/html/report
 
 USAGE="USAGE: qgetExonCounts -i <list_of_bam_files_with_path> -n <project> -t <target_bed_with_path; default [/groupvol/cgi/resources/annotations/Agilent_SureSelect_Human_All_Exon_V4+UTRs.targets.geneIDs.bed]> -e <ped_file> -a <list_of_required_annotations>"
  
@@ -47,6 +53,7 @@ then
     exit 1
 
 fi
+
 
 #########################
 # counting reads per exon
@@ -78,6 +85,52 @@ mkdir -p $GROUP_VOL_CGI/results/$PROJECT/exomeDepth/$TODAY/multisample
 chmod 770 $GROUP_VOL_CGI/results/$PROJECT/exomeDepth/$TODAY/multisample
 MS_RESULTS_DIR=$GROUP_VOL_CGI/results/$PROJECT/exomeDepth/$TODAY/multisample
 
+# create deployment directory
+
+SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/exomeDepth/$TODAY
+DATA_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/data
+ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
+ssh $DEPLOYMENT_SERVER "chmod -R 775 $DEPLOYMENT_BASE_DIR/project/$PROJECT" > /dev/null 2>&1
+scp -r ${BASEDIR}/../../resources/images/error.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+scp -r ${BASEDIR}/../../resources/images/tick.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+scp -r ${BASEDIR}/../../resources/images/warning.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+ssh $DEPLOYMENT_SERVER "chmod -R 664 $SUMMARY_DEPLOYMENT/*png" > /dev/null 2>&1
+
+#create encrypted directory to save CNV call files accessable by user
+INC_DIR=`date | md5sum | head -c 15`
+ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $DATA_DEPLOYMENT/$INC_DIR" > /dev/null 2>&1
+
+#configure script to print progress summary for submitted jobs
+#if job is completed and log file is created in /run directory
+#script examines whether the output files are in place and not empty
+echo "`$NOW`creating and configuring summary script..."
+summary_script_path=$MS_SCRIPT_DIR/summary_exomeDepth.$PROJECT.pl
+cp $BASEDIR/summary_exomeDepth.pl $summary_script_path
+chmod 770 $summary_script_path
+
+ANALYSIS_DIR_PROJECT=$GROUP_VOL_CGI/analysis/$PROJECT/exomeDepth
+RESULTS_DIR_PROJECT=$GROUP_VOL_CGI/results/$PROJECT/exomeDepth
+
+sed -i -e "s/projectDirAnalysis/${ANALYSIS_DIR_PROJECT//\//\\/}/" $summary_script_path
+sed -i -e "s/projectDirResults/${RESULTS_DIR_PROJECT//\//\\/}/" $summary_script_path
+sed -i -e "s/#project/$PROJECT/" $summary_script_path
+sed -i -e "s/#today/$TODAY/" $summary_script_path
+sed -i -e "s/deploymentServer/$DEPLOYMENT_SERVER/" $summary_script_path
+sed -i -e "s/summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $summary_script_path
+sed -i -e "s/dataDeployment/${DATA_DEPLOYMENT//\//\\/}/" $summary_script_path
+sed -i -e "s/summaryResults/${MS_RESULTS_DIR//\//\\/}/" $summary_script_path
+sed -i -e "s/sampleList/${PED_FILE//\//\\/}/" $summary_script_path
+sed -i -e "s/encryptedDir/$INC_DIR/" $summary_script_path
+
+#configure PHP scripts for summary tables
+	
+PHP_SCRIPT_PATH=$MS_RESULTS_DIR/$PROJECT.cnvs.summary.php
+cp $BASEDIR/../../helper/tsvToHtmlTable.php $PHP_SCRIPT_PATH
+
+sed -i -e "s/#tsvFile/$PROJECT.cnvs.summary.tsv/" $PHP_SCRIPT_PATH	
+sed -i -e "s/#header/CNV Calls Summary/" $PHP_SCRIPT_PATH
+
+###########
 echo "`$NOW`creating and submitting job script for exon counts"
 
 # create R script
@@ -95,6 +148,7 @@ sed -i -e "s/#Rscript/${MS_R_SCRIPT//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#target/${TARGET//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#BamList/${BAM_LIST//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#resultsFolder/${MS_RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $SCRIPT_PATH
 
 
 # submit job 
@@ -142,6 +196,8 @@ do
 	sed -i -e "s/#pedFile/${PED_FILE//\//\\/}/" $SCRIPT_PATH
 	sed -i -e "s/#annotations/${ANNOTATIONS//\//\\/}/" $SCRIPT_PATH
 	sed -i -e "s/#bamSuffix/$BAM_SUFFIX/" $SCRIPT_PATH
+	sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $SCRIPT_PATH
+
 
 	chmod 770 $SCRIPT_PATH
 	
@@ -155,18 +211,22 @@ do
 
 done
 
+
 ########################################################
 # merging outputs for all samples and creating bed file
 ########################################################
 
 #create job script
-SCRIPT_PATH=$SCRIPT_DIR/${PROJECT}.mergeOutputs.sh
+SCRIPT_PATH=$MS_SCRIPT_DIR/${PROJECT}.mergeOutputs.sh
 cp $BASEDIR/mergeOutputs.sh $SCRIPT_PATH
 
 sed -i -e "s/#pedFile/${PED_FILE//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#makeBed/${MAKE_BED//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#resultsFolder/${MS_RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#project/$PROJECT/" $SCRIPT_PATH
+sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#combineCallsPath/${combine_calls_path//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#exonsPath/${EXONS_PATH//\//\\/}/" $SCRIPT_PATH
 
 chmod 770 $SCRIPT_PATH
 	
