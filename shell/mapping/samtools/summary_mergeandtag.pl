@@ -12,6 +12,7 @@ $mark_duplicates = "markDuplicates";
 $metric_level="metricLevel";
 $collect_metric="collectMetric";
 $url = "http://$deployment_server/$1" if $summary_deployment =~ /html\/(.*)/;
+$multisample = "multisample_no";
 system("ssh $deployment_server mkdir $summary_deployment/pdf > /dev/null 2>&1");
 
 %data = ();
@@ -27,7 +28,7 @@ while (<LIST>){
 foreach $sample (keys %data){
     $log = "$project_dir_analysis/$date/$sample/samtoolsMergeAndTag.$sample.log";
     if (-s $log){
-        foreach $library (keys %{$data{$sample}}){	
+        foreach $library (keys %{$data{$sample}}){
             if ("$mark_duplicates" eq "TRUE" ){
 	        $dupmark = "$project_dir_results/$date/$sample/$sample"."_$library.dupmark.stats";
 	        if (-s $dupmark){
@@ -164,10 +165,72 @@ foreach $sample (sort {$a cmp $b} keys %data){
 print OUT "</TABLE>";
 
 #deploying metrics
+if ("$multisample" eq "multisample_yes"){
 
 system("ssh $deployment_server mkdir $summary_deployment/metrics > /dev/null 2>&1");
 $metrics_path = "$project_dir_results/$date/multisample";
 $html_path = "$project_dir_analysis/$date/multisample";
+
+#created merged pdf with metrics at different level
+if ($metric_level =~ /RG/){
+    print OUT "<HR><TABLE><TR><TD><FONT SIZE = '+1'>Read Group metrics";
+    foreach $category (qw(quality_by_cycle quality_distribution)){
+	$metrics_name = "$project.$date.$category.read_group.pdf";
+	$metrics_file = "$metrics_path/$category.read_group.pdf";
+	$read_groups = "";
+	foreach $sample (sort {$a cmp $b} keys %data){
+	    foreach $library (sort {$a cmp $b} keys %{$data{$sample}}){
+		foreach $read (sort {$a cmp $b} keys %{$data{$sample}{$library}}){
+		    $cur_file = "$project_dir_results/$date/$sample/$sample"."_"."$read.$category.pdf";
+		    $read_groups .= "$cur_file " if (-s $cur_file);
+		}
+	    }
+	}
+	chop($read_groups);
+	system("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile=$metrics_file $read_groups");
+	system("scp -r $metrics_file $deployment_server:$summary_deployment/metrics/$metrics_name");
+	print OUT "<TR><TD><TD><A HREF = '$url/metrics/$metrics_name'>$category</A>";
+    }
+    print OUT "</FONT></TABLE><BR>";
+}
+
+if ($metric_level =~ /L/){
+    print OUT "<HR><TABLE><TR><TD><FONT SIZE = '+1'>Library metrics";
+    foreach $category (qw(gcBias insert_size_histogram)){
+	$metrics_name = "$project.$date.$category.library.pdf";
+	$metrics_file = "$metrics_path/$category.library.pdf";
+	$libraries = "";
+	foreach $sample (sort {$a cmp $b} keys %data){
+	    foreach $library (sort {$a cmp $b} keys %{$data{$sample}}){
+		$cur_file = "$project_dir_results/$date/$sample/$sample"."_"."$library.$category.pdf";
+		$libraries .= "$cur_file " if (-s $cur_file);
+	    }
+	}
+	chop($libraries);
+	system("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile=$metrics_file $libraries");
+	system("scp -r $metrics_file $deployment_server:$summary_deployment/metrics/$metrics_name");
+	print OUT "<TR><TD><TD><A HREF = '$url/metrics/$metrics_name'>$category</A>";
+    }
+    print OUT "</FONT></TABLE><BR>";
+}
+
+if ($metric_level =~ /S/){
+    print OUT "<HR><TABLE><TR><TD><FONT SIZE = '+1'>Sample metrics";
+    foreach $category (qw(quality_by_cycle quality_distribution gcBias insert_size_histogram)){
+	$metrics_name = "$project.$date.$category.sample.pdf";
+	$metrics_file = "$metrics_path/$category.sample.pdf";
+	$samples = "";
+	foreach $sample (sort {$a cmp $b} keys %data){
+	    $cur_file = "$project_dir_results/$date/$sample/$sample.$category.pdf";
+	    $samples .= "$cur_file " if (-s $cur_file);
+	}
+	chop($samples);
+	system("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile=$metrics_file $samples");
+	system("scp -r $metrics_file $deployment_server:$summary_deployment/metrics/$metrics_name");
+	print OUT "<TR><TD><TD><A HREF = '$url/metrics/$metrics_name'>$category</A>";
+    }
+    print OUT "</FONT></TABLE><BR>";
+}
 
 if ($metric_level =~ /S/){
     print OUT "<HR><TABLE><TR><TD><FONT SIZE = '+1'>Alignment summary metrics";
@@ -238,7 +301,7 @@ if ($collect_metric =~ /RS/){
         print OUT "<P><FONT SIZE = '+1'><A HREF = '$url/metrics/$chart_name'>RNA integrity chart</A></FONT><BR>";
     }
 }
-
+}
 
 print OUT "</BODY></HTML>";
 
