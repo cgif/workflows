@@ -292,6 +292,7 @@ do
 	#creating job script from template
 	SCRIPT_PATH=$PATH_RUN_DIR/samtoolsMergeAndTag.$SAMPLE.sh
 	cp $BASEDIR/samtoolsMergeAndTag.sh $SCRIPT_PATH
+	chmod 770 $SCRIPT_PATH
 
 	#configure job script
 	sed -i -e "s/queue/$QUEUE/" $SCRIPT_PATH
@@ -316,6 +317,8 @@ do
 	sed -i -e "s/metricLevel/$METRIC_LEVEL/" $SCRIPT_PATH
 
 	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
+	echo -n "" > $LOG_OUTPUT_PATH
+	chmod 660 $LOG_OUTPUT_PATH
 
 	echo "`${NOW}`submitting job script $SCRIPT_PATH "
 	JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
@@ -330,6 +333,7 @@ do
  
         SCRIPT_PATH=$PATH_RUN_DIR/summary_mergeandtag.$SAMPLE.pl
         cp $BASEDIR/summary_mergeandtag.pl $SCRIPT_PATH
+	chmod 770 $SCRIPT_PATH
 
         sed -i -e "s/projectDirAnalysis/${PATH_RUN_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
         sed -i -e "s/projectDirResults/${PATH_OUT_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
@@ -345,6 +349,8 @@ do
 
 	echo "`${NOW}`submitting summary script $SCRIPT_PATH "
         LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.pl/\.log/g'`
+	echo -n "" > $LOG_PATH
+	chmod 660 $LOG_PATH
         SUM_JOB_ID=`qsub -q $QUEUE -o $LOG_PATH -j oe -W depend=afterany:$JOB_ID -M cgi@imperial.ac.uk $SCRIPT_PATH` 
 	echo "`$NOW`job ID: $SUM_JOB_ID"
 
@@ -357,6 +363,7 @@ then
 	
 	SCRIPT_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/mergePicardTargetedPcrMetrics.sh
 	cp $BASEDIR/mergePicardTargetedPcrMetrics.sh $SCRIPT_PATH
+	chmod 770 $SCRIPT_PATH
 
 	CUSTOM_AMPLICON_SET=`basename $PATH_BAIT_AMPLICON_INTERVALS`
 
@@ -367,6 +374,8 @@ then
 	sed -i -e "s/customAmpliconSet/$CUSTOM_AMPLICON_SET/" $SCRIPT_PATH
 	
 	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
+	echo -n "" > $LOG_OUTPUT_PATH
+	chmod 660 $LOG_OUTPUT_PATH
 
 	echo "`${NOW}`submitting job script to merge targeted PCR metrics: $SCRIPT_PATH "
 	JOB_ID=`qsub -W depend=$METRIC_MERGING_DEPENDECIES -q $QUEUE -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
@@ -391,6 +400,7 @@ then
 	
 	SCRIPT_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/mergePicardHybridSequencingMetrics.sh
 	cp $BASEDIR/mergePicardHybridSequencingMetrics.sh $SCRIPT_PATH
+	chmod 770 $SCRIPT_PATH
 
 	CUSTOM_AMPLICON_SET=`basename $PATH_BAIT_AMPLICON_INTERVALS`
 
@@ -401,6 +411,8 @@ then
 	sed -i -e "s/customAmpliconSet/$CUSTOM_AMPLICON_SET/" $SCRIPT_PATH
 	
 	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
+	echo -n "" > $LOG_OUTPUT_PATH
+	chmod 660 $LOG_OUTPUT_PATH
 
 	echo "`${NOW}`submitting job script to merge hybrid sequencing metrics: $SCRIPT_PATH "
 	JOB_ID=`qsub -W depend=$METRIC_MERGING_DEPENDECIES -q $QUEUE -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
@@ -425,6 +437,7 @@ then
 
 	SCRIPT_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/mergePicardRnaSeqMetrics.sh
 	cp $BASEDIR/mergePicardRnaSeqMetrics.sh $SCRIPT_PATH
+	chmod 770 $SCRIPT_PATH
 
 	#configure job script
 	sed -i -e "s/mergeTagProjectDirectory/${PATH_OUT_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
@@ -432,6 +445,8 @@ then
 	sed -i -e "s/mergeTagProjectName/$PROJECT/" $SCRIPT_PATH
 	
 	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
+	echo -n "" > $LOG_OUTPUT_PATH
+	chmod 660 $LOG_OUTPUT_PATH
 
 	echo "`${NOW}`submitting job script to merge RNA-Seq metrics: $SCRIPT_PATH "
 	JOB_ID=`qsub -W depend=$METRIC_MERGING_DEPENDECIES -q $QUEUE -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
@@ -453,6 +468,7 @@ then
 
 	SCRIPT_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/mergePicardAlignmentSummaryMetrics.sh
 	cp $BASEDIR/mergePicardAlignmentSummaryMetrics.sh $SCRIPT_PATH
+	chmod 770 $SCRIPT_PATH
 
 	#configure job script
 	sed -i -e "s/mergeTagProjectDirectory/${PATH_OUT_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
@@ -460,6 +476,8 @@ then
 	sed -i -e "s/mergeTagProjectName/$PROJECT/" $SCRIPT_PATH
 
 	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
+	echo -n "" > $LOG_OUTPUT_PATH
+	chmod 660 $LOG_OUTPUT_PATH
 
 	echo "`${NOW}`submitting job script to merge alignment summary metrics: $SCRIPT_PATH "
 	JOB_ID=`qsub -W depend=$METRIC_MERGING_DEPENDECIES -q $QUEUE -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
@@ -488,6 +506,7 @@ fi
 
 SCRIPT_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/summary_mergeandtag.pl
 cp $BASEDIR/summary_mergeandtag.pl $SCRIPT_PATH
+chmod 770 $SCRIPT_PATH
 
 sed -i -e "s/projectDirAnalysis/${PATH_RUN_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/projectDirResults/${PATH_OUT_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
@@ -500,8 +519,11 @@ sed -i -e "s/sampleList/${PATH_READ_GROUP_INFO//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/markDuplicates/$MARK_DUPLICATES/" $SCRIPT_PATH
 sed -i -e "s/metricLevel/$METRIC_LEVEL/" $SCRIPT_PATH
 sed -i -e "s/collectMetric/$METRIC/" $SCRIPT_PATH
+sed -i -e "s/multisample_no/multisample_yes/" $SCRIPT_PATH
 
 LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.pl/\.log/g'`
+echo -n "" > $LOG_OUTPUT_PATH
+chmod 660 $LOG_OUTPUT_PATH
 
 echo "`$NOW`submitting last summary script: $SCRIPT_PATH"
 SUM_JOB_ID=`qsub -q $QUEUE -o $LOG_PATH -j oe -W depend=$METRIC_MERGING_DEPENDECIES -M cgi@imperial.ac.uk $SCRIPT_PATH` 
