@@ -26,6 +26,16 @@ while (<LIST>){
 }
 
 foreach $sample (keys %data){
+    foreach $lib (keys %{$data{$sample}}){
+	foreach $rg (keys %{$data{$sample}{$lib}}){
+	    $log = "$project_dir_analysis/$date/$sample/ClipReads.$sample.$rg.log";
+	    if (-s $log){
+		$sum{$sample}{$lib}{$rg}{'clip_reads'} = "PASS";
+		$sum{$sample}{$lib}{$rg}{'clip_reads'} = "FAIL" if `grep 'Number of reads before and after clipping is not the same' $log`;
+	    }
+	}
+    }
+
     $log = "$project_dir_analysis/$date/$sample/samtoolsMergeAndTag.$sample.log";
     if (-s $log){
         foreach $library (keys %{$data{$sample}}){
@@ -84,6 +94,7 @@ print OUT "<HTML>";
 print OUT "<HEAD><META HTTP-EQUIV='refresh' CONTENT='60'></HEAD>";
 print OUT "<BODY><TABLE CELLPADDING=5><TR>";
 print OUT "<TH><CENTER>Sample<TH><CENTER>Library<TH>Read group";
+print OUT "<TH><CENTER>Clip reads";
 print OUT "<TH><CENTER>Mark Duplicates" if ("$mark_duplicates" eq "TRUE");
 print OUT "<TH><CENTER>Merge Bam";
 print OUT "<TH>Total<BR>reads<TH>Duplicated<BR>reads<TH>Mapped<BR>reads<TH>Reads in<BR>concordant pairs";
@@ -103,6 +114,15 @@ foreach $sample (sort {$a cmp $b} keys %data){
 	foreach $read (sort {$a cmp $b} keys %{$data{$sample}{$library}}){
 	    print OUT "<TR><TD><TD>" unless $f2;
 	    print OUT "<TD>$read";
+
+	    if ("$sum{$sample}{$library}{$read}{'clip_reads'}" eq "PASS"){
+		print OUT "<TD><CENTER><IMG SRC=tick.png ALT=PASS>";
+	    }elsif ("$sum{$sample}{$library}{$read}{'clip_reads'}" eq "FAIL"){
+		print OUT "<TD><CENTER><IMG SRC=error.png ALT=FAIL>"
+	    }else{
+		print OUT "<TD>";
+	    }
+
 	    if ("$mark_duplicates" eq "TRUE"){
 		if ($f2){
 		    print OUT "<TD><CENTER><IMG SRC=tick.png ALT=PASS>" if $sum{$sample}{$library}{'0'}{'remove_dupl'} eq "PASS";

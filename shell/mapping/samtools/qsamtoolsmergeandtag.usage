@@ -74,6 +74,14 @@ DESCRIPTION
 
 		mapping_date			The date of the read mapping run.  
 
+		clip_cycle			Soft clips bases in machine cycles from start 
+						to end, inclusive. Accepts a string of ranges 
+						of the form start1-end1,start2-end2, etc.
+
+ 		clip_read			Soft clips bases specified in clip_cycle 
+						column in both paired-reads (1,2) or just 
+						a single read (e.g. 1)
+
 	-d      Mark PCR duplicates (default is TRUE)
         
 	-s      Absolut path to SAM header to be used in the merged BAM file.
