@@ -12,6 +12,7 @@ $mark_duplicates = "markDuplicates";
 $metric_level="metricLevel";
 $collect_metric="collectMetric";
 $url = "http://$deployment_server/$1" if $summary_deployment =~ /html\/(.*)/;
+$multisample = "multisample_no";
 system("ssh $deployment_server mkdir $summary_deployment/pdf > /dev/null 2>&1");
 
 %data = ();
@@ -25,9 +26,19 @@ while (<LIST>){
 }
 
 foreach $sample (keys %data){
+    foreach $lib (keys %{$data{$sample}}){
+	foreach $rg (keys %{$data{$sample}{$lib}}){
+	    $log = "$project_dir_analysis/$date/$sample/ClipReads.$sample.$rg.log";
+	    if (-s $log){
+		$sum{$sample}{$lib}{$rg}{'clip_reads'} = "PASS";
+		$sum{$sample}{$lib}{$rg}{'clip_reads'} = "FAIL" if `grep 'Number of reads before and after clipping is not the same' $log`;
+	    }
+	}
+    }
+
     $log = "$project_dir_analysis/$date/$sample/samtoolsMergeAndTag.$sample.log";
     if (-s $log){
-        foreach $library (keys %{$data{$sample}}){	
+        foreach $library (keys %{$data{$sample}}){
             if ("$mark_duplicates" eq "TRUE" ){
 	        $dupmark = "$project_dir_results/$date/$sample/$sample"."_$library.dupmark.stats";
 	        if (-s $dupmark){
@@ -48,17 +59,33 @@ foreach $sample (keys %data){
         $sum{$sample}{'0'}{'0'}{'merge_sample'} = "FAIL" if `grep 'Number of reads before and after merging is not the same' $log`;
 
 	$flagstat="$project_dir_results/$date/$sample/$sample".".bam.flagstat";
-	open (FLAGSTAT, "$flagstat");
-	while(<FLAGSTAT>){
-	    $sum{$sample}{'0'}{'0'}{'total'} = $1 if /^(\d+) \+ \d+ in total \(/;
-	    $sum{$sample}{'0'}{'0'}{'duplicates'} = $1 if /^(\d+) \+ \d+ duplicates$/;
-	    $sum{$sample}{'0'}{'0'}{'mapped'} = $1 if /^(\d+) \+ \d+ mapped \(/;
-	    $sum{$sample}{'0'}{'0'}{'paired'} = $1 if /^(\d+) \+ \d+ properly paired \(/;
+	if (-s $flagstat){
+
+	    open (FLAGSTAT, "$flagstat");
+	    while(<FLAGSTAT>){
+	        $sum{$sample}{'0'}{'0'}{'total'} = $1 if /^(\d+) \+ \d+ in total \(/;
+	        $sum{$sample}{'0'}{'0'}{'duplicates'} = $1 if /^(\d+) \+ \d+ duplicates$/;
+	        $sum{$sample}{'0'}{'0'}{'mapped'} = $1 if /^(\d+) \+ \d+ mapped \(/;
+	        $sum{$sample}{'0'}{'0'}{'paired'} = $1 if /^(\d+) \+ \d+ properly paired \(/;
+            }
+
+	    $sum{$sample}{'0'}{'0'}{'duplicates_pct'} = ($sum{$sample}{'0'}{'0'}{'duplicates'}/$sum{$sample}{'0'}{'0'}{'total'})*100;
+	    $sum{$sample}{'0'}{'0'}{'mapped_pct'} = ($sum{$sample}{'0'}{'0'}{'mapped'}/$sum{$sample}{'0'}{'0'}{'total'})*100;
+	    $sum{$sample}{'0'}{'0'}{'paired_pct'} = ($sum{$sample}{'0'}{'0'}{'paired'}/$sum{$sample}{'0'}{'0'}{'total'})*100;
+
+	}else{
+
+	    $sum{$sample}{'0'}{'0'}{'total'} = "NA";
+	    $sum{$sample}{'0'}{'0'}{'duplicates'} = "NA";
+	    $sum{$sample}{'0'}{'0'}{'mapped'} = "NA";
+	    $sum{$sample}{'0'}{'0'}{'paired'} = "NA";
+
+	    $sum{$sample}{'0'}{'0'}{'duplicates_pct'} = "NA";
+	    $sum{$sample}{'0'}{'0'}{'mapped_pct'} = "NA";
+	    $sum{$sample}{'0'}{'0'}{'paired_pct'} = "NA";
+
 	}
 
-	$sum{$sample}{'0'}{'0'}{'duplicates_pct'} = ($sum{$sample}{'0'}{'0'}{'duplicates'}/$sum{$sample}{'0'}{'0'}{'total'})*100;
-	$sum{$sample}{'0'}{'0'}{'mapped_pct'} = ($sum{$sample}{'0'}{'0'}{'mapped'}/$sum{$sample}{'0'}{'0'}{'total'})*100;
-	$sum{$sample}{'0'}{'0'}{'paired_pct'} = ($sum{$sample}{'0'}{'0'}{'paired'}/$sum{$sample}{'0'}{'0'}{'total'})*100;
     }
 }
 
@@ -67,6 +94,7 @@ print OUT "<HTML>";
 print OUT "<HEAD><META HTTP-EQUIV='refresh' CONTENT='60'></HEAD>";
 print OUT "<BODY><TABLE CELLPADDING=5><TR>";
 print OUT "<TH><CENTER>Sample<TH><CENTER>Library<TH>Read group";
+print OUT "<TH><CENTER>Clip reads";
 print OUT "<TH><CENTER>Mark Duplicates" if ("$mark_duplicates" eq "TRUE");
 print OUT "<TH><CENTER>Merge Bam";
 print OUT "<TH>Total<BR>reads<TH>Duplicated<BR>reads<TH>Mapped<BR>reads<TH>Reads in<BR>concordant pairs";
@@ -86,6 +114,15 @@ foreach $sample (sort {$a cmp $b} keys %data){
 	foreach $read (sort {$a cmp $b} keys %{$data{$sample}{$library}}){
 	    print OUT "<TR><TD><TD>" unless $f2;
 	    print OUT "<TD>$read";
+
+	    if ("$sum{$sample}{$library}{$read}{'clip_reads'}" eq "PASS"){
+		print OUT "<TD><CENTER><IMG SRC=tick.png ALT=PASS>";
+	    }elsif ("$sum{$sample}{$library}{$read}{'clip_reads'}" eq "FAIL"){
+		print OUT "<TD><CENTER><IMG SRC=error.png ALT=FAIL>"
+	    }else{
+		print OUT "<TD>";
+	    }
+
 	    if ("$mark_duplicates" eq "TRUE"){
 		if ($f2){
 		    print OUT "<TD><CENTER><IMG SRC=tick.png ALT=PASS>" if $sum{$sample}{$library}{'0'}{'remove_dupl'} eq "PASS";
@@ -148,10 +185,72 @@ foreach $sample (sort {$a cmp $b} keys %data){
 print OUT "</TABLE>";
 
 #deploying metrics
+if ("$multisample" eq "multisample_yes"){
 
 system("ssh $deployment_server mkdir $summary_deployment/metrics > /dev/null 2>&1");
 $metrics_path = "$project_dir_results/$date/multisample";
 $html_path = "$project_dir_analysis/$date/multisample";
+
+#created merged pdf with metrics at different level
+if ($metric_level =~ /RG/){
+    print OUT "<HR><TABLE><TR><TD><FONT SIZE = '+1'>Read Group metrics";
+    foreach $category (qw(quality_by_cycle quality_distribution)){
+	$metrics_name = "$project.$date.$category.read_group.pdf";
+	$metrics_file = "$metrics_path/$category.read_group.pdf";
+	$read_groups = "";
+	foreach $sample (sort {$a cmp $b} keys %data){
+	    foreach $library (sort {$a cmp $b} keys %{$data{$sample}}){
+		foreach $read (sort {$a cmp $b} keys %{$data{$sample}{$library}}){
+		    $cur_file = "$project_dir_results/$date/$sample/$sample"."_"."$read.$category.pdf";
+		    $read_groups .= "$cur_file " if (-s $cur_file);
+		}
+	    }
+	}
+	chop($read_groups);
+	system("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile=$metrics_file $read_groups");
+	system("scp -r $metrics_file $deployment_server:$summary_deployment/metrics/$metrics_name");
+	print OUT "<TR><TD><TD><A HREF = '$url/metrics/$metrics_name'>$category</A>";
+    }
+    print OUT "</FONT></TABLE><BR>";
+}
+
+if ($metric_level =~ /L/){
+    print OUT "<HR><TABLE><TR><TD><FONT SIZE = '+1'>Library metrics";
+    foreach $category (qw(gcBias insert_size_histogram)){
+	$metrics_name = "$project.$date.$category.library.pdf";
+	$metrics_file = "$metrics_path/$category.library.pdf";
+	$libraries = "";
+	foreach $sample (sort {$a cmp $b} keys %data){
+	    foreach $library (sort {$a cmp $b} keys %{$data{$sample}}){
+		$cur_file = "$project_dir_results/$date/$sample/$sample"."_"."$library.$category.pdf";
+		$libraries .= "$cur_file " if (-s $cur_file);
+	    }
+	}
+	chop($libraries);
+	system("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile=$metrics_file $libraries");
+	system("scp -r $metrics_file $deployment_server:$summary_deployment/metrics/$metrics_name");
+	print OUT "<TR><TD><TD><A HREF = '$url/metrics/$metrics_name'>$category</A>";
+    }
+    print OUT "</FONT></TABLE><BR>";
+}
+
+if ($metric_level =~ /S/){
+    print OUT "<HR><TABLE><TR><TD><FONT SIZE = '+1'>Sample metrics";
+    foreach $category (qw(quality_by_cycle quality_distribution gcBias insert_size_histogram)){
+	$metrics_name = "$project.$date.$category.sample.pdf";
+	$metrics_file = "$metrics_path/$category.sample.pdf";
+	$samples = "";
+	foreach $sample (sort {$a cmp $b} keys %data){
+	    $cur_file = "$project_dir_results/$date/$sample/$sample.$category.pdf";
+	    $samples .= "$cur_file " if (-s $cur_file);
+	}
+	chop($samples);
+	system("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile=$metrics_file $samples");
+	system("scp -r $metrics_file $deployment_server:$summary_deployment/metrics/$metrics_name");
+	print OUT "<TR><TD><TD><A HREF = '$url/metrics/$metrics_name'>$category</A>";
+    }
+    print OUT "</FONT></TABLE><BR>";
+}
 
 if ($metric_level =~ /S/){
     print OUT "<HR><TABLE><TR><TD><FONT SIZE = '+1'>Alignment summary metrics";
@@ -222,7 +321,7 @@ if ($collect_metric =~ /RS/){
         print OUT "<P><FONT SIZE = '+1'><A HREF = '$url/metrics/$chart_name'>RNA integrity chart</A></FONT><BR>";
     }
 }
-
+}
 
 print OUT "</BODY></HTML>";
 
