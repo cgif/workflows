@@ -85,7 +85,7 @@ foreach my $sample (@sample){
         my $hap_caller_log = "$project_dir_analysis/$date/$sample/run/HC_${sample}_${chunk_formatted}.log";
         if (-s $hap_caller_log){
 	    my $haplotype_caller_grep = "";
-	    $haplotype_caller_grep = `grep ERROR $recalibration_hap_caller_log`;
+	    $haplotype_caller_grep = `grep ERROR $hap_caller_log`;
 	    my $hc_gvcf_chunk = "$project_dir_analysis/$date/$sample/haplotypecaller/$sample".".chunk_"."$chunk.genomic.vcf";
 	    if (-s $hc_gvcf_chunk && $haplotype_caller_grep eq ""){
 		$sum{$sample}{$chunk}{'hc_gvcf_chunk'} = "PASS";
@@ -106,7 +106,7 @@ foreach my $sample (@sample){
 
 	my $merge_bam_gvcf_log = "$project_dir_analysis/$date/$sample/run/MB_${sample}_000.log";
 	if (-s $merge_bam_gvcf_log){
-	    my $merged_gvcf = "$project_dir_results/$date/$sample/haplotypecaller/$sample".".genomic.vcf";
+	    my $merged_gvcf = "$project_dir_results/$date/$sample/haplotypecaller/$sample".".genomic.vcf.gz";
 	    if (-s $merged_gvcf){
 		$sum{$sample}{'merged_gvcf'} = "PASS";
 	    }else{
@@ -118,8 +118,13 @@ foreach my $sample (@sample){
 	    }else{
 		$sum{$sample}{'merged_bam'} = "FAIL";
 	    }
+		my $merged_hc_bam = "$project_dir_results/$date/$sample/haplotypecaller/$sample".".hc.bam";
+	    if (-s $merged_hc_bam){
+		$sum{$sample}{'merged_hc_bam'} = "PASS";
+	    }else{
+		$sum{$sample}{'merged_hc_bam'} = "FAIL";
+	    }
 	}
-
     }
 }
 
@@ -203,13 +208,14 @@ print OUT "<TH><CENTER>Recalibrated bam";
 print OUT "<TH><CENTER>Genomic VCF";
 print OUT "<TH><CENTER>Merged<BR>genomic VCF";
 print OUT "<TH><CENTER>Merged<BR>recalibrated bam";
+print OUT "<TH><CENTER>Merged<BR>HC bam";
 
 #print extracted data into run log text file
 open (LOG, ">$summary_results/run_log.txt");
 print LOG "SAMPLE\tPROCESS\tCHUNK\tRESULT\n";
 
 
-my @tags = qw(realignment_target realigned_bam recalibration_report_chunk recalibration_report recalibrated_bam hc_gvcf_chunk merged_gvcf merged_bam);
+my @tags = qw(realignment_target realigned_bam recalibration_report_chunk recalibration_report recalibrated_bam hc_gvcf_chunk merged_gvcf merged_bam merged_hc_bam);
 foreach my $sample (sort @sample){
     foreach my $chunk (1..$total_chunks){	
 	if ($chunk == 1){
@@ -254,7 +260,7 @@ foreach my $sample (sort @sample){
 		}
 		#end of if ($chunk == 1){
 ## add here if tag marged_bam and merged_gvcf
-	    }elsif ($tag eq "merged_gvcf" || $tag eq "merged_bam"){
+	    }elsif ($tag eq "merged_gvcf" || $tag eq "merged_bam" || $tag eq "merged_hc_bam"){
 		if ($chunk == 1){
 		    if (defined $sum{$sample}{$tag}){
 			print OUT "<TD><CENTER><IMG SRC=tick.png ALT=PASS></A>\n" if $sum{$sample}{$tag} eq "PASS";

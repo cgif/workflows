@@ -690,7 +690,7 @@ function submitRealignmentAndRecalibrationJobs {
 
 			echo "`$NOW`creating and submitting job script to print recalibrated reads..."
 			script_path=$run_dir/PR_${sample}_${chunk_formatted}.sh
-			cp $BASEDIR/gatk3_print_reads_haplotype_caller.sh $script_path
+			cp $BASEDIR/gatk3_print_reads.sh $script_path
 
 			sed -i -e "s/#gatkVersion/$GATK_VERSION/" $script_path
 			sed -i -e "s/#samtoolsVersion/$SAMTOOLS_VERSION/" $script_path
@@ -765,6 +765,7 @@ function submitRealignmentAndRecalibrationJobs {
 			local PR_HC_DEPENDENCY=afterok
 
 			local genomic_vcf_file=$analysis_dir/haplotypecaller/$sample.$chunk.genomic.vcf
+			local hc_bam_file=$analysis_dir/haplotypecaller/$sample.$chunk.hc.bam
 
 			echo "`$NOW`creating and submitting job script to run haplotype caller..."
 			script_path=$run_dir/HC_${sample}_${chunk_formatted}.sh
@@ -782,6 +783,7 @@ function submitRealignmentAndRecalibrationJobs {
 			sed -i -e "s/#recalibratedBam/${realigned_recalibrated_bam_file//\//\\/}/" $script_path
 			sed -i -e "s/#downsamplingThreshold/$DOWNSAMPLING/" $script_path
 			sed -i -e "s/#genomicVCF/${genomic_vcf_file//\//\\/}/" $script_path
+			sed -i -e "s/#HCbamFile/${hc_bam_file//\//\\/}/" $script_path
 			sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $script_path
 			sed -i -e "s/#fragmentFile/${chunk_int//\//\\/}/" $script_path
 		
@@ -1213,6 +1215,9 @@ function submitPostProcessingJobs {
 	local merged_gvcf_output_dir=$results_dir/haplotypecaller
 	local gvcf_input_dir=$analysis_dir/haplotypecaller
 
+	local merged_hc_bam_output_dir=$results_dir/haplotypecaller
+	local hc_bam_input_dir=$analysis_dir/haplotypecaller
+
 
 	local dependency_merge_bam="afterok"
 
@@ -1225,6 +1230,8 @@ function submitPostProcessingJobs {
 #	local recalibrated_merged_bam=$recalibrated_merged_bam_output_dir/$recalibrated_merged_bam_prefix.bam
 
 	local gvcf_files=""
+
+	local hc_bam_files=""
 
 	local dependency_post_recal=afterok
 
@@ -1241,6 +1248,7 @@ function submitPostProcessingJobs {
 #			realigned_bam_files="$realigned_bam_files $sample.$chunk.realigned.bam"	   
 			recalibrated_bam_files="$recalibrated_bam_files $sample.$chunk.realigned.recalibrated.bam"
 			gvcf_files="$gvcf_files $sample.$chunk.genomic.vcf"
+			hc_bam_files="$hc_bam_files $sample.$chunk.hc.bam"
 		
 		fi
 
@@ -1256,6 +1264,7 @@ function submitPostProcessingJobs {
 	sed -i -e "s/#picardVersion/$PICARD_VERSION/" $script_path
 	sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
 	sed -i -e "s/#gatkVersion/$GATK_VERSION/" $script_path
+	sed -i -e "s/#tabixVersion/$TABIX_VERSION/" $script_path
 	sed -i -e "s/#pathStripIndelQualsScript/${PATH_STRIP_INDEL_QUALS_SCRIPT//\//\\/}/" $script_path	
 	sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
 	
@@ -1271,7 +1280,11 @@ function submitPostProcessingJobs {
 
 	sed -i -e "s/#genomicVCFs/$gvcf_files/" $script_path
 	sed -i -e "s/#inputDirGVCF/${gvcf_input_dir//\//\\/}/" $script_path	
-	sed -i -e "s/#pathOutputDirGVCF/${merged_gvcf_output_dir//\//\\/}/" $script_path	
+	sed -i -e "s/#pathOutputDirGVCF/${merged_gvcf_output_dir//\//\\/}/" $script_path
+
+	sed -i -e "s/#HCbamFiles/$hc_bam_files/" $script_path
+	sed -i -e "s/#inputDirHCbam/${hc_bam_input_dir//\//\\/}/" $script_path	
+	sed -i -e "s/#pathOutputDirHCbam/${merged_hc_bam_output_dir//\//\\/}/" $script_path	
 
 
 	#submit job and save job ID to dependency variable
