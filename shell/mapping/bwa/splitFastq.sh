@@ -18,7 +18,7 @@
 NOW="date +%Y-%m-%d%t%T%t"
 
 #parallel gzip home
-PIGZ_HOME=/groupvol/cgi/software/pigz-2.3.1
+PIGZ_HOME=/project/tgu/software/pigz-2.3.1
 
 INPUT_FASTQ=#inputFastq
 INPUT_FASTQ_NAME=`basename $INPUT_FASTQ .gz`
