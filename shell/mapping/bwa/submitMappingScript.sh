@@ -84,7 +84,7 @@ do
 	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
 	echo "`$NOW`bwaAlignPe.$OUTPUT_PREFIX.sh"
 	echo -n "`$NOW`"
-#	JOB_ID=`qsub -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+	JOB_ID=`qsub -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
 	echo $JOB_ID
 	MERGE_DEPENDENCIES=$MERGE_DEPENDENCIES:$JOB_ID 
 	MERGE_FILES="$MERGE_FILES $OUTPUT_PREFIX.unsorted.bam"
@@ -109,7 +109,7 @@ echo "`$NOW`submitting merging script:"
 echo "`$NOW`samtoolsMerge.$OUTPUT_PREFIX.sh"
 echo -n "`$NOW`"
 
-#MERGE_JOB_ID=`qsub  -o $LOG_OUTPUT_PATH -W depend=$MERGE_DEPENDENCIES $SCRIPT_PATH`
+MERGE_JOB_ID=`qsub  -o $LOG_OUTPUT_PATH -W depend=$MERGE_DEPENDENCIES $SCRIPT_PATH`
 echo $MERGE_JOB_ID
 
 #BAM to CRAM conversion
@@ -135,7 +135,7 @@ then
 
 	#changed job submission line for testing
 	JOB_ID=`qsub -o $LOG_PATH $SCRIPT_PATH`
-#	JOB_ID=`qsub -W depend=afterok:$MERGE_JOB_ID -o $LOG_PATH $SCRIPT_PATH`
+	JOB_ID=`qsub -W depend=afterok:$MERGE_JOB_ID -o $LOG_PATH $SCRIPT_PATH`
 	echo $JOB_ID
 
 fi
@@ -154,12 +154,12 @@ sed -i -e "s/deploymentServer/$DEPLOYMENT_SERVER/" $SUMMARY_SCRIPT
 sed -i -e "s/summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SUMMARY_SCRIPT
 sed -i -e "s/summaryResults/${SUMMARY_RESULTS//\//\\/}/" $SUMMARY_SCRIPT
 
-#SUM_DEPENDENCIES=afterany:$MERGE_JOB_ID									#CHANGE; MERGE_JOB_ID
+SUM_DEPENDENCIES=afterany:$MERGE_JOB_ID									
 SUMMARY_LOG=`echo $SUMMARY_SCRIPT | perl -pe 's/\.pl/\.log/g'`
 echo "`$NOW`submitting summary script:"
 echo "`$NOW`$SUMMARY_SCRIPT"
 echo -n "`$NOW`"
 
-#SUM_JOB_ID=`qsub -q $QUEUE -o $SUMMARY_LOG  -j oe -W depend=$SUM_DEPENDENCIES -M cgi@imperial.ac.uk $SUMMARY_SCRIPT`		#CHANGE; SUM_JOB_ID
-#echo $SUM_JOB_ID
+SUM_JOB_ID=`qsub -q $QUEUE -o $SUMMARY_LOG  -j oe -W depend=$SUM_DEPENDENCIES -M cgi@imperial.ac.uk $SUMMARY_SCRIPT`	
+echo $SUM_JOB_ID
 
