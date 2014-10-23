@@ -104,6 +104,8 @@ do
   echo "`${NOW}`to $DEST"
 
   cp $SOURCE $DEST
+  rm $SOURCE
+
 
   NUM_READS=`samtools view -c $DEST`
   TOTAL_NUM_READS=$(( $TOTAL_NUM_READS + $NUM_READS ))
@@ -175,7 +177,7 @@ do
 			do
 			        echo "`${NOW}`${OUTPUT_BAM_PREFIX}_${READ_GROUP}.$METRIC"
 				cp $TMPDIR/$READ_GROUP.bam.$METRIC $PATH_OUTPUT_DIR/${OUTPUT_BAM_PREFIX}_${READ_GROUP}.$METRIC
-				chmod 640 $PATH_OUTPUT_DIR/${OUTPUT_BAM_PREFIX}_${READ_GROUP}.$METRIC
+				chmod 660 $PATH_OUTPUT_DIR/${OUTPUT_BAM_PREFIX}_${READ_GROUP}.$METRIC
 			done;
 
 			echo "`${NOW}`-------------------------------------------------------------------------------------------------------"
@@ -186,7 +188,7 @@ do
 	#generate file containing the header dictionary of the last
 	#BAM file that was seen above with the RG header entries
 	#appended
-	samtools view -H $TMPDIR/$READ_GROUP.bam > library_header_dict.sam
+	samtools view -H $TMPDIR/$READ_GROUP.bam | grep -vP '^@RG' > library_header_dict.sam
 	
 	if [ "$MARK_DUPLICATES" = "TRUE" ]
 	then
@@ -214,7 +216,8 @@ do
     	then		
 		    
     		echo "`${NOW}`samtools merge -rh $TMPDIR/library_header.sam $LIBRARY.bam $IN_BAM"    
-    		samtools merge -rh $TMPDIR/library_header.sam $LIBRARY.bam $IN_BAM
+#    		samtools merge -rh $TMPDIR/library_header.sam $LIBRARY.bam $IN_BAM
+    		samtools merge -h $TMPDIR/library_header.sam $LIBRARY.bam $IN_BAM
        
 	fi
 
@@ -232,7 +235,8 @@ do
 		samtools view -bH $IN_BAM > dummy.bam
 
 		#run merge to add read group tag
-		samtools merge -rh $TMPDIR/library_header.sam $LIBRARY.bam $IN_BAM dummy.bam
+#		samtools merge -rh $TMPDIR/library_header.sam $LIBRARY.bam $IN_BAM dummy.bam
+		samtools merge -h $TMPDIR/library_header.sam $LIBRARY.bam $IN_BAM dummy.bam
 
 	fi
 
@@ -245,6 +249,11 @@ do
 
 	#echo "`${NOW}`DEBUG: header of merged BAM file:"
 	#samtools view -H $LIBRARY.bam
+
+	for BAM in $IN_BAM
+	do
+	    rm $BAM
+	done
 
 	echo "`${NOW}`-------------------------------------------------------------------------------------------------------"
 
@@ -260,7 +269,7 @@ do
 
 		echo "`${NOW}`copying duplicate marking stats to $LIBRARY.dupmark.stats..."
 		cp $TMPDIR/$LIBRARY.dupmark.stats $PATH_OUTPUT_DIR/${OUTPUT_BAM_PREFIX}_${LIBRARY}.dupmark.stats
-		chmod 640 $PATH_OUTPUT_DIR/${OUTPUT_BAM_PREFIX}_${LIBRARY}.dupmark.stats
+		chmod 660 $PATH_OUTPUT_DIR/${OUTPUT_BAM_PREFIX}_${LIBRARY}.dupmark.stats
 
 		echo "`${NOW}`-------------------------------------------------------------------------------------------------------"
 
@@ -291,7 +300,7 @@ do
 		do
 		    echo "`${NOW}`${OUTPUT_BAM_PREFIX}_${LIBRARY}.$METRIC"
 		    cp $TMPDIR/$LIBRARY.dupmark.bam.$METRIC $PATH_OUTPUT_DIR/${OUTPUT_BAM_PREFIX}_${LIBRARY}.$METRIC
-		    chmod 640 $PATH_OUTPUT_DIR/${OUTPUT_BAM_PREFIX}_${LIBRARY}.$METRIC
+		    chmod 660 $PATH_OUTPUT_DIR/${OUTPUT_BAM_PREFIX}_${LIBRARY}.$METRIC
 		done;
 		echo "`${NOW}`-------------------------------------------------------------------------------------------------------"
         fi        
@@ -353,15 +362,15 @@ samtools flagstat $TMP_PATH_OUT_BAM.sorted.dupmark.clean > $TMP_PATH_OUT_BAM.fla
 
 echo "`${NOW}`copying merged, dupmarked and clean BAM to $OUT_BAM"
 cp $TMP_PATH_OUT_BAM.sorted.dupmark.clean $OUT_BAM
-chmod 640 $OUT_BAM
+chmod 660 $OUT_BAM
 
 echo "`${NOW}`copying BAM index to $OUT_BAM.bai"
 cp $TMP_PATH_OUT_BAM.sorted.dupmark.clean.bai $OUT_BAM.bai
-chmod 640 $OUT_BAM.bai
+chmod 660 $OUT_BAM.bai
 
 echo "`${NOW}`copying flagstats to $OUT_BAM.flagstats..."
 cp $TMP_PATH_OUT_BAM.flagstat $OUT_BAM.flagstat
-chmod 640 $OUT_BAM.flagstat
+chmod 660 $OUT_BAM.flagstat
 
 echo "`${NOW}`-------------------------------------------------------------------------------------------------------"
 
@@ -384,7 +393,7 @@ then
 	do
 	    echo "`${NOW}`$OUT_BAM.$METRIC"
 	    cp $TMP_PATH_OUT_BAM.$METRIC $PATH_OUTPUT_DIR/$OUTPUT_BAM_PREFIX.$METRIC
-	    chmod 640 $PATH_OUTPUT_DIR/$OUTPUT_BAM_PREFIX.$METRIC
+	    chmod 660 $PATH_OUTPUT_DIR/$OUTPUT_BAM_PREFIX.$METRIC
 	done;
 
 	echo "`${NOW}`-------------------------------------------------------------------------------------------------------"
@@ -412,11 +421,11 @@ then
 
 	echo "`${NOW}`copying metrics to $OUT_BAM.hybridMetrics..."
 	cp $TMP_PATH_OUT_BAM.hybridMetrics $OUT_BAM.hybridMetrics
-	chmod 640 $OUT_BAM.hybridMetrics
+	chmod 660 $OUT_BAM.hybridMetrics
 
 	echo "`${NOW}`copying per target coverage to $OUT_BAM.perTargetCoverage..."
 	cp $TMP_PATH_OUT_BAM.perTargetCoverage $OUT_BAM.perTargetCoverage
-	chmod 640 $OUT_BAM.perTargetCoverage
+	chmod 660 $OUT_BAM.perTargetCoverage
 
 	echo "`${NOW}`-------------------------------------------------------------------------------------------------------"
 
@@ -457,20 +466,20 @@ then
 		
 	echo "`${NOW}`copying metrics to $OUT_BAM.targetedPcrMetrics..."
 	cp $TMP_PATH_OUT_BAM.targetedPcrMetrics $OUT_BAM.targetedPcrMetrics
-	chmod 640 $OUT_BAM.targetedPcrMetrics
+	chmod 660 $OUT_BAM.targetedPcrMetrics
 
 	echo "`${NOW}`copying per target coverage to $OUT_BAM.perTargetCoverage..."
 	cp $TMP_PATH_OUT_BAM.perTargetCoverage $OUT_BAM.perTargetCoverage
-	chmod 640 $OUT_BAM.perTargetCoverage
+	chmod 660 $OUT_BAM.perTargetCoverage
 
 	echo "`${NOW}`copying per amplicon coverage to $OUT_BAM.perAmpliconCoverage..."
 	cp $TMP_PATH_OUT_BAM.depthOfCoverage $OUT_BAM.perAmpliconCoverage
-	chmod 640 $OUT_BAM.perAmpliconCoverage
+	chmod 660 $OUT_BAM.perAmpliconCoverage
 	
 	for EXT in sample_cumulative_coverage_counts sample_cumulative_coverage_proportions sample_interval_statistics sample_interval_summary sample_statistics sample_summary
 	do
 		cp $TMP_PATH_OUT_BAM.depthOfCoverage.$EXT $OUT_BAM.perAmpliconCoverage.$EXT
-		chmod 640 $OUT_BAM.perAmpliconCoverage.$EXT
+		chmod 660 $OUT_BAM.perAmpliconCoverage.$EXT
 	done;
 
 	echo "`${NOW}`-------------------------------------------------------------------------------------------------------"
@@ -494,11 +503,11 @@ then
 
 	echo "`${NOW}`copying metrics to $PATH_OUTPUT_DIR/$OUTPUT_BAM_PREFIX.RnaSeqMetrics...."
 	cp $TMP_PATH_OUT_BAM.RnaSeqMetrics $PATH_OUTPUT_DIR/$OUTPUT_BAM_PREFIX.RnaSeqMetrics
-	chmod 640 $PATH_OUTPUT_DIR/$OUTPUT_BAM_PREFIX.RnaSeqMetrics
+	chmod 660 $PATH_OUTPUT_DIR/$OUTPUT_BAM_PREFIX.RnaSeqMetrics
 
 	echo "`${NOW}`copying plot of normalized position vs. coverage to $PATH_OUTPUT_DIR/$OUTPUT_BAM_PREFIX.chartOutput..."
 	cp $TMP_PATH_OUT_BAM.chartOutput $PATH_OUTPUT_DIR/$OUTPUT_BAM_PREFIX.chartOutput
-	chmod 640 $PATH_OUTPUT_DIR/$OUTPUT_BAM_PREFIX.chartOutput
+	chmod 660 $PATH_OUTPUT_DIR/$OUTPUT_BAM_PREFIX.chartOutput
 
 	echo "`${NOW}`-------------------------------------------------------------------------------------------------------"
 

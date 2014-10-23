@@ -86,6 +86,7 @@ if [[ $AUX_LIST != "" ]]; then
 			GVCF_NAME=`basename $GVCF`
 			echo "`${NOW}`INFO $SCRIPT_CODE copying $GVCF to temporary space"
 			cp $GVCF $TMPDIR
+			cp $GVCF.tbi $TMPDIR
 			
 			INPUT_GVCF_ARGUMENT="$INPUT_GVCF_ARGUMENT	-V $TMPDIR/$GVCF_NAME"
 

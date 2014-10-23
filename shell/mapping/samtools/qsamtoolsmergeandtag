@@ -20,7 +20,7 @@ JAVA_VERSION=jdk-7u25
 PICARD_VERSION=1.85
 SAMTOOLS_VERSION=0.1.18
 R_VERSION=2.15
-GATK_VERSION=2.6-5
+GATK_VERSION=3.2-2
 
 #now
 NOW="date +%Y-%m-%d%t%T%t"
@@ -216,12 +216,15 @@ do
 	#create output dir path
 	PATH_OUT_DIR=$PATH_OUT_DIR_PREFIX/$TODAY/$SAMPLE
 	PATH_RUN_DIR=$PATH_RUN_DIR_PREFIX/$TODAY/$SAMPLE
+	PATH_CLIPREADS_DIR=$PATH_RUN_DIR/clipReads
 	
 	mkdir -p $PATH_OUT_DIR
 	mkdir -p $PATH_RUN_DIR
+	mkdir -p $PATH_CLIPREADS_DIR
 
 	chmod 770 $PATH_OUT_DIR
 	chmod 770 $PATH_RUN_DIR
+	chmod 770 $PATH_CLIPREADS_DIR
 
 	#create readgroup-to-Bam mapping file
 	PATH_FILE2RG=$PATH_RUN_DIR/$SAMPLE.file2RG.tsv		
@@ -232,6 +235,15 @@ do
 	PATH_RG_TAGS=$PATH_RUN_DIR/$SAMPLE.RGtags.tsv		
 	echo -n "" > $PATH_RG_TAGS
 	chmod 660 $PATH_RG_TAGS
+
+	#create file with clipping info
+	PATH_CLIP_READS=$PATH_RUN_DIR/$SAMPLE.clipReads.tsv		
+	echo -n "" > $PATH_CLIP_READS
+	chmod 660 $PATH_CLIP_READS
+
+	PATH_CLIP_JOBS=$PATH_RUN_DIR/$SAMPLE.clipJobs.tsv		
+	echo -n "" > $PATH_CLIP_JOBS
+	chmod 660 $PATH_CLIP_JOBS
 
 	echo "`$NOW`###########################################################################################"
 	echo "`$NOW`sample $SAMPLE"
@@ -246,8 +258,11 @@ do
 
 		#add read group to readgroup-to-Bam mapping file
 		BAM_INPUT=`ls $PATH_INPUT_DIR/$MAP_DATE/$SAMPLE/$RG*.bam`
+#		BAM_INPUT=`ls $PATH_INPUT_DIR/$MAP_DATE/$SAMPLE/$RG*.short.bam`
+		BAM_INPUT_NAME=`basename $BAM_INPUT`
+		BAM_INPUT_CLIP=$PATH_CLIPREADS_DIR/$BAM_INPUT_NAME
 
-		echo -e "$BAM_INPUT\t$RG" >> $PATH_FILE2RG
+		echo -e "$BAM_INPUT_CLIP\t$RG" >> $PATH_FILE2RG
 
 		echo "$READ_GROUP_RECORD" | perl -e '$_=<>; @cols=split(/\t/, $_); \
                                                      print "\@RG\t"; 
@@ -262,6 +277,46 @@ do
                                                      print "PU:$cols[8]\n"' \
                                           >> $PATH_RG_TAGS
 
+	        #submit clipRead job if required; if not just copy bam file to tmp directory
+		CLIP_CYCLE=`echo "$READ_GROUP_RECORD" | perl -e '$_=<>; @cols=split(/\t/, $_); print $cols[10];'`
+		CLIP_READ=`echo "$READ_GROUP_RECORD" | perl -e '$_=<>; @cols=split(/\t/, $_); print $cols[11];'`
+
+                #get BAM file size
+		BAM_SIZE_KB=`du $BAM_INPUT | cut -f1`
+		if [ $BAM_SIZE_KB != 0 ]; then
+			BAM_SIZE_MB=$(( $BAM_SIZE_KB / 1024 ))
+		fi
+
+		echo -e "$BAM_INPUT\t$BAM_SIZE_MB\t$CLIP_CYCLE\t$CLIP_READ" >> $PATH_CLIP_READS
+
+		TMP_SPACE_MB=$(( BAM_SIZE_MB * 14/4 ))
+
+		SCRIPT_PATH=$PATH_RUN_DIR/ClipReads.$SAMPLE.$RG.sh
+		cp $BASEDIR/ClipReads.sh $SCRIPT_PATH
+		chmod 770 $SCRIPT_PATH
+
+		sed -i -e "s/#gatkVersion/$GATK_VERSION/" $SCRIPT_PATH
+		sed -i -e "s/#javaVersion/$JAVA_VERSION/" $SCRIPT_PATH
+		sed -i -e "s/#samtoolsVersion/$SAMTOOLS_VERSION/" $SCRIPT_PATH
+		sed -i -e "s/#picardVersion/$PICARD_VERSION/" $SCRIPT_PATH
+		sed -i -e "s/#tmpSpacemb/$TMP_SPACE_MB/" $SCRIPT_PATH
+    	  	
+		sed -i -e "s/#inputBam/${BAM_INPUT//\//\\/}/" $SCRIPT_PATH
+		sed -i -e "s/#readGroup/${RG//\//\\/}/" $SCRIPT_PATH
+		sed -i -e "s/#clipFile/${PATH_CLIP_READS//\//\\/}/" $SCRIPT_PATH
+		sed -i -e "s/#RGFile/${PATH_RG_TAGS//\//\\/}/" $SCRIPT_PATH
+		sed -i -e "s/#referenceFasta/${PATH_REFERENCE_FASTA//\//\\/}/" $SCRIPT_PATH
+		sed -i -e "s/#resultsDir/${PATH_CLIPREADS_DIR//\//\\/}/" $SCRIPT_PATH
+
+		LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+		echo -n "" > $LOG_OUTPUT_PATH
+		chmod 660 $LOG_OUTPUT_PATH
+
+		echo "`${NOW}`submitting job script $SCRIPT_PATH "
+		JOB_ID=`qsub -q pqcgi -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+		echo "`${NOW}`job ID: $JOB_ID"
+		echo -e "$JOB_ID" >> $PATH_CLIP_JOBS
+
 	done
 
 	# get total BAM file size
@@ -270,22 +325,23 @@ do
         # which creates a subshell for which
         # variables are out of scope outside
         # the loop)
-	TOTAL_BAM_SIZE_KB=0
-	for FILE in `cut -f1 $PATH_FILE2RG`
+	TOTAL_BAM_SIZE_MB=0
+	for BAM_SIZE_MB in `cut -f2 $PATH_CLIP_READS`
 	do
 	
-		#get file size
-		BAM_SIZE_KB=`du $FILE | cut -f1`
-		TOTAL_BAM_SIZE_KB=$(( $TOTAL_BAM_SIZE_KB + $BAM_SIZE_KB ))
+		TOTAL_BAM_SIZE_MB=$(( $TOTAL_BAM_SIZE_MB + $BAM_SIZE_MB ))
 		
 	done;
-	
-	if [[ "$TOTAL_BAM_SIZE_KB" -ne "0" ]]
-	then
-		TOTAL_BAM_SIZE_MB=$(( $TOTAL_BAM_SIZE_KB / 1024 ))
-	fi
 
 	TMP_SPACE_MB=$(( $TOTAL_BAM_SIZE_MB * 10/4 ))
+
+	CLIPPING_DEPENDECIES="afterok"
+	for JOB_ID in `cut -f1 $PATH_CLIP_JOBS`
+	do
+
+	    CLIPPING_DEPENDECIES="$CLIPPING_DEPENDECIES:$JOB_ID"
+
+	done
 
 	OUT_BAM_NAME=$SAMPLE.bam
 
@@ -321,7 +377,7 @@ do
 	chmod 660 $LOG_OUTPUT_PATH
 
 	echo "`${NOW}`submitting job script $SCRIPT_PATH "
-	JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+	JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH -W depend=$CLIPPING_DEPENDECIES $SCRIPT_PATH`
 	echo "`${NOW}`job ID: $JOB_ID"
 	
 	METRIC_MERGING_DEPENDECIES="$METRIC_MERGING_DEPENDECIES:$JOB_ID"
@@ -347,11 +403,12 @@ do
 	sed -i -e "s/metricLevel/$METRIC_LEVEL/" $SCRIPT_PATH
 	sed -i -e "s/collectMetric/$METRIC/" $SCRIPT_PATH
 
+        LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.pl/\.log/g'`
+	echo -n "" > $LOG_OUTPUT_PATH
+	chmod 660 $LOG_OUTPUT_PATH
+
 	echo "`${NOW}`submitting summary script $SCRIPT_PATH "
-        LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.pl/\.log/g'`
-	echo -n "" > $LOG_PATH
-	chmod 660 $LOG_PATH
-        SUM_JOB_ID=`qsub -q $QUEUE -o $LOG_PATH -j oe -W depend=afterany:$JOB_ID -M cgi@imperial.ac.uk $SCRIPT_PATH` 
+        SUM_JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH -j oe -W depend=afterany:$JOB_ID -M cgi@imperial.ac.uk $SCRIPT_PATH` 
 	echo "`$NOW`job ID: $SUM_JOB_ID"
 
 done;
@@ -521,11 +578,11 @@ sed -i -e "s/metricLevel/$METRIC_LEVEL/" $SCRIPT_PATH
 sed -i -e "s/collectMetric/$METRIC/" $SCRIPT_PATH
 sed -i -e "s/multisample_no/multisample_yes/" $SCRIPT_PATH
 
-LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.pl/\.log/g'`
+LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.pl/\.log/g'`
 echo -n "" > $LOG_OUTPUT_PATH
 chmod 660 $LOG_OUTPUT_PATH
 
 echo "`$NOW`submitting last summary script: $SCRIPT_PATH"
-SUM_JOB_ID=`qsub -q $QUEUE -o $LOG_PATH -j oe -W depend=$METRIC_MERGING_DEPENDECIES -M cgi@imperial.ac.uk $SCRIPT_PATH` 
+SUM_JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH -j oe -W depend=$METRIC_MERGING_DEPENDECIES -M cgi@imperial.ac.uk $SCRIPT_PATH` 
 echo "`$NOW`job ID: $SUM_JOB_ID"
 echo "`$NOW`progress and summary can be seen at $DEPLOYMENT_SERVER/report/project/$PROJECT/mergetag/$TODAY"

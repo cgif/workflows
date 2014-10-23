@@ -40,6 +40,7 @@ FRAGMENT=#fragmentName
 GENOMIC_VCF=#genomicVCF
 SUMMARY_SCRIPT_PATH=#summaryScriptPath
 DOWNSAMPLING=#downsamplingThreshold
+HC_BAM_FILE=#HCbamFile
 
 mkdir $TMPDIR/tmp
 
@@ -74,10 +75,17 @@ java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME
 	--variant_index_parameter 128000 \
 	-o $TMPDIR/HCgenomic.vcf \
 	-rf BadCigar \
+	-bamout $TMPDIR/HC.bam \
 	$INTERVAL_ARG
+
+# samtools index HC BAM file
+echo "`${NOW}`INFO $SCRIPT_CODE indexing HC BAM..."
+samtools index $TMPDIR/HC.bam
 
 echo "`${NOW}`INFO $SCRIPT_CODE copying gVCF to output directory $ANALYSIS_DIR..."
 cp $TMPDIR/HCgenomic.vcf $GENOMIC_VCF
+cp $TMPDIR/HC.bam $HC_BAM_FILE
+cp $TMPDIR/HC.bam.bai ${HC_BAM_FILE}.bai
 
 #logging
 STATUS=OK
@@ -87,6 +95,14 @@ then
 fi
 
 echo -e "`${NOW}`$SCRIPT_CODE\t$SAMPLE\t$FRAGMENT\tgenomic_vcf\t$STATUS" >> $RUN_LOG
+
+STATUS=OK
+if [[ ! -s $HC_BAM_FILE ]]
+then
+	STATUS=FAILED
+fi
+
+echo -e "`${NOW}`$SCRIPT_CODE\t$SAMPLE\t$FRAGMENT\thc_bam\t$STATUS" >> $RUN_LOG
 
 #run summary script
 perl $SUMMARY_SCRIPT_PATH
