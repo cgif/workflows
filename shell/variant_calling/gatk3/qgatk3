@@ -82,12 +82,12 @@ GG_DATATHREADS=4
 USAGE="$BASEDIR/gatk3.usage"
 
 # default values for input arguments
-REFERENCE_DIR=$GROUP_VOL_CGI/resources/reference/eukaryote/human/hs37d5
-REFERENCE_FASTA=$REFERENCE_DIR/hs37d5.fa
-REFERENCE_DICT=$REFERENCE_DIR/hs37d5.dict
-REFERENCE_CHUNKS_GENOME=$REFERENCE_DIR/hs37d5.chunks.genome.bed
-REFERENCE_CHUNKS_EXOME=$REFERENCE_DIR/hs37d5.chunks.exome.bed
-REFERENCE_CHUNKS_TARGETED=$REFERENCE_DIR/hs37d5.chunks.targeted.bed
+REFERENCE_DIR=/project/tgu/resources/reference
+REFERENCE_FASTA=$REFERENCE_DIR/fasta/eukaryote/hsapiens/hs37d5/hs37d5.fa
+REFERENCE_DICT=$REFERENCE_DIR/fasta/eukaryote/hsapiens/hs37d5/hs37d5.dict
+REFERENCE_CHUNKS_GENOME=$REFERENCE_DIR/chunk/eukaryote/human/hs37d5/hs37d5.chunks.genome.bed
+REFERENCE_CHUNKS_EXOME=$REFERENCE_DIR/chunk/eukaryote/human/hs37d5/hs37d5.chunks.exome.bed
+REFERENCE_CHUNKS_TARGETED=$REFERENCE_DIR/chunk/eukaryote/human/hs37d5/hs37d5.chunks.targeted.bed
 IS_PROJECT_DIR=F
 TARGET_INTERVALS_BED=""
 REFERENCE_CHUNKS_USER=""
