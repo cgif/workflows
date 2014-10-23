@@ -44,6 +44,9 @@ INPUT_DIR_GVCF=#inputDirGVCF
 PATH_OUTPUT_DIR_GVCF=#pathOutputDirGVCF
 REFERENCE_FASTA=#referenceFasta
 REFRENCE_SEQ_DICT=`echo $REFERENCE_FASTA | perl -pe 's/\.fa/\.dict/'`
+PROJECT=#projectName
+CAPTURE=#captureKit
+GVCF_LIST=#gvcfList
 
 #############################
 ## merge genomic VCF files ##
@@ -116,6 +119,7 @@ if [ $IN_GVCF_COUNT -ge 2 ]; then
 		cp $TMPDIR/merged.genomic.vcf.gz $OUT_GVCF.gz
 		cp $TMPDIR/merged.genomic.vcf.gz.tbi $OUT_GVCF.gz.tbi
 		chmod 660 $OUT_GVCF*
+
 	else
 		echo "`${NOW}`ERROR $SCRIPT_CODE Output GVCF does not contain the same number of variants as the input GVCF files, merged GVCF file not copied!"
 	fi
@@ -123,6 +127,10 @@ if [ $IN_GVCF_COUNT -ge 2 ]; then
 	## loging 
 	if [[ -s $OUT_GVCF.gz ]]; then 
 		STATUS=OK
+
+		echo "$SAMPLE\t$OUT_GVCF.gz\t$PROJECT\t$CAPTURE" >> $GVCF_LIST
+		chmod 660 $GVCF_LIST
+
 		echo "`${NOW}`INFO $SCRIPT_CODE deleting intermediate gVCF files..."
 		for GVCF in $IN_GVCFS; do 
 			rm $INPUT_DIR_GVCF/$GVCF
@@ -153,6 +161,8 @@ if [ $IN_GVCF_COUNT -eq 1 ]; then
 		STATUS=FAILED
 	else 
 		STATUS=OK
+		echo "$SAMPLE\t$OUT_GVCF.gz\t$PROJECT\t$CAPTURE" >> $GVCF_LIST
+		chmod 660 $GVCF_LIST
 	fi
 	echo -e "`${NOW}`$SCRIPT_CODE\t$SAMPLE\tall\tgenomic_vcf\t$STATUS" >> $RUN_LOG
 fi

@@ -95,10 +95,10 @@ PRIMER_COORD_OFFSET=10
 PED_FILE="none"
 SUBMIT="T"
 AUX_LIST=""
-
+CAPTURE_KIT="none"
 
 #parse command line args
-while getopts "n:r:s:d:t:a:u:x:l:p:o:q:g" OPTION;
+while getopts "n:r:s:d:t:a:u:x:l:p:o:q:c:g" OPTION;
 do
 
     case "$OPTION" in
@@ -114,6 +114,7 @@ do
 	p) PRIMER_COORD_BED="$OPTARG";;
 	o) PRIMER_COORD_OFFSET="$OPTARG";;
 	q) PED_FILE="$OPTARG";;	
+	c) CAPTURE_KIT="$OPTARG";;	
 	g) SUBMIT="F";;
 	h) cat $USAGE; exit 0;;
 	[?]) cat $USAGE; exit 1;;
@@ -224,6 +225,14 @@ else
 	echo "`$NOW`allowed values: WGS, EXOME, TARGETED."
     exit 1
 fi
+
+if [[ "$TYPE" != "WGS" ]]; then
+	if [ "$CAPTURE_KIT" == "none" ]]; then
+		echo "`$NOW`ERROR: for exome sequencing or target capture data capture kit name has be supplied via the -c command line argument"
+		exit 1
+	fi
+fi
+
 
 
 if [[ "$REFERENCE_CHUNKS_USER" != "" ]] && [[ -e $REFERENCE_CHUNKS_USER ]]; then
@@ -1183,9 +1192,6 @@ function submitPostProcessingJobs {
 	#recalibration
 	mkdir -p $results_dir/recalibration
 
-    #realignment
-#	mkdir -p $results_dir/realignment
-	
 	#rerun script
 	echo ""
 	
@@ -1217,6 +1223,8 @@ function submitPostProcessingJobs {
 
 	local merged_hc_bam_output_dir=$results_dir/haplotypecaller
 	local hc_bam_input_dir=$analysis_dir/haplotypecaller
+
+	local gvcf_list=$RESULTS_DIR_MSVC/$PROJECT.gvcf_list.tsv
 
 
 	local dependency_merge_bam="afterok"
@@ -1285,6 +1293,10 @@ function submitPostProcessingJobs {
 	sed -i -e "s/#HCbamFiles/$hc_bam_files/" $script_path
 	sed -i -e "s/#inputDirHCbam/${hc_bam_input_dir//\//\\/}/" $script_path	
 	sed -i -e "s/#pathOutputDirHCbam/${merged_hc_bam_output_dir//\//\\/}/" $script_path	
+
+	sed -i -e "s/#projectName/$PROJECT/" $script_path
+	sed -i -e "s/#captureKit/$CAPTURE_KIT/" $script_path
+	sed -i -e "s/#gvcfList/${gvcf_list//\//\\/}/" $script_path	
 
 
 	#submit job and save job ID to dependency variable
