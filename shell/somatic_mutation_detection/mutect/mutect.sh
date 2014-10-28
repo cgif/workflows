@@ -27,6 +27,7 @@ MUTECT_DBSNP=#mutectDBsnp
 NORMAL_BAM=#normalBam
 TUMOR_BAM=#tumorBam
 INTERVALS_FILE=#intervalsFile
+SUMMARY_SCRIPT_PATH=#summaryScriptPath
 
 #copy input files to tmp dir
 echo "`${NOW}` copying files to tmp directory..."
@@ -45,7 +46,7 @@ cp $INTERVALS_FILE $TMPDIR/intervals.intervals
 mkdir $TMPDIR/tmp
 
 echo "`${NOW}` running mutect..."
-java -Xmx$JAVA_XMX -jar -Djava.io.tmpdir=$TMPDIR/tmp $MUTECT_HOME/muTect-1.1.4.jar \
+java -Xmx$JAVA_XMX -XX:+UseSerialGC -jar -Djava.io.tmpdir=$TMPDIR/tmp $MUTECT_HOME/muTect-1.1.4.jar \
 --analysis_type MuTect \
 --reference_sequence $TMPDIR/ref.fasta \
 --cosmic $TMPDIR/cosmic.vcf \
@@ -53,10 +54,12 @@ java -Xmx$JAVA_XMX -jar -Djava.io.tmpdir=$TMPDIR/tmp $MUTECT_HOME/muTect-1.1.4.j
 --intervals $TMPDIR/intervals.intervals \
 --input_file:normal $TMPDIR/normal.bam \
 --input_file:tumor $TMPDIR/tumor.bam \
---out $TMPDIR/call_stats.txt \
---coverage_file $TMPDIR/coverage.wig \
+--out $TMPDIR/tmp.txt \
+--vcf $TMPDIR/tmp.vcf \
 -rf BadCigar
 
 echo "`${NOW}` copying files from tmp directory..."
-cp $TMPDIR/call_stats.txt $ANALYSIS_FILE.stats
-cp $TMPDIR/coverage.wig $ANALYSIS_FILE.wig
+cp $TMPDIR/tmp.txt $ANALYSIS_FILE.stats
+cp $TMPDIR/tmp.vcf $ANALYSIS_FILE.vcf
+
+perl $SUMMARY_SCRIPT_PATH
