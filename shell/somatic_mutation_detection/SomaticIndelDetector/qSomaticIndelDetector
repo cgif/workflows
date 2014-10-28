@@ -1,0 +1,440 @@
+#!/bin/bash
+
+# sets up directory structure and scripts to run 
+# SomaticIndelDetector analysis and submits jobs to queue
+
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+IMAGE_DIR=$BASEDIR/../../resources/images
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+#get the directory this script resides in
+GROUP_VOL_CGI=/groupvol/cgi
+DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
+DEPLOYMENT_BASE_DIR=/www/html/report
+QUEUE=pqcgi
+
+#path to text file containing usage information
+USAGE="$BASEDIR/SomaticIndelDetector.usage"
+
+JAVA_VERSION=jdk-7u25
+GATK_VERSION=3.2-2
+
+# default values for input arguments
+REFERENCE_DIR=$GROUP_VOL_CGI/resources/reference/eukaryote/human/hs37d5
+REFERENCE_FASTA=$REFERENCE_DIR/hs37d5.fa
+REFERENCE_DICT=$REFERENCE_DIR/hs37d5.dict
+REFERENCE_CHUNKS_GENOME=$REFERENCE_DIR/hs37d5.chunks.genome.SM.bed
+REFERENCE_CHUNKS_EXOME=$REFERENCE_DIR/hs37d5.chunks.exome.bed
+REFERENCE_CHUNKS_TARGETED=$REFERENCE_DIR/hs37d5.chunks.targeted.bed
+REFERENCE_CHUNKS_USER=""
+TARGET_INTERVALS_BED=""
+TYPE="WGS"
+
+#parse command line args
+while getopts "n:s:r:d:u:a:t:h" OPTION; do
+
+    case "$OPTION" in
+	n) PROJECT="$OPTARG";;
+	s) SAMPLE_LIST="$OPTARG";;
+	r) REFERENCE_FASTA="$OPTARG";;
+	d) REFERENCE_DICT="$OPTARG";;
+	u) REFERENCE_CHUNKS_USER="$OPTARG";;
+	a) TARGET_INTERVALS_BED="$OPTARG";;
+	t) TYPE="$OPTARG";;
+	h) cat $USAGE; exit 0;;
+	[?]) cat $USAGE; exit 1;;
+    esac
+
+done
+
+#check if all required arguments are present...
+if [[ -z $PROJECT ]] || [[ -z $SAMPLE_LIST ]] ; then
+        cat $USAGE
+        exit 1
+fi
+
+#check if input files and directories exist and args a valid
+#check if input directory exists
+if [[ ! -e $GROUP_VOL_CGI/results/$PROJECT/mutect ]]; then
+        echo "`$NOW`ERROR: input directory does not exist: $PROJECT"
+        exit 1
+fi
+    
+#check if input is not CGI project directory
+if [[ ! -d  $GROUP_VOL_CGI/results/$PROJECT/mutect ]] ; then
+        echo "`$NOW`ERROR: input mutect directory does not exists"
+	exit 1
+fi 
+
+#check if sample list file exists
+if [[ ! -e $SAMPLE_LIST ]]; then
+        echo "`$NOW`ERROR: sample list file does not exist: $SAMPLE_LIST"
+        exit 1
+fi
+
+#check if reference fasta exists
+if [[ ! -e $REFERENCE_FASTA ]]; then
+        echo "`$NOW`ERROR: reference sequence file does not exist: $REFERENCE_FASTA"
+        exit 1
+fi
+
+#check if reference dictionary exists
+if [[ ! -e $REFERENCE_DICT ]]; then
+        echo "`$NOW`ERROR: reference dictionary file does not exist: $REFERENCE_DICT"
+        exit 1
+fi
+
+#check if target intervals bed exists
+if [[ $TARGET_INTERVALS_BED != ""  ]] && [[ ! -e $TARGET_INTERVALS_BED ]]; then
+	echo "`$NOW`ERROR: target interval BED file does not exist: $TARGET_INTERVALS_BED"
+        exit 1
+fi    
+
+#set up chunks depend on type of NGS data
+if [[ "$TYPE" == "TARGETED" ]]; then
+
+	#make sure target/amplicon intervals were supplied
+	if [[ $TARGET_INTERVALS_BED == ""  ]]; then
+
+		echo "`$NOW`ERROR: for targeted sequencing data target- or amplicon-coordinates in BED format have to be supplied via the -a command line argument."
+	        exit 1
+
+	fi
+
+	#for high coverage targeted sequencing data
+	#HaplotypeCaller will run too long if executed
+	#on all targets simultaneously
+	REFERENCE_CHUNKS=$REFERENCE_CHUNKS_TARGETED
+
+elif [[ "$TYPE" == "EXOME" ]]; then
+
+	#make sure target/amplicon intervals were supplied
+#	if [[ $TARGET_INTERVALS_BED == ""  ]] 
+#	then
+#		echo "`$NOW`ERROR: for exome sequencing data amplicon coordinates in BED format have to be supplied via the -a command line argument, e.g. /groupvol/cgi/resources/target/exome/SureSelect_All_Exon_50M_hg19.tab.bed"
+#	        exit 1
+#	fi
+
+	#use exome chunks for exome sequencing
+	REFERENCE_CHUNKS=$REFERENCE_CHUNKS_EXOME
+
+elif [[ "$TYPE" == "WGS" ]]; then
+
+	#use exome chunks for exome sequencing
+	REFERENCE_CHUNKS=$REFERENCE_CHUNKS_GENOME
+
+else
+
+	echo "`$NOW`ERROR: invalid value for sequencing type option (-t) option : $TYPE."
+	echo "`$NOW`allowed values: WGS, EXOME, TARGETED."
+        exit 1
+
+fi
+
+
+if [[ "$REFERENCE_CHUNKS_USER" != "" ]] && [[ -e $REFERENCE_CHUNKS_USER ]]; then
+
+        REFERENCE_CHUNKS=$REFERENCE_CHUNKS_USER
+
+elif [[ "$REFERENCE_CHUNKS_USER" != "" ]] && [[ ! -e $REFERENCE_CHUNKS_USER ]]; then
+
+	echo "`$NOW`ERROR: user-defined chunk file does not exist: $REFERENCE_CHUNKS_USER"
+        exit 1
+fi
+
+
+#get chunk count
+TOTAL_CHUNK_COUNT=0
+
+for CHUNK_NAME in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`; do
+	
+	if [[ $CHUNK_NAME != ""  ]]; then
+
+		TOTAL_CHUNK_COUNT=$(( $TOTAL_CHUNK_COUNT + 1 ))
+
+	fi
+	
+done;
+
+
+#FUNCTIONS
+####################################################
+
+#creates job scripts
+
+function submitSomaticIndelDetector {
+
+	local sample_normal=$1
+	local sample_tumor=$2
+	local analysis_dir=$3
+	local results_dir=$4
+	local sample_name=`basename $results_dir`
+
+	#create output directories
+	mkdir -p $analysis_dir/chunks
+       	mkdir -p $analysis_dir/run
+       	mkdir -p $analysis_dir/SomaticIndelDetector
+       	mkdir -p $results_dir
+
+	#configure perl script to print progress summary for submitted jobs
+	#if job is completed and log file is created in /run directory
+	#script examines whether the output files are in place and not empty
+	echo "`$NOW`creating summary script..."
+	local summary_script_path=$analysis_dir/run/summary_SomaticIndelDetector.$sample_name.pl
+	cp $BASEDIR/summary_SomaticIndelDetector.pl $summary_script_path
+	chmod 770 $summary_script_path
+
+	sed -i -e "s/#projectDirAnalysis/${ANALYSIS_DIR_PROJECT//\//\\/}/" $summary_script_path
+	sed -i -e "s/#projectDirResults/${RESULTS_DIR_PROJECT//\//\\/}/" $summary_script_path
+	sed -i -e "s/#today/$TODAY/" $summary_script_path
+	sed -i -e "s/#summaryResults/${ANALYSIS_DIR_MSVC//\//\\/}/" $summary_script_path
+	sed -i -e "s/#deploymentServer/$DEPLOYMENT_SERVER/" $summary_script_path
+	sed -i -e "s/#summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $summary_script_path
+	sed -i -e "s/#sampleList/${SAMPLE_LIST//\//\\/}/" $summary_script_path
+	sed -i -e "s/#refChunks/${REFERENCE_CHUNKS//\//\\/}/" $summary_script_path
+	sed -i -e "s/#refIntervals/${CHUNK_TARGET_INTERVALS_INT//\//\\/}/" $summary_script_path
+	sed -i -e "s/#type/$TYPE/" $summary_script_path
+
+	echo "`$NOW`====================================================================================="
+	echo "`$NOW`Run SomaticIndelDetector"
+	echo "`$NOW`====================================================================================="
+
+	local dependency_SomaticIndelDetector=afterok
+
+	local chunk_count=0
+	local raw_vcf_files=""
+	local raw_stats_files=""
+
+	for chunk_name in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`
+	do	
+	
+		if [[ $chunk_name != ""  ]]
+		then 
+
+			chunk_count=$(( $chunk_count + 1 ))	
+			echo "`$NOW`-------------------------------------------------------------------------------------"	 
+			echo "`$NOW`chunk $chunk_count of $TOTAL_CHUNK_COUNT..."
+
+			chunk="chunk_$chunk_name"
+			analysis_file=$analysis_dir/SomaticIndelDetector/$sample_name.$chunk
+
+			#converting BED to interval list skipping blank lines
+			#converting to chr:start-end format instead of tab delimited format 
+			local chunk_int=$analysis_dir/chunks/$sample_name.$chunk.intervals
+			grep -P "chunk_${chunk_name}\." $REFERENCE_CHUNKS | awk '/^\s*$/ {next;} { print $1 ":" $2+1 "-" $3 }' > $chunk_int
+		
+		        local normal_bam="$sample_normal.$chunk.realigned.recalibrated.bam"
+			local tumor_bam="$sample_tumor.$chunk.realigned.recalibrated.bam"
+
+			local chunk_formatted=`printf "%.3d\n" $chunk_name`
+ 			local script_path=$analysis_dir/run/SI_${sample_name}_${chunk_formatted}.sh
+			cp $BASEDIR/SomaticIndelDetector.sh $script_path
+		  		
+			sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
+			sed -i -e "s/#analysisFile/${analysis_file//\//\\/}/" $script_path
+			sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+			sed -i -e "s/#referenceDict/${REFERENCE_DICT//\//\\/}/" $script_path
+			sed -i -e "s/#normalBam/${normal_bam//\//\\/}/" $script_path
+			sed -i -e "s/#tumorBam/${tumor_bam//\//\\/}/" $script_path
+			sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $script_path
+
+			if [[ $TARGET_INTERVALS_BED != "" ]]
+			then
+				
+			        target_int=$ANALYSIS_DIR_MSVC/chunk_${chunk_name}_target_intervals.int
+				sed -i -e "s/#intervalsFilee/${target_int//\//\\/}/" $script_path
+			        
+			else
+				
+				sed -i -e "s/#intervalsFile/${chunk_int//\//\\/}/" $script_path
+			        
+			fi
+
+			#submit job and save job ID to dependency variable
+			local log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+			echo "`$NOW`$script_path"
+				
+			local job_id=`qsub -o $log_output_path $script_path`
+			echo "`$NOW`job ID: $job_id"
+			dependency_SomaticIndelDetector=$dependency_SomaticIndelDetector:$job_id
+
+			local raw_vcf_files="$raw_vcf_files $analysis_file.vcf"
+			local raw_stats_files="$raw_stats_files $analysis_file.stats"
+
+			echo "`$NOW`-------------------------------------------------------------------------------------"
+
+		fi
+
+	done
+
+	echo "`$NOW`====================================================================================="
+	echo "`$NOW`Merge & filter SomaticIndelDetector outputs"
+	echo "`$NOW`====================================================================================="
+
+	#create a script for merging indel files and filter calls that don't pass quality filter
+	echo "`$NOW`creating and submitting script for merging indel files..."
+	local script_path=$analysis_dir/run/MI_${sample_name}_000.sh
+	cp $BASEDIR/merge_chunks.sh $script_path
+	chmod 770 $script_path
+ 	sed -i -e "s/#results_dir/${results_dir//\//\\/}/" $script_path
+	sed -i -e "s/#gatkVersion/$GATK_VERSION/" $script_path
+	sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
+	sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+	sed -i -e "s/#referenceDict/${REFERENCE_DICT//\//\\/}/" $script_path
+
+	#we have to use the roundabout Perl way here as there seems to be 
+        #a limit to the string length for either sed or the bash substitution 	
+	#and the raw VCF string can be very long if the number of amplicons
+	#is high!!!
+	raw_vcf_files=`echo $raw_vcf_files | perl -pe "s/\//forwardSlash/g"`
+	perl -i -pe "s/#rawIndelFiles/$raw_vcf_files/" $script_path
+	raw_stats_files=`echo $raw_stats_files | perl -pe "s/\//forwardSlash/g"`
+        perl -i -pe "s/#rawStatsFiles/$raw_stats_files/" $script_path
+	perl -i -pe "s/forwardSlash/\//g" $script_path
+
+	log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+	echo "`$NOW`$script_path"
+
+	job_id=`qsub -o $log_output_path -W depend=$dependency_SomaticIndelDetector $script_path` 
+	echo "`$NOW`job ID: $job_id"
+
+	#sample summary
+
+	script_path=$results_dir/$sample_name.stats.somatic.php
+	cp $BASEDIR/../../helper/tsvToHtmlTable.php $script_path
+ 	sed -i -e "s/#tsvFile/$sample_name.stats.somatic/" $script_path	
+ 	sed -i -e "s/#header/SomaticIndelDetector/" $script_path
+
+	echo "`$NOW`Submitting summary script"
+	echo "`$NOW`$summary_script_path"
+	summary_log_path=`echo $summary_script_path | perl -pe 's/\.pl/\.log/g'`
+	job_id=`qsub -q $QUEUE -o $summary_log_path -j oe -W depend=afterany:$job_id -M cgi@imperial.ac.uk $summary_script_path`
+	echo "`$NOW`job ID: $job_id"
+
+	#change permissions on all directories/files created
+	chmod -R 770 $analysis_dir
+	chmod -R 770 $results_dir
+}
+
+
+#create and set permissions for project parent directory   
+
+ANALYSIS_DIR_PROJECT=$GROUP_VOL_CGI/analysis/$PROJECT/SomaticIndelDetector
+RESULTS_DIR_PROJECT=$GROUP_VOL_CGI/results/$PROJECT/SomaticIndelDetector
+ 
+mkdir -p $ANALYSIS_DIR_PROJECT
+chmod 770 $ANALYSIS_DIR_PROJECT
+    
+mkdir -p $RESULTS_DIR_PROJECT
+chmod 770 $RESULTS_DIR_PROJECT
+
+mkdir -p $ANALYSIS_DIR_PROJECT/$TODAY
+chmod 770 $ANALYSIS_DIR_PROJECT/$TODAY
+    
+mkdir -p $RESULTS_DIR_PROJECT/$TODAY
+chmod 770 $RESULTS_DIR_PROJECT/$TODAY
+
+#set up directory structure and permissions for multi-sample variant calling
+	
+ANALYSIS_DIR_MSVC=$ANALYSIS_DIR_PROJECT/$TODAY/multisample
+RESULTS_DIR_MSVC=$RESULTS_DIR_PROJECT/$TODAY/multisample
+
+mkdir -p $ANALYSIS_DIR_MSVC
+chmod 770 $ANALYSIS_DIR_MSVC
+    
+mkdir -p $RESULTS_DIR_MSVC
+chmod 770 $RESULTS_DIR_MSVC
+
+SETUP_LOG=$ANALYSIS_DIR_MSVC/setup.log
+echo -n "" > $SETUP_LOG
+
+#redirect stdout and stderr to terminal and log file
+exec > >(tee $SETUP_LOG)
+exec 2>&1
+
+echo "`$NOW`setting up SomaticIndelDetector run..."
+echo "`$NOW`input directory   : $GROUP_VOL_CGI/results/$PROJECT/mutect"
+echo "`$NOW`list of samples   : $SAMPLE_LIST"
+echo "`$NOW`sequencing type   : $TYPE"
+echo "`$NOW`reference sequence: $REFERENCE_FASTA"
+echo "`$NOW`chunk coordinates : $REFERENCE_CHUNKS"
+
+#setup realignment and recalibration jobs
+echo "`$NOW`analysis directory: $ANALYSIS_DIR_PROJECT"
+echo "`$NOW`results directory: $RESULTS_DIR_PROJECT"
+	
+#create target interval file
+if [[ $TARGET_INTERVALS_BED != ""  ]]; then
+        
+    	echo "`$NOW`exome/amplicon coordinates: $TARGET_INTERVALS_BED"
+
+	TARGET_INTERVALS_INT=$ANALYSIS_DIR_MSVC/target_intervals.intervals
+	#converting BED to interval list skipping blank lines
+
+	cat $TARGET_INTERVALS_BED | awk '/^\s*$/ {next;} { print $1 ":" $2+1 "-" $3 }' > $TARGET_INTERVALS_INT
+		
+	#create chunk target intervals
+	for CHUNK_NAME in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`; do
+
+	        if [[ $CHUNK_NAME != "" ]]; then
+				
+		        CHUNK_INTERVALS_BED=$ANALYSIS_DIR_MSVC/chunk_${CHUNK_NAME}_intervals.bed
+			CHUNK_TARGET_INTERVALS_BED=$ANALYSIS_DIR_MSVC/chunk_${CHUNK_NAME}_target_intervals.bed
+			CHUNK_TARGET_INTERVALS_INT=$ANALYSIS_DIR_MSVC/chunk_${CHUNK_NAME}_target_intervals.int
+												
+			#create chunk intervals bed
+			grep -P "chunk_${CHUNK_NAME}\." $REFERENCE_CHUNKS > $CHUNK_INTERVALS_BED
+				
+			#create chunk target intervals bed
+			intersectBed -wa -a $TARGET_INTERVALS_BED -b $CHUNK_INTERVALS_BED > $CHUNK_TARGET_INTERVALS_BED
+				
+			#create chunk target intervals intervals file
+		        cat $CHUNK_TARGET_INTERVALS_BED | awk '/^\s*$/ {next;} { print $1 ":" $2+1 "-" $3 }' > $CHUNK_TARGET_INTERVALS_INT
+				
+		fi
+
+	done
+		
+fi
+
+#create deployment directory
+SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/SomaticIndelDetector/$TODAY
+ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
+scp -r ${IMAGE_DIR}/*png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+ssh $DEPLOYMENT_SERVER "chmod -R 664 $SUMMARY_DEPLOYMENT/*png" > /dev/null 2>&1
+
+#get sample count from sample list skipping blank lines
+TOTAL_SAMPLE_COUNT=`sort $SAMPLE_LIST | uniq | awk '/^\s*$/ {next;} { print; }' | wc -l`
+SAMPLE_COUNT=0     
+
+#for each sample (make sure that each sample and date is unique) run MuTect
+sort $SAMPLE_LIST | uniq | while read SAMPLE_NORMAL DATE_NORMAL SAMPLE_TUMOR DATE_TUMOR; do
+	
+        if [[ "$SAMPLE_NORMAL" != "" ]] && [[ "$SAMPLE_TUMOR" != "" ]]; then
+               
+		SAMPLE_COUNT=$(( $SAMPLE_COUNT + 1 ))
+
+		echo "`$NOW`"
+		echo "`$NOW`"
+		echo "`$NOW`running SomaticIndelDetector for sample $SAMPLE_COUNT of $TOTAL_SAMPLE_COUNT: $SAMPLE_NORMAL & $SAMPLE_TUMOR"
+
+                SAMPLE_PAIR=$SAMPLE_NORMAL.vs.$SAMPLE_TUMOR
+		ANALYSIS_DIR_SAMPLE=$ANALYSIS_DIR_PROJECT/$TODAY/$SAMPLE_PAIR
+		RESULTS_DIR_SAMPLE=$RESULTS_DIR_PROJECT/$TODAY/$SAMPLE_PAIR
+		SAMPLE_NORMAL=$GROUP_VOL_CGI/analysis/$PROJECT/mutect/$DATE_NORMAL/$SAMPLE_NORMAL/recalibration/$SAMPLE_NORMAL
+		SAMPLE_TUMOR=$GROUP_VOL_CGI/analysis/$PROJECT/mutect/$DATE_TUMOR/$SAMPLE_TUMOR/recalibration/$SAMPLE_TUMOR
+
+		submitSomaticIndelDetector $SAMPLE_NORMAL \
+			                   $SAMPLE_TUMOR \
+		    	                   $ANALYSIS_DIR_SAMPLE \
+		    	                   $RESULTS_DIR_SAMPLE 
+	                   	      		
+	fi
+
+done
+				                         
