@@ -97,10 +97,9 @@ mkdir $TMPDIR/tmp
 # for which the input BAM contains reads.
 echo "`${NOW}`INFO $SCRIPT_CODE creating GATK realignment targets"
 java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
-  -T RealignerTargetCreator \
+  -T RealignerTargetCreator -I $TMPDIR/chunk.bam \
   -nt $RTC_DATA_THREADS \
   -R $TMPDIR/reference.fa \
-  -I $TMPDIR/chunk.bam \
   -known $INDELS_1000G_FILENAME \
   -known $INDELS_GOLDSTD_FILENAME \
   -o $TMPDIR/$SAMPLE.$FRAGMENT.RTC.intervals \

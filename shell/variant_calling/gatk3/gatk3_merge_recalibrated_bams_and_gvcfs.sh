@@ -217,7 +217,7 @@ if [ $IN_BAM_COUNT -ge 2 ]; then
 
 		echo "`${NOW}`INFO $SCRIPT_CODE deleting intermediate BAM files..."
 		for BAM_FILE in $IN_BAM; do
-			rm $INPUT_DIR/$IN_BAM
+			rm $INPUT_DIR/$BAM_FILE
 		done
 		#...if no, keep input BAM files for re-run
 	else
