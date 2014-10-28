@@ -34,6 +34,9 @@ PATH_OUTPUT_DIR=pathOutputDir
 #path to reference genome fasta file without gzip extension
 PATH_REFERENCE_FASTA_NO_EXT=pathReferenceFastaNoExt
 
+#path to reference genome sequence dictionary
+PATH_REFERENCE_SEQ_DICT=#pathReferenceSeqDict
+
 #path to reads fastq file without gzip extension
 PATH_READS_FASTQ1_NO_EXT=pathReadsFastqRead1NoExt
 PATH_READS_FASTQ2_NO_EXT=pathReadsFastqRead2NoExt
@@ -87,13 +90,44 @@ echo "`${NOW}`running BWA alignment"
 
 if [ "$MULT_READS" = "T" ]; then
     echo "`${NOW}` bwa produce multiple hits"
-    bwa mem -M -t $THREADS $TMP_PATH_REFERENCE_FASTA_NO_EXT $TMP_PATH_READS_FASTQ1_SUBSET $TMP_PATH_READS_FASTQ2_SUBSET | samtools view -bS - > $TMP_PATH_ALN_BAM_PREFIX.bam
+    BWA_CMD="bwa mem -M -t $THREADS $TMP_PATH_REFERENCE_FASTA_NO_EXT $TMP_PATH_READS_FASTQ1_SUBSET $TMP_PATH_READS_FASTQ2_SUBSET | samtools view -bS - > $TMP_PATH_ALN_BAM_PREFIX.bam"
+    bwa mem -M -t $THREADS $TMP_PATH_REFERENCE_FASTA_NO_EXT $TMP_PATH_READS_FASTQ1_SUBSET $TMP_PATH_READS_FASTQ2_SUBSET | samtools view -bS - > $TMP_PATH_ALN_BAM_PREFIX.bam				#CHANGE 6 -added this
 
 else
 
-    bwa mem -M -t $THREADS $TMP_PATH_REFERENCE_FASTA_NO_EXT $TMP_PATH_READS_FASTQ1_SUBSET $TMP_PATH_READS_FASTQ2_SUBSET | samtools view -bS -F 256 - > $TMP_PATH_ALN_BAM_PREFIX.bam
+    BWA_CMD="bwa mem -M -t $THREADS $TMP_PATH_REFERENCE_FASTA_NO_EXT $TMP_PATH_READS_FASTQ1_SUBSET $TMP_PATH_READS_FASTQ2_SUBSET | samtools view -bS -F 256 - > $TMP_PATH_ALN_BAM_PREFIX.bam"
+    bwa mem -M -t $THREADS $TMP_PATH_REFERENCE_FASTA_NO_EXT $TMP_PATH_READS_FASTQ1_SUBSET $TMP_PATH_READS_FASTQ2_SUBSET | samtools view -bS -F 256 - > $TMP_PATH_ALN_BAM_PREFIX.bam			#CHANGE 6 -added this
 
 fi
+
+#execute command
+#$BWA_CMD
+
+#make SAM header
+
+#SAM format version
+if [ -e $PATH_REFERENCE_SEQ_DICT ]
+then
+
+	samtools view -H $TMP_PATH_ALN_BAM_PREFIX.bam | head -n1 > $TMPDIR/header.sam
+
+	#reference dictionary
+	cat $PATH_REFERENCE_SEQ_DICT >> $TMPDIR/header.sam 
+
+else
+
+	samtools view -H $TMP_PATH_ALN_BAM_PREFIX.bam > $TMPDIR/header.sam
+
+fi
+
+#program information
+echo -e "@PG\tID:BWA\tPN:mem\tVN:$BWA_VERSION_ALIGN\tCL:$BWA_CMD" >> $TMPDIR/header.sam
+
+#replace header
+samtools reheader $TMPDIR/header.sam $TMP_PATH_ALN_BAM_PREFIX.bam > $TMP_PATH_ALN_BAM_PREFIX.bam.tmp 
+mv $TMP_PATH_ALN_BAM_PREFIX.bam.tmp $TMP_PATH_ALN_BAM_PREFIX.bam
+
+
 
 echo "`${NOW}`listing the files in temporary folder for debugging"
 echo "`ls -l $TMPDIR`"

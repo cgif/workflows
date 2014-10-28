@@ -29,13 +29,17 @@ PATH_SCRIPTS_DIR=#pathScriptsDir
 PATH_RESULTS_DIR=#pathResultsDir
 PATH_MAPPING_DIR=#pathMappingDir
 PATH_REFERENCE_FASTA_NO_EXT=#pathReferenceFastaNoExt
+PATH_REFERENCE_DICT=#pathReferenceSeqDict
 REFERENCE_FASTA_NAME=`basename $PATH_REFERENCE_FASTA_NO_EXT .fa`
 PATH_RUN_DIR=#pathRunDir
 TODAY=#today
 DEPLOYMENT_SERVER=#deploymentServer
 SUMMARY_DEPLOYMENT=#summaryDeployment
 SUMMARY_RESULTS=#summaryResults
-TRUE_PROJECT_DIR=T
+CRAM2BAM_CONVERSION=#cram2BamConversion
+THREADS_CRAM2BAM=4
+PATH_OUTPUT_CRAM=#pathOutputCram
+
 
 #variables to store job dependencies
 MERGE_DEPENDENCIES=afterok
@@ -46,7 +50,7 @@ MERGE_FILES=""
 
 #for each subset of reads...
 echo "`$NOW`submitting mapping scripts:"
-for FASTQ_READ1_SPLIT in `ls --color=never $PATH_TMP_DIR/${FASTQ_READ1_NO_EXT}_split/*.f*q* | grep -v $PATTERN_READ_2`
+for FASTQ_READ1_SPLIT in `ls --color=never $PATH_TMP_DIR/${FASTQ_READ1_NO_EXT}_split/*.f*q* | grep -v $PATTERN_READ_2`	
 do
 
 	#remove path information
@@ -55,8 +59,9 @@ do
 	#get name of read2 fastq by preplacing read pair tag
 	FASTQ_READ2_SPLIT=`echo $FASTQ_READ1_SPLIT | perl -pe "s/$PATTERN_READ_1/$PATTERN_READ_2/"`
 
-	PATH_READS_FASTQ_READ1_SPLIT=$PATH_TMP_DIR/${FASTQ_READ1_NO_EXT}_split/$FASTQ_READ1_SPLIT
+	PATH_READS_FASTQ_READ1_SPLIT=$PATH_TMP_DIR/${FASTQ_READ1_NO_EXT}_split/$FASTQ_READ1_SPLIT		
 	PATH_READS_FASTQ_READ2_SPLIT=$PATH_TMP_DIR/${FASTQ_READ1_NO_EXT}_split/$FASTQ_READ2_SPLIT
+
      
 	#output prefix
 	OUTPUT_PREFIX=$FASTQ_READ1_SPLIT.vs.$REFERENCE_FASTA_NAME
@@ -107,6 +112,36 @@ echo -n "`$NOW`"
 MERGE_JOB_ID=`qsub  -o $LOG_OUTPUT_PATH -W depend=$MERGE_DEPENDENCIES $SCRIPT_PATH`
 echo $MERGE_JOB_ID
 
+#BAM to CRAM conversion
+	
+if [ $CRAM2BAM_CONVERSION = "T" ]											
+then
+	SCRIPT_PATH=$PATH_SCRIPTS_DIR/bam2cram.$OUTPUT_PREFIX.sh
+	cp $BASEDIR/../samtools/bam2cram.sh $SCRIPT_PATH
+	chmod 770 $SCRIPT_PATH
+
+	PATH_INPUT_BAM=$PATH_RESULTS_DIR/$OUTPUT_PREFIX.sorted.bam
+
+	sed -i -e "s/threads/$THREADS_CRAM2BAM/" $SCRIPT_PATH
+	sed -i -e "s/pathInputBam/${PATH_INPUT_BAM//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/pathOutputCram/${PATH_OUTPUT_CRAM//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/pathReferenceFastaNoExt/${PATH_REFERENCE_FASTA_NO_EXT//\//\\/}/" $SCRIPT_PATH
+
+	LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`							
+
+	echo "`$NOW`submitting bam2cram job:" 
+	echo "`$NOW`bam2cram.$OUTPUT_PREFIX.sh"
+	echo -n "`$NOW`"
+
+	#changed job submission line for testing
+	JOB_ID=`qsub -o $LOG_PATH $SCRIPT_PATH`
+	JOB_ID=`qsub -W depend=afterok:$MERGE_JOB_ID -o $LOG_PATH $SCRIPT_PATH`
+	echo $JOB_ID
+
+fi
+
+#summary script
+
 SUMMARY_SCRIPT=$PATH_SCRIPTS_DIR/summary_bwa.$OUTPUT_PREFIX.pl
 cp $BASEDIR/summary_bwa.pl $SUMMARY_SCRIPT
 chmod 770 $SUMMARY_SCRIPT
@@ -119,12 +154,12 @@ sed -i -e "s/deploymentServer/$DEPLOYMENT_SERVER/" $SUMMARY_SCRIPT
 sed -i -e "s/summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SUMMARY_SCRIPT
 sed -i -e "s/summaryResults/${SUMMARY_RESULTS//\//\\/}/" $SUMMARY_SCRIPT
 
-SUM_DEPENDENCIES=afterany:$MERGE_JOB_ID
+SUM_DEPENDENCIES=afterany:$MERGE_JOB_ID									
 SUMMARY_LOG=`echo $SUMMARY_SCRIPT | perl -pe 's/\.pl/\.log/g'`
 echo "`$NOW`submitting summary script:"
 echo "`$NOW`$SUMMARY_SCRIPT"
 echo -n "`$NOW`"
 
-SUM_JOB_ID=`qsub -q $QUEUE -o $SUMMARY_LOG  -j oe -W depend=$SUM_DEPENDENCIES -M cgi@imperial.ac.uk $SUMMARY_SCRIPT`
+SUM_JOB_ID=`qsub -q $QUEUE -o $SUMMARY_LOG  -j oe -W depend=$SUM_DEPENDENCIES -M cgi@imperial.ac.uk $SUMMARY_SCRIPT`	
 echo $SUM_JOB_ID
 

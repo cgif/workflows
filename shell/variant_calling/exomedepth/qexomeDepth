@@ -26,7 +26,7 @@ BAM_SUFFIX='.bam'
 DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
 DEPLOYMENT_BASE_DIR=/www/html/report
 
-USAGE="USAGE: qgetExonCounts -i <list_of_bam_files_with_path> -n <project> -t <target_bed_with_path; default [/groupvol/cgi/resources/annotations/Agilent_SureSelect_Human_All_Exon_V4+UTRs.targets.geneIDs.bed]> -e <ped_file> -a <list_of_required_annotations>"
+USAGE="USAGE: qgetExonCounts -i <list_of_bam_files_with_path> -n <project> -t <target_bed_with_path; default [/groupvol/cgi/resources/annotations/Agilent_SureSelect_Human_All_Exon_V4+UTRs.targets.geneIDs.bed]> -e <ped_file> -a <list_of_required_annotations> -s <bam_suffix, default[.bam]>"
  
 #parse command line args
 while getopts "i:n:t:e:a:sh" option; do

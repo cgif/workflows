@@ -203,7 +203,7 @@ function submitJobs {
 			if [[ "$FILE_SIZE_KB" -ne "0" ]]
 			then
 				FILE_SIZE_MB=$(( $FILE_SIZE_KB / 1024 ))
-				TMP_SPACE_MB=$(( $FILE_SIZE_KB * 2 ))
+				TMP_SPACE_MB=$(( $FILE_SIZE_MB * 2 ))
 			fi
 
 			SCRIPT_PATH=$PATH_SCRIPTS_DIR/splitFastq.$FASTQ_NAME.sh
@@ -212,7 +212,7 @@ function submitJobs {
 
 			sed -i -e "s/#walltimeHours/$SPLITFASTQ_WALLTIME_HOURS/" $SCRIPT_PATH  
 			sed -i -e "s/#threads/$SPLITFASTQ_THREADS/" $SCRIPT_PATH
-			sed -i -e "s/#tmpSpace/$SPLITFASTQ_THREADS/" $SCRIPT_PATH
+			sed -i -e "s/#tmpSpace/$TMP_SPACE_MB/" $SCRIPT_PATH
 			sed -i -e "s/#inputFastq/${FASTQ//\//\\/}/" $SCRIPT_PATH
 			sed -i -e "s/#outputDir/${SPLITFASTQ_OUTPUT_DIR//\//\\/}/" $SCRIPT_PATH
 			sed -i -e "s/#readsPerChunk/$READS_PER_RUN/" $SCRIPT_PATH
@@ -224,7 +224,7 @@ function submitJobs {
 			echo -n "`$NOW`" >> $SETUP_LOG
 
 			#echo qsub -q $QUEUE -o $LOG_PATH $SCRIPT_PATH
-			JOB_ID=`qsub -q $QUEUE -o $LOG_PATH $SCRIPT_PATH` 
+			JOB_ID=`qsub -o $LOG_PATH $SCRIPT_PATH` 
 			echo $JOB_ID  >> $SETUP_LOG
 
 			SPLIT_DEPENDENCIES="$SPLIT_DEPENDENCIES:$JOB_ID"

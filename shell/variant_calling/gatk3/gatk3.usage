@@ -4,6 +4,7 @@ USAGE
 	qgatk3	-n <project_name>
 	      	-s <sample_list_file>
 		-t <sequencing_type, [WGS,EXOME,TARGETED]>
+			[-c <capture_kit_name>, default "none"]
 	      	[-r <reference_fasta_path>, default /groupvol/cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.fa]
 	      	[-d <sequence_dictionary_file_path, default /groupvol/cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.dict>]
 	      	[-a <amplicon_or_exom_interval_bed>]
