@@ -876,6 +876,8 @@ function submitPostProcessingJobs {
 	local string9="rm \$INPUT_DIR\/\$BAM_FILE"
 	local string10="echo \"chunk bam files are kept for indel calling\""
 	sed -i -e "s/$string9/${string10//\//\\/}/" $script_path
+	local string11="rm \$INPUT_DIR\/\$BAM_FILE.bai"
+	sed -i -e "s/$string11//" $script_path
 
 	#submit job and save job ID to dependency variable
 	log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
@@ -938,9 +940,9 @@ function submitPostProcessingJobs {
 
 			#remove bam original chunk and realigned chunk
 			local chunk_bam_original=`echo $chunk_bam|sed -e 's/realignment/chunks/'|sed -e 's/realigned\.//'`
-			local string11="#logging"
-			local string12="rm $chunk_bam $chunk_bam.bai $chunk_bam_original $chunk_bam_original.bai\n\n #logging"
-			sed -i -e "s/$string11/${string12//\//\\/}/" $script_path
+			local string13="#logging"
+			local string14="rm $chunk_bam $chunk_bam.bai $chunk_bam_original $chunk_bam_original.bai\n\n #logging"
+			sed -i -e "s/$string13/${string14//\//\\/}/" $script_path
 
 			if [[ $TARGET_INTERVALS_BED != ""  ]]
 			then
