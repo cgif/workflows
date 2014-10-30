@@ -128,7 +128,7 @@ if [ $IN_GVCF_COUNT -ge 2 ]; then
 	if [[ -s $OUT_GVCF.gz ]]; then 
 		STATUS=OK
 
-		echo "$SAMPLE\t$OUT_GVCF.gz\t$PROJECT\t$CAPTURE" >> $GVCF_LIST
+		echo -e "$SAMPLE\t$OUT_GVCF.gz\t$PROJECT\t$CAPTURE" >> $GVCF_LIST
 		chmod 660 $GVCF_LIST
 
 		echo "`${NOW}`INFO $SCRIPT_CODE deleting intermediate gVCF files..."
@@ -161,7 +161,7 @@ if [ $IN_GVCF_COUNT -eq 1 ]; then
 		STATUS=FAILED
 	else 
 		STATUS=OK
-		echo "$SAMPLE\t$OUT_GVCF.gz\t$PROJECT\t$CAPTURE" >> $GVCF_LIST
+		echo -e "$SAMPLE\t$OUT_GVCF.gz\t$PROJECT\t$CAPTURE" >> $GVCF_LIST
 		chmod 660 $GVCF_LIST
 	fi
 	echo -e "`${NOW}`$SCRIPT_CODE\t$SAMPLE\tall\tgenomic_vcf\t$STATUS" >> $RUN_LOG
