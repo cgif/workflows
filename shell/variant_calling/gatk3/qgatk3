@@ -96,9 +96,10 @@ PED_FILE="none"
 SUBMIT="T"
 AUX_LIST=""
 CAPTURE_KIT="none"
+CLIP_CYCLES=0
 
 #parse command line args
-while getopts "n:r:s:d:t:a:u:x:l:p:o:q:c:g" OPTION;
+while getopts "n:r:s:d:t:a:u:x:l:p:o:q:c:y:g" OPTION;
 do
 
     case "$OPTION" in
@@ -114,7 +115,8 @@ do
 	p) PRIMER_COORD_BED="$OPTARG";;
 	o) PRIMER_COORD_OFFSET="$OPTARG";;
 	q) PED_FILE="$OPTARG";;	
-	c) CAPTURE_KIT="$OPTARG";;	
+	c) CAPTURE_KIT="$OPTARG";;
+	y) CLIP_CYCLES="$OPTARG";;	
 	g) SUBMIT="F";;
 	h) cat $USAGE; exit 0;;
 	[?]) cat $USAGE; exit 1;;
@@ -718,6 +720,8 @@ function submitRealignmentAndRecalibrationJobs {
 			sed -i -e "s/#recalibratedBamOutput/${realigned_recalibrated_bam_file//\//\\/}/" $script_path
 			sed -i -e "s/#includesUnmapped/$includes_unmapped/" $script_path
 			sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $script_path
+			sed -i -e "s/#type/$TYPE/" $script_path
+			sed -i -e "s/#clipCycles/$CLIP_CYCLES/" $script_path
 
 			## change from GATKv2 pipeline - we output all reads, not just target region
 

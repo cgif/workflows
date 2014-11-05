@@ -44,6 +44,9 @@ FRAGMENT_FILE=#fragmentFile
 FRAGMENT=#fragmentName
 INCLUDES_UNMAPPED=#includesUnmapped
 SUMMARY_SCRIPT_PATH=#summaryScriptPath
+TYPE=#type
+CLIP_CYCLES=#clipCycles
+
 
 mkdir $TMPDIR/tmp
 
@@ -86,6 +89,25 @@ java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME
 # samtools index recalibrated BAM file
 echo "`${NOW}`INFO $SCRIPT_CODE indexing recalibrated BAM..."
 samtools index $TMPDIR/realigned.recalibrated.bam
+
+# clip primer sequences from amplicon sequencing
+if [[ "$TYPE" == "TARGETED" ]] && [[ "$CLIP_CYCLES" -gt 0 ]]; then
+
+	echo "`${NOW}`INFO $SCRIPT_CODE clipping first $CLIP_CYCLES from amplicon reads..."
+	java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
+	-T ClipReads \
+	-R $TMPDIR/reference.fa \
+	-I $TMPDIR/realigned.recalibrated.bam \
+	-o $TMPDIR/realigned.recalibrated.clipped.bam \
+	-CT "1-$CLIP_CYCLES" \
+	-CR WRITE_NS_Q0S \
+	$INTERVAL_ARG_PR
+
+	mv $TMPDIR/realigned.recalibrated.clipped.bam $TMPDIR/realigned.recalibrated.bam
+	echo "`${NOW}`INFO $SCRIPT_CODE indexing recalibrated clipped BAM..."
+	samtools index $TMPDIR/realigned.recalibrated.bam
+
+fi
 
 #check that realigned and recalibrated bams have the same number of reads, 
 # if so, copy to destination folder
