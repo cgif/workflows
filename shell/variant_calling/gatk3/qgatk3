@@ -5,8 +5,8 @@
 
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 
-GATK_VERSION=3.2-2
-SAMTOOLS_VERSION=0.1.18
+GATK_VERSION=3.3
+SAMTOOLS_VERSION=1.1
 #!!!Picard Version needs to be > 1.85 for ClipPrimerSequences 
 #in gatk3_realign_recalibrate.sh to work properly!!! 
 PICARD_VERSION=1.91
@@ -228,11 +228,9 @@ else
     exit 1
 fi
 
-if [[ "$TYPE" != "WGS" ]]; then
-	if [ "$CAPTURE_KIT" == "none" ]]; then
-		echo "`$NOW`ERROR: for exome sequencing or target capture data capture kit name has be supplied via the -c command line argument"
-		exit 1
-	fi
+if [[ "$TYPE" != "WGS" ]] && [ "$CAPTURE_KIT" == "none" ]]; then
+	echo "`$NOW`ERROR: for exome sequencing or target capture data capture kit name has be supplied via the -c command line argument"
+	exit 1
 fi
 
 
@@ -533,6 +531,7 @@ function submitRealignmentAndRecalibrationJobs {
     		
 			sed -i -e "s/#inputBam/${chunk_bam//\//\\/}/" $script_path
 			sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
+			sed -i -e "s/#warningLog/${WARNING_LOG//\//\\/}/" $script_path
 			sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
 			sed -i -e "s/#analysisDir/${analysis_dir//\//\\/}/" $script_path
 			sed -i -e "s/#fragmentName/$chunk/" $script_path
@@ -711,6 +710,7 @@ function submitRealignmentAndRecalibrationJobs {
 			sed -i -e "s/#cpuThreads/$PR_CPUTHREADS/" $script_path
 			sed -i -e "s/#nctThreads/$PR_DATATHREADS/" $script_path
 			sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
+			sed -i -e "s/#warningLog/${WARNING_LOG//\//\\/}/" $script_path
 			sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
 			sed -i -e "s/#analysisDir/${analysis_dir//\//\\/}/" $script_path
 			sed -i -e "s/#sample/$sample/" $script_path
@@ -1757,6 +1757,9 @@ chmod 770 $RESULTS_DIR_MSVC/metrics
 RUN_LOG=$ANALYSIS_DIR_MSVC/run.log
 echo -n "" > $RUN_LOG
 echo -e "DATE\tTIME\tSCRIPT\tSAMPLE\tCHUNK\tSTEP\tSTATUS" >> $RUN_LOG
+
+WARNING_LOG=$ANALYSIS_DIR_MSVC/warning.log
+echo -n "" > $WARNING_LOG
 
 SETUP_LOG=$ANALYSIS_DIR_MSVC/setup.log
 echo -n "" > $SETUP_LOG
