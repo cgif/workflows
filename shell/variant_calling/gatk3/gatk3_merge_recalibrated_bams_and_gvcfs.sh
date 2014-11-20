@@ -94,6 +94,7 @@ if [ $IN_GVCF_COUNT -ge 2 ]; then
 		-T CombineVariants \
 		$TMP_IN_GVCF \
 		--assumeIdenticalSamples \
+		--genotypemergeoption UNSORTED \
 		-o $TMPDIR/merged.genomic.vcf
 
 	# get number of reads in the output GVCF file
