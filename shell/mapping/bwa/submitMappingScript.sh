@@ -1,14 +1,17 @@
 #!/bin/bash
 
 #
-# script to submit BWA mapping scripts after 
-# fastq split is complete
+# script to submit scripts for; bwa alignment of split fastq reads 
+# 				merge bam files
+#				generate cram files from bam files
+#				deploy generated cram files to irods on eliot
+#				generate summary
 
 #PBS -l walltime=72:00:00
 #PBS -l select=1:ncpus=1:mem=800mb
 
 #PBS -m ea
-#PBS -M cgi@imperial.ac.uk
+#PBS -M mkanwagi@imperial.ac.uk
 #PBS -j oe
 
 #PBS -q pqcgi
@@ -38,8 +41,8 @@ SUMMARY_DEPLOYMENT=#summaryDeployment
 SUMMARY_RESULTS=#summaryResults
 CRAM2BAM_CONVERSION=#cram2BamConversion
 THREADS_CRAM2BAM=4
-PATH_OUTPUT_CRAM=#pathOutputCram
-
+PATH_OUTPUT_CRAM_DIR=#pathOutputCramDir											
+IRODS_DEPLOYMENT=#deploy_on_irods											
 
 #variables to store job dependencies
 MERGE_DEPENDENCIES=afterok
@@ -112,8 +115,9 @@ echo -n "`$NOW`"
 MERGE_JOB_ID=`qsub  -o $LOG_OUTPUT_PATH -W depend=$MERGE_DEPENDENCIES $SCRIPT_PATH`
 echo $MERGE_JOB_ID
 
+
 #BAM to CRAM conversion
-	
+CRAM_JOB_ID=""	
 if [ $CRAM2BAM_CONVERSION = "T" ]											
 then
 	SCRIPT_PATH=$PATH_SCRIPTS_DIR/bam2cram.$OUTPUT_PREFIX.sh
@@ -124,8 +128,9 @@ then
 
 	sed -i -e "s/threads/$THREADS_CRAM2BAM/" $SCRIPT_PATH
 	sed -i -e "s/pathInputBam/${PATH_INPUT_BAM//\//\\/}/" $SCRIPT_PATH
-	sed -i -e "s/pathOutputCram/${PATH_OUTPUT_CRAM//\//\\/}/" $SCRIPT_PATH
-	sed -i -e "s/pathReferenceFastaNoExt/${PATH_REFERENCE_FASTA_NO_EXT//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/outputPrefix/$OUTPUT_PREFIX/" $SCRIPT_PATH								
+	sed -i -e "s/pathOutputCramDir/${PATH_OUTPUT_CRAM_DIR//\//\\/}/" $SCRIPT_PATH					
+	sed -i -e "s/pathReferenceFastaNoExt/${PATH_REFERENCE_FASTA_NO_EXT//\//\\/}/" $SCRIPT_PATH			
 
 	LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`							
 
@@ -133,12 +138,34 @@ then
 	echo "`$NOW`bam2cram.$OUTPUT_PREFIX.sh"
 	echo -n "`$NOW`"
 
-	#changed job submission line for testing
-	JOB_ID=`qsub -o $LOG_PATH $SCRIPT_PATH`
-	JOB_ID=`qsub -W depend=afterok:$MERGE_JOB_ID -o $LOG_PATH $SCRIPT_PATH`
-	echo $JOB_ID
+
+	CRAM_JOB_ID=`qsub -W depend=afterok:$MERGE_JOB_ID -o $LOG_PATH $SCRIPT_PATH`						
+	echo $CRAM_JOB_ID
+
+
+
+
+	IRODS_DEPENDENCIES=afterok:$CRAM_JOB_ID
+	if [ $IRODS_DEPLOYMENT = "T" ]												
+	then
+		DEPLOYMENT_SCRIPT_PATH=$PATH_SCRIPTS_DIR/irods_deploy_cram.$OUTPUT_PREFIX.sh
+		cp $BASEDIR/../../../../data-management/shell/processing/illumina/irods_deploy_cram.sh $DEPLOYMENT_SCRIPT_PATH
+		chmod 770 $DEPLOYMENT_SCRIPT_PATH
+			
+		
+		CRAM_NAME=`echo $PATH_INPUT_BAM | awk 'BEGIN{FS="/"} {print $8}' | awk 'BEGIN {FS="."} {print $1}'`
+		PATH_OUTPUT_CRAM=$PATH_OUTPUT_CRAM_DIR/$CRAM_NAME.cram
+		sed -i -e "s/#cram_output_path/${PATH_OUTPUT_CRAM//\//\\/}/" $DEPLOYMENT_SCRIPT_PATH
+	
+		IRODS_LOG_PATH=`echo $DEPLOYMENT_SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+		IRODS_JOB_ID=`qsub -W depend=$IRODS_DEPENDENCIES -o $IRODS_LOG_PATH $DEPLOYMENT_SCRIPT_PATH`		
+	fi
+
 
 fi
+
+
+
 
 #summary script
 
