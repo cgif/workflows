@@ -1,14 +1,15 @@
 #!/bin/bash
 
 #
-# script to run BWA alignment for paired end short reads
+# script to generate cram files from bam files
+# configured by submitMapping script
 #
 
 #PBS -l walltime=72:00:00
 #PBS -l select=1:ncpus=threads:mem=7800mb:tmpspace=50gb
 
 #PBS -m ea
-#PBS -M cgi@imperial.ac.uk
+#PBS -M mkanwagi@imperial.ac.uk
 #PBS -j oe
 
 #PBS -q pqcgi
@@ -31,12 +32,14 @@ THREADS=threads
 PATH_INPUT_BAM=pathInputBam
 
 #cram output directory
-PATH_OUTPUT_DIR_CRAM=pathOutputCram
+PATH_OUTPUT_CRAM_DIR=pathOutputCramDir
 
 #output prefix
 OUTPUT_PREFIX=outputPrefix
 
-PATH_OUTPUT_CRAM=$PATH_OUTPUT_DIR_CRAM/$OUTPUT_PREFIX.cram
+						
+CRAM_NAME=`echo $PATH_INPUT_BAM | awk 'BEGIN{FS="/"} {print $8}' | awk 'BEGIN {FS="."} {print $1}'`
+PATH_OUTPUT_CRAM=$PATH_OUTPUT_CRAM_DIR/$CRAM_NAME.cram
 
 #path to reference genome fasta file without gzip extension
 PATH_REFERENCE_FASTA_NO_EXT=pathReferenceFastaNoExt
