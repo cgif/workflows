@@ -94,6 +94,7 @@ if [ $IN_GVCF_COUNT -ge 2 ]; then
 		-T CombineVariants \
 		$TMP_IN_GVCF \
 		--assumeIdenticalSamples \
+		--genotypemergeoption UNSORTED \
 		-o $TMPDIR/merged.genomic.vcf
 
 	# get number of reads in the output GVCF file
@@ -128,7 +129,7 @@ if [ $IN_GVCF_COUNT -ge 2 ]; then
 	if [[ -s $OUT_GVCF.gz ]]; then 
 		STATUS=OK
 
-		echo "$SAMPLE\t$OUT_GVCF.gz\t$PROJECT\t$CAPTURE" >> $GVCF_LIST
+		echo -e "$SAMPLE\t$OUT_GVCF.gz\t$PROJECT\t$CAPTURE" >> $GVCF_LIST
 		chmod 660 $GVCF_LIST
 
 		echo "`${NOW}`INFO $SCRIPT_CODE deleting intermediate gVCF files..."
@@ -161,7 +162,7 @@ if [ $IN_GVCF_COUNT -eq 1 ]; then
 		STATUS=FAILED
 	else 
 		STATUS=OK
-		echo "$SAMPLE\t$OUT_GVCF.gz\t$PROJECT\t$CAPTURE" >> $GVCF_LIST
+		echo -e "$SAMPLE\t$OUT_GVCF.gz\t$PROJECT\t$CAPTURE" >> $GVCF_LIST
 		chmod 660 $GVCF_LIST
 	fi
 	echo -e "`${NOW}`$SCRIPT_CODE\t$SAMPLE\tall\tgenomic_vcf\t$STATUS" >> $RUN_LOG
@@ -264,8 +265,7 @@ for IN_BAM in "$RECAL_IN_BAM" "$HC_IN_BAM"; do
 			#...if no, keep input BAM files for re-run
 		else
 			echo "`${NOW}`WARN $SCRIPT_CODE Output BAM does not contain the same number of reads as the input BAM file(s)!"
-			echo "`${NOW}`WARN $SCRIPT_CODE Keeping intermediate BAM files for re-run..."  		 
-	
+			echo "`${NOW}`WARN $SCRIPT_CODE Keeping intermediate BAM files for re-run..."  		 	
 		fi
 
   

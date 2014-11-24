@@ -1,9 +1,9 @@
 #!/bin/bash
 
-## script to merge mutect chunks
+## script to merge vcf outputs
 
 #PBS -l walltime=24:00:00
-#PBS -l select=1:ncpus=1:mem=1gb
+#PBS -l select=1:ncpus=1:mem=5gb
 
 #PBS -M cgi@imperial.ac.uk
 #PBS -m ea
@@ -22,11 +22,9 @@ NT=2
 RESULTS_DIR=#results_dir
 SAMPLE=`basename $RESULTS_DIR`
 RAW_STATS_PATH="#rawStatsFiles"
-IN_VCF="#rawVcfFiles"
+IN_VCF="#rawIndelFiles"
 REFERENCE_FASTA=#referenceFasta
 REFRENCE_SEQ_DICT=`echo $REFERENCE_FASTA | perl -pe 's/\.fa/\.dict/'`
-
-SUMMARY_SCRIPT_PATH=#summaryScriptPath
 
 #copy reference to $TMP
 cp $REFERENCE_FASTA $TMPDIR/reference.fa
@@ -48,7 +46,8 @@ if [ $VCF_FILES_COUNT -ge 2 ]; then
 	for VCF_FILE in $IN_VCF; do		
 	
 		VCF_BASENAME=`basename $VCF_FILE`
-		grep -v REJECT $VCF_FILE > $TMPDIR/$VCF_BASENAME
+		grep -P '^#' $VCF_FILE > $TMPDIR/$VCF_BASENAME
+		grep SOMATIC $VCF_FILE >> $TMPDIR/$VCF_BASENAME
 		TMP_IN_VCF="$TMP_IN_VCF -V $TMPDIR/$VCF_BASENAME"
 
 		# get number of variants in the input VCF file
@@ -83,20 +82,22 @@ fi
 if [ $VCF_FILES_COUNT -eq 1 ]; then
 
 	VCF_BASENAME=`basename $IN_VCF`
-	grep -v REJECT $IN_VCF > $RESULTS_DIR/$SAMPLE.vcf
+	grep -P '^#' $IN_VCF > $RESULTS_DIR/$SAMPLE.vcf
+	grep SOMATIC $IN_VCF >> $RESULTS_DIR/$SAMPLE.vcf
 	chmod 660 $RESULTS_DIR/$SAMPLE.vcf
 
 fi
 
 RAW_STATS_MERGED=$RESULTS_DIR/$SAMPLE.stats
+cat $RAW_STATS_PATH > $RAW_STATS_MERGED
+chmod 660 $RAW_STATS_MERGED
 
-cat $RAW_STATS_PATH|grep -P '^contig\tposition\t'|head -n 1 > $RAW_STATS_MERGED
+grep SOMATIC $RAW_STATS_MERGED > $RAW_STATS_MERGED.somatic
+chmod 660 $RAW_STATS_MERGED.somatic
 
-cat $RAW_STATS_PATH|grep -vP '^#'|grep -vP '^contig\tposition\t' >> $RAW_STATS_MERGED
- 
-grep -v REJECT $RAW_STATS_MERGED > $RAW_STATS_MERGED.keep
+ls -l
 
-perl $SUMMARY_SCRIPT_PATH
+
 
 
 

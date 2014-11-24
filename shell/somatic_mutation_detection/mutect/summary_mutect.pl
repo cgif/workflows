@@ -14,7 +14,6 @@ $date = "#today";
 $summary_results = "summaryResults";
 $deployment_server = "deploymentServer";
 $summary_deployment = "summaryDeployment";
-$data_deployment = "dataDeployment";
 $sample_list = "sampleList";
 $ref_chunks = "refChunks";
 $ref_intervals = "refIntervals";
@@ -52,25 +51,20 @@ while (<LIST>){
 #collect data from log files
 foreach $sample (@sample){
     foreach $chunk (1..$total_chunks){
-	$realignment_log = "$project_dir_analysis/$date/$sample/run/gatk_realign_recal.$sample".".chunk_"."$chunk".".log";
+	$formatted_chunk = `printf "%.3d\n" $chunk`;
+	chomp($formatted_chunk);
+	$realignment_log = "$project_dir_analysis/$date/$sample/run/RR_$sample"."_$formatted_chunk.log";
 	if (-s $realignment_log){
 	    $realignment_grep = "";
 	    $realignment_grep = `grep ERROR $realignment_log`;
-   	    $realignment_target = "$project_dir_analysis/$date/$sample/realignment/$sample".".chunk_"."$chunk".".RTC.intervals";
-	    if (-s $realignment_target && $realignment_grep eq ""){
-                $sum{$sample}{$chunk}{'realignment_target'} = "PASS";
-	    }else{
-                $sum{$sample}{$chunk}{'realignment_target'} = "FAIL";
-	    }
 
-   	    $realigned_bam = "$project_dir_analysis/$date/$sample/realignment/$sample".".chunk_"."$chunk".".realigned.bam";
-	    if (-s $realigned_bam && $realignment_grep eq ""){
+	    if ($realignment_grep eq ""){
                 $sum{$sample}{$chunk}{'realigned_bam'} = "PASS";
 	    }else{
                 $sum{$sample}{$chunk}{'realigned_bam'} = "FAIL";
 	    }
 
-	    $recalibration_report_chunk = "$project_dir_analysis/$date/$sample/recalibration/reports/pre/$sample".".chunk_"."$chunk".".realigned.recal_data.grp";
+	    $recalibration_report_chunk = "$project_dir_analysis/$date/$sample/recalibration/reports/pre/$sample.chunk_$chunk.realigned.recal_data.grp";
 	    if (-s $recalibration_report_chunk && $realignment_grep eq ""){
                 $sum{$sample}{$chunk}{'recalibration_report_chunk'} = "PASS";
 	    }else{
@@ -78,58 +72,67 @@ foreach $sample (@sample){
 	    }
 	}
 
-        $recalibration_log = "$project_dir_analysis/$date/$sample/run/gatk_print_reads.$sample".".chunk_"."$chunk".".log";
+        $recalibration_log = "$project_dir_analysis/$date/$sample/run/PR_$sample"."_$formatted_chunk.log";
         if (-s $recalibration_log){
 	    $recalibrated_grep = "";
 	    $recalibrated_grep = `grep ERROR $recalibration_log`;
-	    $recalibrated_bam = "$project_dir_analysis/$date/$sample/recalibration/$sample".".chunk_"."$chunk.realigned.recalibrated.bam";
-	    if (-s $recalibrated_bam && $recalibrated_grep eq ""){
+
+	    if ($recalibrated_grep eq ""){
                 $sum{$sample}{$chunk}{'recalibrated_bam'} = "PASS";
 	    }else{
                 $sum{$sample}{$chunk}{'recalibrated_bam'} = "FAIL";
 	    }
-	    $reduced_bam = "$project_dir_analysis/$date/$sample/recalibration/$sample".".chunk_"."$chunk.realigned.recalibrated.reduced.bam";
-	    if (-s $reduced_bam && $recalibrated_grep eq ""){
-                $sum{$sample}{$chunk}{'reduced_bam'} = "PASS";
-	    }else{
-                $sum{$sample}{$chunk}{'reduced_bam'} = "FAIL";
-	    }
         }
     }
 
-    $recalibration_merge_log = "$project_dir_analysis/$date/$sample/run/gatk_merge_recalibration_reports.$sample".".log";
+    $recalibration_merge_log = "$project_dir_analysis/$date/$sample/run/CS_$sample"."_000.log";
     if (-s $recalibration_merge_log){
 	$recalibration_merge_grep = "";
 	$recalibration_merge_grep = `grep ERROR $recalibration_merge_log`;
-        $recalibration_report = "$project_dir_results/$date/$sample/recalibration/reports/pre/$sample".".realigned.recal_data.grp";
+        $recalibration_report = "$project_dir_results/$date/$sample/recalibration/reports/pre/$sample.realigned.recal_data.grp";
 	if (-s $recalibration_report && $recalibration_merge_grep eq ""){
             $sum{$sample}{'recalibration_report'} = "PASS";
 	}else{
             $sum{$sample}{'recalibration_report'} = "FAIL";
 	}
     }
+
+    $merge_bam_log = "$project_dir_analysis/$date/$sample/run/MB_$sample"."_000.log";
+    if (-s $merge_bam_log){
+	$merge_bam_grep = "";
+	$merge_bam_grep = `grep -vP '^gatk' $merge_bam_log | grep ERROR`;
+	$merge_bam_file = "$project_dir_results/$date/$sample/recalibration/$sample.bam";
+	if (-s $merge_bam_file && $merge_bam_grep eq ""){
+            $sum{$sample}{'merge_bam'} = "PASS";
+	}else{
+            $sum{$sample}{'merge_bam'} = "FAIL";
+	}
+    }
 }
 
 $i = 0;
 foreach $sample_norm (@sample){
-    next if $i % 2 == 1;
-    $sample_tumor = "$sample[$i+1]";
+    $i ++;
+    next if $i % 2 != 1;
+    $sample_tumor = "$sample[$i]";
     $sample_pair = "$sample_norm.vs.$sample_tumor";
     foreach $chunk (1..$total_chunks){
-    $chunk = "chunk_$chunk";
-	$mutect_log = "$project_dir_analysis/$date/$sample_pair/run/mutect.$sample_pair.$chunk.log";
+	$chunk_formatted=`printf "%.3d\n" $chunk`;
+	chomp($chunk_formatted);
+	$mutect_log = "$project_dir_analysis/$date/$sample_pair/run/MU_$sample_pair"."_$chunk_formatted.log";
+	$chunk = "chunk_$chunk";
 	if (-s $mutect_log){
 	    $mutect_grep = "";
-	    $mutect_grep = `grep ERROR $mutect_log`;
-	    $mutect_stats = "$project_dir_analysis/$date/$sample_pair/mutect/$sample_pair.$chunk.stats";
-	    if (-s $mutect_stats && $mutect_grep eq ""){
+	    $mutect_grep = `grep -vP '^WARN' $mutect_log | grep ERROR`;
+	    $mutect_report = "$project_dir_analysis/$date/$sample_pair/mutect/$sample_pair.$chunk.stats";
+	    if (-s $mutect_report && $mutect_grep eq ""){
 		$sum{$sample_pair}{$chunk}{'mutect_stats'} = "PASS";
 	    }else{
 		$sum{$sample_pair}{$chunk}{'mutect_stats'} = "FAIL";
 	    }
 	}
     }
-    $merge_log = "$project_dir_analysis/$date/$sample_pair/run/merge_stats.$sample_pair.log";
+    $merge_log = "$project_dir_analysis/$date/$sample_pair/run/MS_$sample_pair"."_000.log";
     if (-s $merge_log){
 	$merge_grep = "";
 	$merge_grep = `grep ERROR $merge_log`;
@@ -140,7 +143,6 @@ foreach $sample_norm (@sample){
 	    $sum{$sample_pair}{'merge_stats'} = "FAIL";
 	}
     }
-    $i ++;
 }
 
 #print extracted data into summary file
@@ -150,14 +152,13 @@ print OUT "<HEAD><META HTTP-EQUIV='refresh' CONTENT='60'></HEAD>";
 print OUT "<TABLE CELLPADDING=5><TR>";
 print OUT "<TH><CENTER>Sample";
 print OUT "<TH><CENTER>Chunk";
-print OUT "<TH><CENTER>Realignment<BR>intervals";
 print OUT "<TH><CENTER>Realigned bam";
 print OUT "<TH><CENTER>Recalibration report<BR>chunk";
 print OUT "<TH><CENTER>Recalibration report<BR>full";
 print OUT "<TH><CENTER>Recalibrated bam";
-print OUT "<TH><CENTER>Reduced bam";
+print OUT "<TH><CENTER>Merged bam";
 
-@tags = qw(realignment_target realigned_bam recalibration_report_chunk recalibration_report recalibrated_bam reduced_bam);
+@tags = qw(realigned_bam recalibration_report_chunk recalibration_report recalibrated_bam merge_bam);
 foreach $sample (@sample){
 	
 	foreach $chunk (1..$total_chunks){
@@ -174,7 +175,7 @@ foreach $sample (@sample){
 
 				if ($chunk == 1){
 					
-					$recalibration_merge_plot_log = "$project_dir_analysis/$date/$sample/run/gatk_collect_summary_metrics.$sample".".log";
+					$recalibration_merge_plot_log = "$project_dir_analysis/$date/$sample/run/CS_$sample"."_000.log";
 					
 					if (-s $recalibration_merge_plot_log){
 						
@@ -186,13 +187,10 @@ foreach $sample (@sample){
 							system("scp -r $pdf $deployment_server:$pdf_deployment > /dev/null 2>&1");
 							print OUT "<TD><CENTER><A HREF = http://$deployment_server/$summary_link/$sample.jpeg><IMG BORDER='5' SRC=tick.png ALT=PASS></A>\n" if $sum{$sample}{$tag} eq "PASS";
 							print OUT "<TD><CENTER><A HREF = http://$deployment_server/$summary_link/$sample.jpeg><IMG BORDER='5' SRC=error.png ALT=FAIL></A>\n" if $sum{$sample}{$tag} eq "FAIL";
-							print OUT "<TD> \n" if $sum{$sample}{$tag} ne "FAIL" && $sum{$sample}{$tag} ne "PASS";
 						
 						}else{
 							
-							print OUT "<TD><CENTER><IMG SRC=tick.png ALT=PASS></A>\n" if $sum{$sample}{$tag} eq "PASS";
 							print OUT "<TD><CENTER><IMG SRC=error.png ALT=FAIL></A>\n" if $sum{$sample}{$tag} eq "FAIL";
-							print OUT "<TD> \n" if $sum{$sample}{$tag} ne "FAIL" && $sum{$sample}{$tag} ne "PASS";
 		        
 						}
 						
@@ -210,6 +208,25 @@ foreach $sample (@sample){
 		        
 				}
 				#end of if ($chunk == 1){
+
+			}elsif ($tag eq "merge_bam"){
+
+				if ($chunk == 1){
+
+				        $merge_bam_log = "$project_dir_analysis/$date/$sample/run/MB_$sample"."_000.log";
+
+					if (-s $merge_bam_log){
+
+					        print OUT "<TD><CENTER><IMG SRC=tick.png ALT=PASS>\n" if $sum{$sample}{$tag} eq "PASS";
+						print OUT "<TD><CENTER><IMG SRC=error.png ALT=FAIL>\n" if $sum{$sample}{$tag} eq "FAIL";
+
+					}
+
+				}else{
+
+				        print OUT "<TD> \n";
+
+				}
 				
 			}else{
 
@@ -248,8 +265,9 @@ print OUT "<TH><CENTER>MuTect run";
 
 $i = 0;
 foreach $sample_norm (@sample){
-    next if $i % 2 == 1;
-    $sample_tumor = "$sample[$i+1]";
+    $i++;
+    next if $i % 2 != 1;
+    $sample_tumor = "$sample[$i]";
     $sample_pair = "$sample_norm.vs.$sample_tumor";
     foreach $chunk (1..$total_chunks){
 	if ($chunk == 1){
@@ -257,15 +275,18 @@ foreach $sample_norm (@sample){
 	}else{
 	    print OUT "<TR><TD> <TD><CENTER>$chunk\n";
 	}
+	$formatted_chunk =`printf "%.3d\n" $chunk`;
+	chomp($formatted_chunk);
+	$mutect_log = "$project_dir_analysis/$date/$sample_pair/run/MU_$sample_pair"."_$formatted_chunk.log";
+
         $chunk = "chunk_$chunk";
-	$mutect_log = "$project_dir_analysis/$date/$sample_pair/run/mutect.$sample_pair.$chunk.log";
 	if (-s $mutect_log){
 	    print OUT "<TD><CENTER><IMG SRC=tick.png ALT=PASS>\n" if $sum{$sample_pair}{$chunk}{'mutect_stats'} eq "PASS";
 	    print OUT "<TD><CENTER><IMG SRC=error.png ALT=FAIL>\n" if $sum{$sample_pair}{$chunk}{'mutect_stats'} eq "FAIL";
 	}
     }
     print OUT "<TR><TD> <TD><CENTER>merged";
-    $merge_log = "$project_dir_analysis/$date/$sample_pair/run/merge_stats.$sample_pair.log";
+    $merge_log = "$project_dir_analysis/$date/$sample_pair/run/MS_$sample_pair"."_000.log";
     if (-s $merge_log){
 	if ($sum{$sample_pair}{'merge_stats'} eq "PASS"){
             $merge_stats = "$project_dir_results/$date/$sample_pair/$sample_pair.stats.keep";
@@ -278,7 +299,6 @@ foreach $sample_norm (@sample){
 	    print OUT "<TD><CENTER><IMG SRC=error.png ALT=FAIL>\n"
 	}
     }
-    $i++;
 } 
 
 print OUT "</TABLE>\n";
@@ -351,13 +371,13 @@ print OUT "<P><FONT SIZE = '+1'><A HREF = '$sample_cumulative_coverage_proportio
 #usage statistics
 #################
 
-#horizontal line
-print OUT "<HR>";
-
 $usage_file = "$project_dir_results/$date/multisample/usage.$date.txt";
-$usage_url = "http://$deployment_server/$summary_link/usage.txt";
+$usage_php = "$project_dir_analysis/$date/multisample/run/usage.php";
+$usage_url = "http://$deployment_server/$summary_link/usage.php";
 if (-s $usage_file){
+    print OUT "<HR>";
     system("scp -r $usage_file $deployment_server:$summary_deployment/usage.txt > /dev/null 2>&1");
+    system("scp -r $usage_php $deployment_server:$summary_deployment/usage.php > /dev/null 2>&1");
     print OUT "<HR><P><FONT SIZE = '+1'>Usage of computational resources can be monitored <A HREF = '$usage_url'>here</A></FONT><BR>";
 }
 

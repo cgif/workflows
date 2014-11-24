@@ -29,6 +29,7 @@ JAVA_XMX=4800M
 SCRIPT_CODE="GATKRARC"
 
 RUN_LOG=#runLog
+WARNING_LOG=#warningLog
 
 LOG_INFO="`${NOW}`INFO $SCRIPT_CODE"
 LOG_ERR="`${NOW}`ERR $SCRIPT_CODE"
@@ -97,10 +98,9 @@ mkdir $TMPDIR/tmp
 # for which the input BAM contains reads.
 echo "`${NOW}`INFO $SCRIPT_CODE creating GATK realignment targets"
 java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
-  -T RealignerTargetCreator \
+  -T RealignerTargetCreator -I $TMPDIR/chunk.bam \
   -nt $RTC_DATA_THREADS \
   -R $TMPDIR/reference.fa \
-  -I $TMPDIR/chunk.bam \
   -known $INDELS_1000G_FILENAME \
   -known $INDELS_GOLDSTD_FILENAME \
   -o $TMPDIR/$SAMPLE.$FRAGMENT.RTC.intervals \
@@ -209,25 +209,38 @@ READ_COUNT_OUTPUT=`samtools flagstat $TMPDIR/$SAMPLE.$FRAGMENT.realigned.bam | h
 echo "Number of reads in input chunk file: $READ_COUNT_INPUT"
 echo "Number of reads in realigned file: $READ_COUNT_OUTPUT"
 
-if [[ $READ_COUNT_INPUT -eq $READ_COUNT_OUTPUT ]]; then
-	echo "`${NOW}`INFO $SCRIPT_CODE copying realigned BAM to output directory $ANALYSIS_DIR/realignment..."
-	cp $SAMPLE.$FRAGMENT.realigned.bam $ANALYSIS_DIR/realignment/
-	cp $SAMPLE.$FRAGMENT.realigned.bam.bai $ANALYSIS_DIR/realignment/
-else
-	echo "ERROR: $SCRIPT_CODE input bam and realined bam have different numbers of reads"
+echo "`${NOW}`INFO $SCRIPT_CODE copying realigned BAM to output directory $ANALYSIS_DIR/realignment..."
+cp $SAMPLE.$FRAGMENT.realigned.bam $ANALYSIS_DIR/realignment/
+cp $SAMPLE.$FRAGMENT.realigned.bam.bai $ANALYSIS_DIR/realignment/
+
+
+if [[ $READ_COUNT_INPUT -ne $READ_COUNT_OUTPUT ]]; then
+	echo "WARNING: $SCRIPT_CODE input bam and realined bam have different numbers of reads"	
+	echo "$SAMPLE $SCRIPT_CODE input chunk bam and realined bam have different numbers of reads" >> $WARNING_LOG
+	echo "$SAMPLE $SCRIPT_CODE Number of reads in input chunk file: $READ_COUNT_INPUT" >> $WARNING_LOG
+	echo "$SAMPLE $SCRIPT_CODE Number of reads in realigned chunk file: $READ_COUNT_OUTPUT" >> $WARNING_LOG
 fi
 
-#logging and deleting internediate file
-if [[ -s $ANALYSIS_DIR/realignment/$SAMPLE.$FRAGMENT.realigned.bam ]]; then
+#logging and deleting intermediate file
+
+if [[ -s $ANALYSIS_DIR/realignment/$SAMPLE.$FRAGMENT.realigned.bam ]] && [[ $READ_COUNT_INPUT -eq $READ_COUNT_OUTPUT ]] ; then
 	STATUS=OK
 	echo "deleting realigned bam file $INPUT_BAM"
 	rm $INPUT_BAM $INPUT_BAM.bai
+elif [[ -s $ANALYSIS_DIR/realignment/$SAMPLE.$FRAGMENT.realigned.bam ]] && [[ $READ_COUNT_INPUT -ne $READ_COUNT_OUTPUT ]]; then
+	STATUS=WARNING
+	echo "WARNING: $SCRIPT_CODE keeping input file for checks $INPUT_BAM"
 else
 	STATUS=FAILED
-	echo "realignment, keeping input file for rerun $INPUT_BAM"
+	echo "ERROR: $SCRIPT_CODE realignment failed, keeping input file for rerun $INPUT_BAM"
 fi
 
 echo -e "`${NOW}`$SCRIPT_CODE\t$SAMPLE\t$FRAGMENT\trealigned_bam\t$STATUS" >> $RUN_LOG
+
+if  [[ "$STATUS" == "FAILED" ]]; then 
+	echo "`${NOW}` realignement failed, exiting"
+	exit 1
+fi
 
 #run summary script
 perl $SUMMARY_SCRIPT_PATH
