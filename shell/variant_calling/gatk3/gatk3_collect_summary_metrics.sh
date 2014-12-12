@@ -3,7 +3,7 @@
 ## script to run GATK for counting covariates before base quality recalibration
 
 #PBS -l walltime=72:00:00
-#PBS -l select=1:ncpus=4:mem=10gb:tmpspace=#tmpSpaceMbmb
+#PBS -l select=1:ncpus=2:mem=10gb:tmpspace=#tmpSpaceMbmb
 
 #PBS -M cgi@imperial.ac.uk
 #PBS -m ea
@@ -150,7 +150,6 @@ java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR -jar $GATK_HOME/Gen
   -mbq 20 \
   -mmq 20 \
   -rf BadCigar \
-  -nt 4 \
   $INTERVAL_ARG
 
 cp ${BAM_NAME}.coverage* $BAM_DIR/
