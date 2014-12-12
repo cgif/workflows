@@ -137,8 +137,8 @@ fi
 
 if [[ -s $RECALIBRATED_OUTPUT_BAM ]] && [[ $READ_COUNT_INPUT -eq $READ_COUNT_OUTPUT ]] ; then
 	STATUS=OK
-	echo "deleting realigned bam file $REALIGNED_BAM_FILE"
-	rm $REALIGNED_BAM_FILE $REALIGNED_BAM_FILE.bai
+#	echo "deleting realigned bam file $REALIGNED_BAM_FILE"						#keeping realigned file for postprocessing metrics job
+#	rm $REALIGNED_BAM_FILE $REALIGNED_BAM_FILE.bai
 elif [[ -s $RECALIBRATED_OUTPUT_BAM ]] && [[ $READ_COUNT_INPUT -ne $READ_COUNT_OUTPUT ]]; then
 	STATUS=WARNING
 	echo "WARNING: $SCRIPT_CODE keeping input file for checks $REALIGNED_BAM_FILE"

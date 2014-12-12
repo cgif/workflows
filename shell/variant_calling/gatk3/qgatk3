@@ -228,7 +228,7 @@ else
     exit 1
 fi
 
-if [[ "$TYPE" != "WGS" ]] && [ "$CAPTURE_KIT" == "none" ]]; then
+if [[ "$TYPE" != "WGS" ]] && [[ "$CAPTURE_KIT" == "none" ]]; then
 	echo "`$NOW`ERROR: for exome sequencing or target capture data capture kit name has be supplied via the -c command line argument"
 	exit 1
 fi
@@ -390,9 +390,13 @@ function submitRealignmentAndRecalibrationJobs {
 
 		local last_subset=F
 
-		if [[ $subset_count -eq $job_count ]]; then
-			last_subset=T
-		fi
+## commented out, because we don't need unmapped reads for variant calling
+## final bam files will only be used for visualisation, so don't need unmapped reads
+## -L unmapped has bug in IndelRealigner, and caused some reads to be lost
+
+#		if [[ $subset_count -eq $job_count ]]; then
+#			last_subset=T
+#		fi
 
 		echo "`$NOW`processing chunk subset $subset_count of $job_count..."
 
@@ -505,9 +509,11 @@ function submitRealignmentAndRecalibrationJobs {
 			echo "`$NOW`creating chunk BED file..."
 			grep -P "chunk_${chunk_name}\." $REFERENCE_CHUNKS > $chunk_bed
 
-			if [[ $chunk_count -eq $TOTAL_CHUNK_COUNT ]]; then 		
-				includes_unmapped=T
-			fi
+## we don't need unmapped reads for variant calling
+
+#			if [[ $chunk_count -eq $TOTAL_CHUNK_COUNT ]]; then 		
+#				includes_unmapped=T
+#			fi
 
 			local chunk_bam=$analysis_dir/chunks/$input_bam_name.$chunk.bam
 
@@ -692,9 +698,11 @@ function submitRealignmentAndRecalibrationJobs {
 			local realigned_recalibrated_bam_file=$analysis_dir/recalibration/$sample.$chunk.realigned.recalibrated.bam
 			local includes_unmapped=F
 
-			if [[ $chunk_count -eq $TOTAL_CHUNK_COUNT ]]; then
-				includes_unmapped=T
-			fi
+## we don't need unmapped reads for variant calling
+
+#			if [[ $chunk_count -eq $TOTAL_CHUNK_COUNT ]]; then
+#				includes_unmapped=T
+#			fi
 
 			local chunk_formatted=`printf "%.3d\n" $chunk_name`
 
@@ -1417,7 +1425,8 @@ function submitPostProcessingJobs {
 			local chunk_bed=$analysis_dir/chunks/$chunk.bed
 			local chunk_bam=$analysis_dir/realignment/$sample.$chunk.realigned.bam
 
-			local chunk_pre_recalibration_report=$analysis_dir/recalibration/reports/pre/$sample.$chunk.realigned.recal_data.grp
+#			local chunk_pre_recalibration_report=$analysis_dir/recalibration/reports/pre/$sample.$chunk.realigned.recal_data.grp
+			local merged_pre_recalibration_report=$results_dir/recalibration/reports/pre/$sample.realigned.recal_data.grp
 
 			echo "`$NOW`creating and submitting job script to get post-recalibration report on chunk..."
 
@@ -1443,7 +1452,8 @@ function submitPostProcessingJobs {
 			sed -i -e "s/#resultsDir/${results_dir//\//\\/}/" $script_path	
 			sed -i -e "s/#fragmentName/$chunk/" $script_path
 			sed -i -e "s/#sample/$sample/" $script_path
-			sed -i -e "s/#preRecalibrationReport/${chunk_pre_recalibration_report//\//\\/}/" $script_path
+#			sed -i -e "s/#preRecalibrationReport/${chunk_pre_recalibration_report//\//\\/}/" $script_path
+			sed -i -e "s/#preRecalibrationReport/${merged_pre_recalibration_report//\//\\/}/" $script_path
 
 			## change from GATKv2 pipeline - we use all reads, not just target region
 #			if [[ $TARGET_INTERVALS_BED != ""  ]];then

@@ -160,7 +160,7 @@ if (-s $recalibrate_vcf_log){
 }
 
 my %report = ();
-my $eval_report = "$project_dir_results/$date/multisample/genotypeGVCFs/recalibration/$project"."_multisample.varianteval.report";
+my $eval_report = "$project_dir_results/$date/multisample/genotypeGVCFs/recalibration/$project"."_multisample.varianteval.dbSNP129.report";
 if (-s $eval_report){
     open (REPORT, "$eval_report");
     while (<REPORT>){

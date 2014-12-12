@@ -78,7 +78,8 @@ if [ $IN_GVCF_COUNT -ge 2 ]; then
 		GVCF_BASENAME=`basename $GVCF`
 		echo "`${NOW}`INFO $SCRIPT_CODE $GVCF_BASENAME"
 		cp $INPUT_DIR_GVCF/$GVCF_BASENAME $TMPDIR
-		TMP_IN_GVCF="$TMP_IN_GVCF -V $TMPDIR/$GVCF_BASENAME"
+#		TMP_IN_GVCF="$TMP_IN_GVCF -V $TMPDIR/$GVCF_BASENAME"	#this line if GATK is used for merging
+		TMP_IN_GVCF="$TMP_IN_GVCF $TMPDIR/$GVCF_BASENAME"
 
 		# get number of variants in the input GVCF file
 		VARIANT_COUNT=`grep -v '#' $TMPDIR/$GVCF_BASENAME | wc -l`
@@ -86,16 +87,31 @@ if [ $IN_GVCF_COUNT -ge 2 ]; then
 	done
 
 	# merge GVCF files
-			
+
 	echo "`${NOW}`INFO $SCRIPT_CODE merging GVCF files..."
-	java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
-		-nt $NT \
-		-R $TMPDIR/reference.fa \
-		-T CombineVariants \
-		$TMP_IN_GVCF \
-		--assumeIdenticalSamples \
-		--genotypemergeoption UNSORTED \
-		-o $TMPDIR/merged.genomic.vcf
+	# use simple concatenation instead of GATK, as GATK is incredibly slow for larger files
+	# we can use simple concatenation, because the positions never overlap
+	
+	# get header
+	CHUNK_1_GVCF=$(echo $TMP_IN_GVCF | cut -f1 -d" " )
+	awk '{if ( $1 ~ /^#/ ) print}' $CHUNK_1_GVCF > $TMPDIR/merged.genomic.vcf
+
+	# now concatenate files without headers
+	for FILE in $TMP_IN_GVCF; do
+    	awk '{if ( $1 !~ /^#/ ) print}' $FILE >> $TMPDIR/merged.genomic.vcf
+	done
+
+
+	### below is old version where GATK is used for merging
+
+#	java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
+#		-nt $NT \
+#		-R $TMPDIR/reference.fa \
+#		-T CombineVariants \
+#		$TMP_IN_GVCF \
+#		--assumeIdenticalSamples \
+#		--genotypemergeoption UNSORTED \
+#		-o $TMPDIR/merged.genomic.vcf
 
 	# get number of reads in the output GVCF file
 	VARIANT_COUNT_OUTPUT=`grep -v '#' $TMPDIR/merged.genomic.vcf | wc -l`
@@ -214,6 +230,13 @@ for IN_BAM in "$RECAL_IN_BAM" "$HC_IN_BAM"; do
 			BAM_BASENAME=`basename $BAM`
 			echo "`${NOW}`INFO $SCRIPT_CODE $BAM_BASENAME"
 			cp $INPUT_DIR/$BAM_BASENAME $TMPDIR
+
+			#remove indel quality scores from recalibrated BAM chunk files
+			#we do it before merging so less temporary space is needed for merging
+			echo "`${NOW}`INFO $SCRIPT_CODE stripping BAM file $BAM_BASENAME of indel quality scores..."
+			$PATH_STRIP_INDEL_QUALS_SCRIPT -i $TMPDIR/$BAM_BASENAME -o $TMPDIR/$BAM_BASENAME.stripped
+			mv $TMPDIR/$BAM_BASENAME.stripped $TMPDIR/$BAM_BASENAME
+
 			TMP_IN_BAM="$TMP_IN_BAM INPUT=$TMPDIR/$BAM_BASENAME"
 
 			#get number of reads in the input BAM file
@@ -233,9 +256,10 @@ for IN_BAM in "$RECAL_IN_BAM" "$HC_IN_BAM"; do
 		java -jar -Xmx$JAVA_XMX -XX:+UseSerialGC $PICARD_HOME/MergeSamFiles.jar $TMP_IN_BAM OUTPUT=$TMP_PATH_OUT_BAM SORT_ORDER=coordinate USE_THREADING=true  VALIDATION_STRINGENCY=SILENT TMP_DIR=$TMPDIR
     
     	#remove indel quality scores from recalibrated BAM files
-		echo "`${NOW}`INFO $SCRIPT_CODE stripping BAM file of indel quality scores..."
-		$PATH_STRIP_INDEL_QUALS_SCRIPT -i $TMP_PATH_OUT_BAM -o $TMP_PATH_OUT_BAM.stripped
-		mv $TMP_PATH_OUT_BAM.stripped $TMP_PATH_OUT_BAM
+		#commented out, because do it before merging to make merging more efficient
+#		echo "`${NOW}`INFO $SCRIPT_CODE stripping BAM file of indel quality scores..."
+#		$PATH_STRIP_INDEL_QUALS_SCRIPT -i $TMP_PATH_OUT_BAM -o $TMP_PATH_OUT_BAM.stripped
+#		mv $TMP_PATH_OUT_BAM.stripped $TMP_PATH_OUT_BAM
 
     
 		# get number of reads in the output bam file
