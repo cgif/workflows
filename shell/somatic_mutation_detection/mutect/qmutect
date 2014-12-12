@@ -5,7 +5,7 @@
 
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 GATK_DIR=$BASEDIR/../../variant_calling/gatk3
-IMAGE_DIR=$BASEDIR/../../resources/images/
+IMAGE_DIR=/groupvol/cgi/src/workflows-1.2.1/shell/resources/images
 
 GATK_VERSION=3.2-2
 SAMTOOLS_VERSION=0.1.18
@@ -15,13 +15,13 @@ NXTGENUTILS_VERSION=0.13.0
 JAVA_VERSION=jdk-7u25
 JAVA_VERSION_MUTECT=sun-jdk-1.6.0_19
 MUTECT_VERSION=1.1.4
-PATH_STRIP_INDEL_QUALS_SCRIPT=$GATK_DIR/stripIndelQuals.sh
 
 #now
 NOW="date +%Y-%m-%d%t%T%t"
 
 #today
 TODAY=`date +%Y-%m-%d`
+#TODAY="2014-10-29"
 
 #get the directory this script resides in
 GROUP_VOL_CGI=/groupvol/cgi
@@ -301,6 +301,10 @@ function submitSplitBam {
 	#realignment and recalibration job dependencies
 	echo -n "" > $run_dir/realign_recalibrate_dependencies.tsv
 
+	#store bam size info to calculate required tmp space for each job 
+	local bam_size=`du $input_bam | cut -f 1`
+	echo -e "$input_bam_name\t$bam_size\t$chunk_count" >> $BAM_SIZE_FILE
+
 	#for each subset of chunks...
 	local subset_count=0
 	for (( c=0; c<$chunk_count; c=c+$BAM_SPLIT_MAX_THREADS )); do
@@ -398,6 +402,7 @@ function submitRealignmentAndRecalibrationJobs {
 
 	local recalibration_reports=""
 	local dependency_realign_recal=afterok
+	local summary_script_path=$run_dir/summary_mutect.$sample.pl
 
 	echo "`$NOW`====================================================================================="
 	echo "`$NOW`Realign & recalibrate $sample"
@@ -439,7 +444,26 @@ function submitRealignmentAndRecalibrationJobs {
 			local chunk_partner_bam=$partner_analysis_dir/$partner_name/chunks/$partner_name.$chunk.bam
 
 			echo "`$NOW`creating and submitting job script to realign and recalibrate chunk..."
-			
+
+			local total_file_size_mb=0
+			for file in $INDELS_1000G $INDELS_GOLDSTD $DBSNP $REFERENCE_FASTA ; do
+
+			    local file_size_kb=`du $file | cut -f1`
+			    if [ $file_size_kb != 0 ]; then
+				local file_size_mb=$(( $file_size_kb / 1024 ))
+			    fi
+			    total_file_size_mb=$(( $total_file_size_mb + $file_size_mb ))
+
+			done
+
+			local bam_size=`grep -P "^$sample" $BAM_SIZE_FILE|cut -f2`
+			local chunks_total=`grep -P "^$sample" $BAM_SIZE_FILE|cut -f3`
+			local bam_chunk_size=$(( $bam_size / $chunks_total ))
+			local bam_chunk_size_mb=$(( $bam_chunk_size / 1024 ))
+			total_file_size_mb=$(( $total_file_size_mb + $bam_chunk_size_mb ))
+
+			local tmp_space_mb=$(( $total_file_size_mb * 2 )) 
+
 			local chunk_formatted=`printf "%.3d\n" $chunk_name`
  			local script_path=$run_dir/RR_${sample}_${chunk_formatted}.sh
 			cp $GATK_DIR/gatk3_realign_recalibrate.sh $script_path
@@ -450,14 +474,15 @@ function submitRealignmentAndRecalibrationJobs {
 			sed -i -e "s/#rVersion/$R_VERSION/" $script_path	
 			sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
     	  	        sed -i -e "s/#nxtGenUtilsVersion/$NXTGENUTILS_VERSION/" $script_path
-    	  
+    	  		sed -i -e "s/#tmpSpaceMb/$tmp_space_mb/g" $script_path
+
 			sed -i -e "s/#indels1000G/${INDELS_1000G//\//\\/}/" $script_path	
 			sed -i -e "s/#indelsGoldStd/${INDELS_GOLDSTD//\//\\/}/" $script_path
 			sed -i -e "s/#dbSnp/${DBSNP//\//\\/}/" $script_path
 
 			#merge tumor and normal bam chunks to find indel realignment targets
-			local string1="# create target intervals for IndelRealigner"
-			local string2="cp $chunk_partner_bam \$TMPDIR/chunk.partner.bam\n \
+			local string_gatk="# create target intervals for IndelRealigner"
+			local string_mutect="cp $chunk_partner_bam \$TMPDIR/chunk.partner.bam\n \
 samtools view -H \$TMPDIR/chunk.bam > \$TMPDIR/header.dict.sam\n \
 samtools view -H \$TMPDIR/chunk.partner.bam|grep -P '^@RG' > \$TMPDIR/header.partner.sam\n \
 cat \$TMPDIR/header.dict.sam \$TMPDIR/header.partner.sam > \$TMPDIR/header.sam\n \
@@ -465,16 +490,16 @@ samtools merge -h \$TMPDIR/header.sam \$TMPDIR/chunk.combined.bam \$TMPDIR/chunk
 samtools index \$TMPDIR/chunk.combined.bam\n \
 ls -l\n \
 # create target intervals for IndelRealigner"
-			sed -i -e "s/${string1//\//\\/}/${string2//\//\\/}/" $script_path
+			sed -i -e "s/${string_gatk//\//\\/}/${string_mutect//\//\\/}/" $script_path
 
-			local string3="RealignerTargetCreator -I \$TMPDIR\/chunk.bam"
-			local string4="RealignerTargetCreator -I \$TMPDIR/chunk.combined.bam"
-			sed -i -e "s/$string3/${string4//\//\\/}/" $script_path
+			local string_gatk="RealignerTargetCreator -I \$TMPDIR\/chunk.bam"
+			local string_mutect="RealignerTargetCreator -I \$TMPDIR/chunk.combined.bam"
+			sed -i -e "s/$string_gatk/${string_mutect//\//\\/}/" $script_path
 
 			#don't remove bam chunks untill all realignment jobs are completed
-			local string5="rm \$INPUT_BAM \$INPUT_BAM.bai"
-			local string6="#rm \$INPUT_BAM \$INPUT_BAM.bai"
-			sed -i -e "s/$string5/${string6//\//\\/}/" $script_path
+			local string_gatk="rm \$INPUT_BAM \$INPUT_BAM.bai"
+			local string_mutect="#rm \$INPUT_BAM \$INPUT_BAM.bai"
+			sed -i -e "s/$string_gatk/${string_mutect//\//\\/}/" $script_path
 
 			sed -i -e "s/#inputBam/${chunk_bam//\//\\/}/" $script_path
 			sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
@@ -527,6 +552,7 @@ ls -l\n \
 	echo "`$NOW`====================================================================================="
 	echo "`$NOW`Merge recalibration reports $sample"
 	echo "`$NOW`====================================================================================="
+
 	script_path=$run_dir/MR_${sample}_000.sh
 	cp $GATK_DIR/gatk3_merge_recalibration_reports.sh $script_path
 
@@ -579,6 +605,25 @@ ls -l\n \
 			if [[ $chunk_count -eq $TOTAL_CHUNK_COUNT ]]; then
 				includes_unmapped=T
 			fi
+
+			local total_file_size_mb=0
+			for file in $REFERENCE_FASTA ; do
+
+			    local file_size_kb=`du $file | cut -f1`
+			    if [ $file_size_kb != 0 ]; then
+				local file_size_mb=$(( $file_size_kb / 1024 ))
+			    fi
+			    total_file_size_mb=$(( $total_file_size_mb + $file_size_mb ))
+
+			done
+
+			local bam_size=`grep -P "^$sample" $BAM_SIZE_FILE|cut -f2`
+			local chunks_total=`grep -P "^$sample" $BAM_SIZE_FILE|cut -f3`
+			local bam_chunk_size=$(( $bam_size / $chunks_total ))
+			local bam_chunk_size_mb=$(( $bam_chunk_size    / 1024 ))
+			total_file_size_mb=$(( $total_file_size_mb + $bam_chunk_size_mb ))
+
+			local tmp_space_mb=$(( $total_file_size_mb * 2 ))
 		
 			echo "`$NOW`creating and submitting job script to print recalibrated reads..."
  			local chunk_formatted=`printf "%.3d\n" $chunk_name`
@@ -589,11 +634,12 @@ ls -l\n \
 			sed -i -e "s/#samtoolsVersion/$SAMTOOLS_VERSION/" $script_path
 			sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
 			sed -i -e "s/#nextGenUtilsVersion/$NXTGENUTILS_VERSION/" $script_path
+    	  		sed -i -e "s/#tmpSpaceMb/$tmp_space_mb/g" $script_path
 
 			#don't remove realigned bam chunk until postrecalibration report is done 
-			local string7="rm \$REALIGNED_BAM_FILE \$REALIGNED_BAM_FILE.bai"
-			local string8="#rm \$REALIGNED_BAM_FILE \$REALIGNED_BAM_FILE.bai"
-			sed -i -e "s/$string7/${string8//\//\\/}/" $script_path
+			local string_gatk="rm \$REALIGNED_BAM_FILE \$REALIGNED_BAM_FILE.bai"
+			local string_mutect="#rm \$REALIGNED_BAM_FILE \$REALIGNED_BAM_FILE.bai"
+			sed -i -e "s/$string_gatk/${string_mutect//\//\\/}/" $script_path
 
 			sed -i -e "s/#cpuThreads/$PR_CPUTHREADS/" $script_path
 			sed -i -e "s/#nctThreads/$PR_DATATHREADS/" $script_path
@@ -731,12 +777,36 @@ function submitMuTect {
 
 			########## script 4: run MuTect
 
+			local total_file_size_mb=0
+			for file in $MUTECT_COSMIC $MUTECT_DBSNP $REFERENCE_FASTA; do
+
+			    local file_size_kb=`du $file | cut -f1`
+			    if [ $file_size_kb != 0 ]; then
+				local file_size_mb=$(( $file_size_kb / 1024 ))
+			    fi
+			    total_file_size_mb=$(( $total_file_size_mb + $file_size_mb ))
+
+			done
+
+			for file in $sample_normal $sample_tumor; do
+
+			    local bam_size=`grep -P "^$file" $BAM_SIZE_FILE|cut -f2`
+			    local chunks_total=`grep -P "^$file" $BAM_SIZE_FILE|cut -f3`
+			    local bam_chunk_size=$(( $bam_size / $chunks_total ))
+			    local bam_chunk_size_mb=$(( $bam_chunk_size / 1024 ))
+			    total_file_size_mb=$(( $total_file_size_mb + $bam_chunk_size_mb ))
+
+			done
+
+			local tmp_space_mb=$(( $total_file_size_mb * 2 ))
+
 			local chunk_formatted=`printf "%.3d\n" $chunk_name`
  			local script_path=$analysis_dir/run/MU_${sample_name}_${chunk_formatted}.sh
 			cp $BASEDIR/mutect.sh $script_path
 		  		
 			sed -i -e "s/#mutectVersion/$MUTECT_VERSION/" $script_path
 			sed -i -e "s/#javaVersion/${JAVA_VERSION_MUTECT//\//\\/}/" $script_path
+    	  		sed -i -e "s/#tmpSpaceMb/$tmp_space_mb/g" $script_path
 			sed -i -e "s/#analysisFile/${analysis_file//\//\\/}/" $script_path
 			sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
 			sed -i -e "s/#referenceDict/${REFERENCE_DICT//\//\\/}/" $script_path
@@ -840,44 +910,38 @@ function submitPostProcessingJobs {
 	local recalibrated_merged_bam_output_dir=$results_dir/recalibration
 	local recalibrated_input_dir=$analysis_dir/recalibration
 	local recalibrated_bam_files=""
-
-	local dependency_post_recal="afterok"
-
-	local chunk_count=0	
+	local chunk_count=0
 	for chunk_name in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`; do
 
 		if [[ $chunk_name != ""  ]]; then 
-
-			chunk_count=$(( $chunk_count + 1 ))	
-			chunk="chunk_$chunk_name"
+			
+			chunk_count=$(( $chunk_count + 1 ))
+			local chunk="chunk_$chunk_count"
 			recalibrated_bam_files="$recalibrated_bam_files $sample.$chunk.realigned.recalibrated.bam"
-		
-		fi
 
-	done
+		fi
+	done			
+
+	local dependency_post_recal="afterok"
+
+	local bam_size=`grep -P "^$sample" $BAM_SIZE_FILE|cut -f2`
+	local bam_size_mb=$(( $bam_size / 1024))
+	local bam_size_gb=$(( $bam_size_mb / 1024))
+	local tmp_space_gb=$(( $bam_size_gb * 10/4 ))
 
 	echo "`$NOW`creating and submitting job script to merge recalibrated chunk BAMs..."
 		
 	#create and configure job script to merge realigned BAM files		
 	script_path=$run_dir/MB_${sample}_000.sh
-	cp $GATK_DIR/gatk3_merge_recalibrated_bams_and_gvcfs.sh $script_path
+	cp $BASEDIR/merge_bam.sh $script_path
 
  	sed -i -e "s/#samtoolsVersion/$SAMTOOLS_VERSION/" $script_path
-	sed -i -e "s/#picardVersion/$PICARD_VERSION/" $script_path
-	sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
-	sed -i -e "s/#pathStripIndelQualsScript/${PATH_STRIP_INDEL_QUALS_SCRIPT//\//\\/}/" $script_path	
-	
-	sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
+	sed -i -e "s/#tmpSpaceGb/$tmp_space_gb/" $script_path
+
 	sed -i -e "s/#sample/$sample/" $script_path
 	sed -i -e "s/#inputDirRecalibrated/${recalibrated_input_dir//\//\\/}/" $script_path	
 	sed -i -e "s/#recalibratedBam/$recalibrated_bam_files/" $script_path	
 	sed -i -e "s/#pathOutputDirRecalibrated/${recalibrated_merged_bam_output_dir//\//\\/}/" $script_path
-
-	local string9="rm \$INPUT_DIR\/\$BAM_FILE"
-	local string10="echo \"chunk bam files are kept for indel calling\""
-	sed -i -e "s/$string9/${string10//\//\\/}/" $script_path
-	local string11="rm \$INPUT_DIR\/\$BAM_FILE.bai"
-	sed -i -e "s/$string11//" $script_path
 
 	#submit job and save job ID to dependency variable
 	log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
@@ -915,6 +979,25 @@ function submitPostProcessingJobs {
 
 			echo "`$NOW`creating and submitting job script to get post-recalibration report on chunk..."
 
+			local total_file_size_mb=0
+			for file in $INDELS_1000G $INDELS_GOLDSTD $DBSNP $REFERENCE_FASTA; do
+
+			    local file_size_kb=`du $file | cut -f1`
+			    if [ $file_size_kb != 0 ]; then
+				local file_size_mb=$(( $file_size_kb / 1024 ))
+			    fi
+			    total_file_size_mb=$(( $total_file_size_mb + $file_size_mb ))
+
+			done
+
+			local bam_size=`grep -P "^$sample" $BAM_SIZE_FILE|cut -f2`
+			local chunks_total=`grep -P "^$sample" $BAM_SIZE_FILE|cut -f3`
+			local bam_chunk_size=$(( $bam_size / $chunks_total ))
+			local bam_chunk_size_mb=$(( $bam_chunk_size / 1024 ))
+			total_file_size_mb=$(( $total_file_size_mb + $bam_chunk_size_mb ))
+
+			local tmp_space_mb=$(( $total_file_size_mb * 2 ))
+
 			local chunk_formatted=`printf "%.3d\n" $chunk_name`			
  			local script_path=$run_dir/PM_${sample}_${chunk_formatted}.sh
 			cp $GATK_DIR/gatk3_postrecalibration_metrics.sh $script_path
@@ -924,7 +1007,8 @@ function submitPostProcessingJobs {
 			sed -i -e "s/#picardVersion/$PICARD_VERSION/" $script_path
 			sed -i -e "s/#rVersion/$R_VERSION/" $script_path
 			sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
-    	  
+    	  		sed -i -e "s/#tmpSpaceMb/$tmp_space_mb/" $script_path
+
 			sed -i -e "s/#indels1000G/${INDELS_1000G//\//\\/}/" $script_path	
 			sed -i -e "s/#indelsGoldStd/${INDELS_GOLDSTD//\//\\/}/" $script_path
 			sed -i -e "s/#dbSnp/${DBSNP//\//\\/}/" $script_path
@@ -940,9 +1024,9 @@ function submitPostProcessingJobs {
 
 			#remove bam original chunk and realigned chunk
 			local chunk_bam_original=`echo $chunk_bam|sed -e 's/realignment/chunks/'|sed -e 's/realigned\.//'`
-			local string13="#logging"
-			local string14="rm $chunk_bam $chunk_bam.bai $chunk_bam_original $chunk_bam_original.bai\n\n #logging"
-			sed -i -e "s/$string13/${string14//\//\\/}/" $script_path
+			local string_gatk="#logging"
+			local string_mutect="rm $chunk_bam $chunk_bam.bai $chunk_bam_original $chunk_bam_original.bai\n\n #logging"
+			sed -i -e "s/$string_gatk/${string_mutect//\//\\/}/" $script_path
 
 			if [[ $TARGET_INTERVALS_BED != ""  ]]
 			then
@@ -976,6 +1060,23 @@ function submitPostProcessingJobs {
 	local post_recalibration_plots_output_dir=$results_dir/recalibration/plots/post/	
 		
 	echo "`$NOW`creating and submitting job script to generate summary metrics..."
+
+	local total_file_size_mb=0
+	for file in $REFERENCE_FASTA; do
+
+	    local file_size_kb=`du $file | cut -f1`
+	    if [ $file_size_kb != 0 ]; then
+		local file_size_mb=$(( $file_size_kb / 1024 ))
+	    fi
+	    total_file_size_mb=$(( $total_file_size_mb + $file_size_mb ))
+
+	done
+
+	local bam_size=`grep -P "^$sample" $BAM_SIZE_FILE|cut -f2`
+	local bam_size_mb=$(( $bam_size / 1024 ))
+	total_file_size_mb=$(( $total_file_size_mb + $bam_size_mb ))
+
+	local tmp_space_mb=$(( $total_file_size_mb * 2 ))
 			
 	local script_path=$run_dir/CS_${sample}_000.sh
 	local summary_script_path=$run_dir/summary_mutect.$sample.pl
@@ -985,6 +1086,7 @@ function submitPostProcessingJobs {
 	sed -i -e "s/#rVersion/$R_VERSION/" $script_path
 	sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
  	sed -i -e "s/#nxtGenUtilsVersion/$NXTGENUTILS_VERSION/" $script_path
+    	sed -i -e "s/#tmpSpaceMb/$tmp_space_mb/" $script_path
     	  	
    	sed -i -e "s/#analysisDir/${analysis_dir//\//\\/}/" $script_path
 	sed -i -e "s/#resultsDir/${results_dir//\//\\/}/" $script_path
@@ -1195,6 +1297,9 @@ echo -e "DATE\tTIME\tSCRIPT\tSAMPLE\tCHUNK\tSTEP\tSTATUS" >> $RUN_LOG
 
 SETUP_LOG=$ANALYSIS_DIR_MSVC/setup.log
 echo -n "" > $SETUP_LOG
+
+BAM_SIZE_FILE=$ANALYSIS_DIR_MSVC/bam_size.txt
+echo -n "" > $BAM_SIZE_FILE
 
 #redirect stdout and stderr to terminal and log file
 exec > >(tee $SETUP_LOG)

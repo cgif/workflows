@@ -190,7 +190,7 @@ foreach $sample (@sample){
 						
 						}else{
 							
-							print OUT "<TD><CENTER><IMG SRC=error.png ALT=FAIL></A>\n" if $sum{$sample}{$tag} eq "FAIL";
+							print OUT "<TD><CENTER><IMG SRC=error.png ALT=FAIL></A>\n";
 		        
 						}
 						
@@ -352,20 +352,22 @@ print OUT "<P><FONT SIZE = '+1'><A HREF = '$sample_summary_php_url'>Coverage Sum
 			  "</FONT><BR>";
 }
 
+$plot = "$sample_interval_summary_url".".png";
 if (-s $sample_interval_summary){
 print OUT "<P><FONT SIZE = '+1'><A HREF = '$sample_interval_summary_php_url'>Interval Coverage Summary</A> ".
 							   "<A HREF = '$sample_interval_summary_url'>[TSV]</A> ".
-							   "<A HREF = '$sample_interval_summary_url.xlsx'>[XLS]</A> ".
-							   "<A HREF = '$sample_interval_summary_url.png'>[Plot]</A>".
-			"</FONT><BR>";
+							   "<A HREF = '$sample_interval_summary_url.xlsx'>[XLS]</A> ";
+print OUT						   "<A HREF = '$plot'>[Plot]</A>" if (-s $plot);
+print OUT "</FONT><BR>";
 }
 
+$plot = "$sample_cumulative_coverage_proportions_url".".png";
 if (-s $sample_cumulative_coverage_proportions){			
 print OUT "<P><FONT SIZE = '+1'><A HREF = '$sample_cumulative_coverage_proportions_php_url'>Cumulative Coverage Proportions</A> ".
 							   "<A HREF = '$sample_cumulative_coverage_proportions_url'>[TSV]</A> ".
-							   "<A HREF = '$sample_cumulative_coverage_proportions_url.xlsx'>[XLS]</A> ".
-							   "<A HREF = '$sample_cumulative_coverage_proportions_url.png'>[Plot]</A> ".
-			"</FONT><BR>";
+							   "<A HREF = '$sample_cumulative_coverage_proportions_url.xlsx'>[XLS]</A> ";
+print OUT						   "<A HREF = '$plot'>[Plot]</A>" if (-s $plot);
+print OUT "</FONT><BR>";
 }
 
 #usage statistics
@@ -375,7 +377,6 @@ $usage_file = "$project_dir_results/$date/multisample/usage.$date.txt";
 $usage_php = "$project_dir_analysis/$date/multisample/run/usage.php";
 $usage_url = "http://$deployment_server/$summary_link/usage.php";
 if (-s $usage_file){
-    print OUT "<HR>";
     system("scp -r $usage_file $deployment_server:$summary_deployment/usage.txt > /dev/null 2>&1");
     system("scp -r $usage_php $deployment_server:$summary_deployment/usage.php > /dev/null 2>&1");
     print OUT "<HR><P><FONT SIZE = '+1'>Usage of computational resources can be monitored <A HREF = '$usage_url'>here</A></FONT><BR>";
