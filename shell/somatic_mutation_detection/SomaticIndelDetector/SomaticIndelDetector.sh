@@ -49,6 +49,8 @@ java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME
 -R $TMPDIR/ref.fasta \
 -L $TMPDIR/intervals.intervals \
 -o $TMPDIR/tmp.vcf \
+-filter 'T_COV<14||N_COV<8||T_INDEL_F<0.15||T_INDEL_CF<0.5' \
+-ws 200 \
 -verbose $TMPDIR/tmp.stats
 
 echo "`${NOW}` copying files from tmp directory..."
