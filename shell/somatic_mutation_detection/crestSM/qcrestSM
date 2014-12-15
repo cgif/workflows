@@ -1,0 +1,351 @@
+#!/bin/bash
+
+# sets up directory structure and generates, configures and submits
+# scripts to run CREST algorithm for detecting SOMATIC structural variations at base-pair resolution
+
+#CONFIGURATION
+##############
+
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+IMAGE_DIR=$BASEDIR/../../resources/images
+USAGE="$BASEDIR/qcrest.usage"
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+CREST_VERSION=1.0
+SAMTOOLS_VERSION=0.1.19
+BLAT_VERSION=34 
+
+GROUP_VOL_CGI=/ax3-cgi
+DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
+DEPLOYMENT_BASE_DIR=/www/html/report
+
+# default values
+REFERENCE_DIR=/ax3-cgi/resources/reference/eukaryote/human/hs37d5
+REFERENCE_FASTA=$REFERENCE_DIR/hs37d5.fa
+REFERENCE_2BIT=$REFERENCE_DIR/hs37d5.2bit
+
+REFERENCE_CHUNKS_GENOME=$REFERENCE_DIR/hs37d5.chunks.genome.SM.bed
+REFERENCE_CHUNKS_EXOME=$REFERENCE_DIR/hs37d5.chunks.exome.bed
+REFERENCE_CHUNKS_TARGETED=$REFERENCE_DIR/hs37d5.chunks.targeted.bed
+REFERENCE_CHUNKS_USER=""
+TARGET_INTERVALS_BED=""
+TYPE="WGS"
+
+READ_LENGTH=150
+MIN_SC_READS=3
+SENSITIVE=FALSE
+PORT=20010
+
+#COMMAND LINE ARGS
+##################
+#parse command line args
+while getopts "n:s:r:d:u:a:t:l:m:f:h" OPTION; do
+
+    case "$OPTION" in
+	n) PROJECT="$OPTARG";;
+	s) SAMPLE_LIST="$OPTARG";;
+	r) REFERENCE_FASTA="$OPTARG";;
+	d) REFERENCE_2BIT="$OPTARG";;
+	u) REFERENCE_CHUNKS_USER="$OPTARG";;
+	a) TARGET_INTERVALS_BED="$OPTARG";;
+	t) TYPE="$OPTARG";;
+	l) READ_LENGTH="$OPTARG";;
+	m) MIN_SC_READS="$OPTARG";;
+	f) SENSITIVE="$OPTARG";;
+	h) cat $USAGE; exit 0;;
+	[?]) cat $USAGE; exit 1;;
+    esac
+
+done
+
+#check if all required arguments are present...
+if [[ -z $PROJECT ]] || [[ -z $SAMPLE_LIST ]] ; then
+        cat $USAGE
+        exit 1
+fi
+
+#check if input directory exists
+if [[ ! -d $GROUP_VOL_CGI/results/$PROJECT/mutect ]]; then
+        echo "`$NOW`ERROR: input directory does not exist: $GROUP_VOL_CGI/results/$PROJECT/mutect"
+        exit 1
+fi
+
+#check if sample list file exists
+if [[ ! -e $SAMPLE_LIST ]]; then
+        echo "`$NOW`ERROR: sample list file does not exist: $SAMPLE_LIST"
+        exit 1
+fi
+
+#check if reference fasta exists
+if [[ ! -e $REFERENCE_FASTA ]]; then
+        echo "`$NOW`ERROR: reference sequence file does not exist: $REFERENCE_FASTA"
+        exit 1
+fi
+
+#check if 2bit reference exists
+if [[ ! -e $REFERENCE_2BIT ]]; then
+        echo "`$NOW`ERROR: reference dictionary file does not exist: $REFERENCE_2BIT"
+        exit 1
+fi
+
+#check if target intervals bed exists (if name is provided)
+if [[ $TARGET_INTERVALS_BED != ""  ]] && [[ ! -e $TARGET_INTERVALS_BED ]]; then
+	echo "`$NOW`ERROR: target interval BED file does not exist: $TARGET_INTERVALS_BED"
+        exit 1
+fi    
+
+#set up chunks depend on type of NGS data
+if [[ "$TYPE" == "TARGETED" ]]; then
+
+	#make sure target/amplicon intervals were supplied
+	if [[ $TARGET_INTERVALS_BED == ""  ]]; then
+
+		echo "`$NOW`ERROR: for targeted sequencing data target- or amplicon-coordinates in BED format have to be supplied via the -a command line argument."
+	        exit 1
+
+	fi
+
+	#for high coverage targeted sequencing data
+	#HaplotypeCaller will run too long if executed
+	#on all targets simultaneously
+	REFERENCE_CHUNKS=$REFERENCE_CHUNKS_TARGETED
+
+elif [[ "$TYPE" == "EXOME" ]]; then
+
+	#use exome chunks for exome sequencing
+	REFERENCE_CHUNKS=$REFERENCE_CHUNKS_EXOME
+
+elif [[ "$TYPE" == "WGS" ]]; then
+
+	#use exome chunks for exome sequencing
+	REFERENCE_CHUNKS=$REFERENCE_CHUNKS_GENOME
+
+else
+
+	echo "`$NOW`ERROR: invalid value for sequencing type option (-t) option : $TYPE."
+	echo "`$NOW`allowed values: WGS, EXOME, TARGETED."
+        exit 1
+
+fi
+
+
+if [[ "$REFERENCE_CHUNKS_USER" != "" ]] && [[ -e $REFERENCE_CHUNKS_USER ]]; then
+
+        REFERENCE_CHUNKS=$REFERENCE_CHUNKS_USER
+
+elif [[ "$REFERENCE_CHUNKS_USER" != "" ]] && [[ ! -e $REFERENCE_CHUNKS_USER ]]; then
+
+	echo "`$NOW`ERROR: user-defined chunk file does not exist: $REFERENCE_CHUNKS_USER"
+        exit 1
+fi
+
+#get chunk count
+TOTAL_CHUNK_COUNT=0
+
+for CHUNK_NAME in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`; do
+	
+	if [[ $CHUNK_NAME != ""  ]]; then
+
+		TOTAL_CHUNK_COUNT=$(( $TOTAL_CHUNK_COUNT + 1 ))
+
+	fi
+	
+done
+
+
+#FUNCTIONS
+##########
+
+function submitCrest {
+
+	local tumor_bam=$1
+	local germline_bam=$2
+	local analysis_dir=$3
+	local results_dir=$4
+	local port=$5
+	local sample=`basename $tumor_bam .bam`
+
+	mkdir -p $analysis_dir
+       	mkdir -p $analysis_dir/run
+       	mkdir -p $analysis_dir/crestSM
+
+	mkdir -p $results_dir
+
+	local chunk_count=0
+	local crest_dependency="afterany"
+	local crest_chunk_txt=""
+	local crest_chunk_html=""
+
+	for chunk_name in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`; do	
+	
+		if [[ $chunk_name != ""  ]]
+		then 
+
+			chunk_count=$(( $chunk_count + 1 ))	
+			echo "`$NOW`-------------------------------------------------------------------------------------"	 
+			echo "`$NOW`processing chunk $chunk_count of $TOTAL_CHUNK_COUNT..."
+
+			chunk="chunk_$chunk_name"
+			tumor_bam_name=$tumor_bam.$chunk.realigned.recalibrated.bam
+			germline_bam_name=$germline_bam.$chunk.realigned.recalibrated.bam
+
+			local port=`expr $port + 1` 
+
+			local chunk_formatted=`printf "%.3d\n" $chunk_name`
+        		local script_path=$analysis_dir/run/CR_${sample}_${chunk_formatted}.sh
+        		cp $BASEDIR/crestSM.sh $script_path
+        		chmod 770 $script_path
+
+        		sed -i -e "s/#crestVersion/$CREST_VERSION/" $script_path
+        		sed -i -e "s/#samtoolsVersion/$SAMTOOLS_VERSION/" $script_path
+        		sed -i -e "s/#blatVersion/$BLAT_VERSION/" $script_path
+       			sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+       			sed -i -e "s/#reference2Bit/${REFERENCE_2BIT//\//\\/}/" $script_path
+
+        		sed -i -e "s/#sample/${sample}/" $script_path
+        		sed -i -e "s/#tumorBam/${tumor_bam_name//\//\\/}/" $script_path
+        		sed -i -e "s/#germlineBam/${germline_bam_name//\//\\/}/" $script_path
+        		sed -i -e "s/#analysisPath/${analysis_dir//\//\\/}/" $script_path
+        		sed -i -e "s/#readLength/$READ_LENGTH/" $script_path
+        		sed -i -e "s/#minScReads/$MIN_SC_READS/" $script_path
+        		sed -i -e "s/#sensitive/$SENSITIVE/" $script_path
+       			sed -i -e "s/#serverPort/$port/" $script_path
+
+			#submit job and save job ID to dependency variable
+			local log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+			echo "`$NOW`$script_path"
+				
+			local job_id=`qsub -o $log_output_path $script_path`
+			echo "`$NOW`job ID: $job_id"
+
+			crest_dependency="$crest_dependency:$job_id"
+			crest_chunk_txt="$crest_chunk_txt $analysis_dir/crestSM/$sample.$chunk.realigned.recalibrated.bam.predSV.txt"
+			crest_chunk_html="$crest_chunk_html $analysis_dir/crestSM/$sample.$chunk.realigned.recalibrated.bam.predSV.html"
+			echo "`$NOW`-------------------------------------------------------------------------------------"
+
+		fi
+	done
+
+	echo "`$NOW`-------------------------------------------------------------------------------------"	 
+	echo "`$NOW`merging chunks..."
+
+        local script_path=$analysis_dir/run/MC_${sample}_000.sh
+        cp $BASEDIR/merge_chunks.sh $script_path
+        chmod 770 $script_path
+
+        sed -i -e "s/#deploymentServer/${DEPLOYMENT_SERVER//\//\\/}/" $script_path
+        sed -i -e "s/#summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $script_path
+
+	crest_chunk_txt=`echo $crest_chunk_txt | perl -pe "s/\//forwardSlash/g"`
+	crest_chunk_html=`echo $crest_chunk_html | perl -pe "s/\//forwardSlash/g"`
+
+        sed -i -e "s/#crestChunkTxt/${crest_chunk_txt//\//\\/}/" $script_path
+        sed -i -e "s/#crestChunkHTML/${crest_chunk_html//\//\\/}/" $script_path
+        sed -i -e "s/#resultsPath/${results_dir//\//\\/}/" $script_path
+
+	perl -i -pe "s/forwardSlash/\//g" $script_path
+
+	#submit job and save job ID to dependency variable
+	local log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+	echo "`$NOW`$script_path"
+				
+	local job_id=`qsub -W depend=$crest_dependency -o $log_output_path $script_path`
+	echo "`$NOW`job ID: $job_id"
+	echo "`$NOW`-------------------------------------------------------------------------------------"
+
+}
+
+######################
+
+#create and set permissions for project parent directory 
+
+ANALYSIS_DIR_PROJECT=$GROUP_VOL_CGI/analysis/$PROJECT/crestSM
+RESULTS_DIR_PROJECT=$GROUP_VOL_CGI/results/$PROJECT/crestSM
+ 
+mkdir -p $ANALYSIS_DIR_PROJECT
+chmod 770 $ANALYSIS_DIR_PROJECT
+    
+mkdir -p $RESULTS_DIR_PROJECT
+chmod 770 $RESULTS_DIR_PROJECT
+
+mkdir -p $ANALYSIS_DIR_PROJECT/$TODAY
+chmod 770 $ANALYSIS_DIR_PROJECT/$TODAY
+    
+mkdir -p $RESULTS_DIR_PROJECT/$TODAY
+chmod 770 $RESULTS_DIR_PROJECT/$TODAY
+	
+ANALYSIS_DIR_MSVC=$ANALYSIS_DIR_PROJECT/$TODAY/multisample
+RESULTS_DIR_MSVC=$RESULTS_DIR_PROJECT/$TODAY/multisample
+
+mkdir -p $ANALYSIS_DIR_MSVC
+chmod 770 $ANALYSIS_DIR_MSVC
+    
+mkdir -p $RESULTS_DIR_MSVC
+chmod 770 $RESULTS_DIR_MSVC
+
+SETUP_LOG=$ANALYSIS_DIR_MSVC/setup.log
+echo -n "" > $SETUP_LOG
+
+#redirect stdout and stderr to terminal and log file
+exec > >(tee $SETUP_LOG)
+exec 2>&1
+
+echo "`$NOW`setting up CREST run..."
+echo "`$NOW`project   	      : $PROJECT"
+echo "`$NOW`list of samples   : $SAMPLE_LIST"
+echo "`$NOW`sequencing type   : $TYPE"
+echo "`$NOW`read length       : $READ_LENGTH"
+echo "`$NOW`min number of soft-clipped reads: $MIN_SC_READS"
+echo "`$NOW`reference sequence: $REFERENCE_FASTA"
+echo "`$NOW`chunk coordinates : $REFERENCE_CHUNKS"
+echo "`$NOW`target intervals  : $TARGET_INTERVALS_BED"
+echo "`$NOW`analysis directory: $ANALYSIS_DIR_PROJECT"
+echo "`$NOW`results directory : $RESULTS_DIR_PROJECT"
+
+#create deployment directory
+SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/crestSM/$TODAY
+ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
+
+#get sample count from sample list skipping blank lines
+TOTAL_SAMPLE_COUNT=`sort $SAMPLE_LIST | uniq | awk '/^\s*$/ {next;} { print; }' | wc -l`
+SAMPLE_COUNT=0     
+
+#for each sample (make sure that each sample and date is unique) run MuTect
+sort $SAMPLE_LIST | uniq | while read SAMPLE_GERMLINE DATE_GERMLINE SAMPLE_TUMOR DATE_TUMOR; do
+	
+        if [[ "$SAMPLE_GERMLINE" != "" ]] && [[ "$SAMPLE_TUMOR" != "" ]]; then
+               
+		SAMPLE_COUNT=$(( $SAMPLE_COUNT + 1 ))
+
+		echo "`$NOW`"
+		echo "`$NOW`"
+		echo "`$NOW`running CREST for sample $SAMPLE_COUNT of $TOTAL_SAMPLE_COUNT: $SAMPLE_GERMLINE & $SAMPLE_TUMOR"
+
+		GERMLINE_BAM=$GROUP_VOL_CGI/analysis/$PROJECT/mutect/$DATE_GERMLINE/$SAMPLE_GERMLINE/$SAMPLE_GERMLINE
+		TUMOR_BAM=$GROUP_VOL_CGI/analysis/$PROJECT/mutect/$DATE_TUMOR/$SAMPLE_TUMOR/$SAMPLE_TUMOR
+		ANALYSIS_DIR_SAMPLE=$ANALYSIS_DIR_PROJECT/$TODAY/$SAMPLE_TUMOR
+		RESULTS_DIR_SAMPLE=$RESULTS_DIR_PROJECT/$TODAY/$SAMPLE_TUMOR
+
+		submitCrest  	$TUMOR_BAM \
+				$GERMLINE_BAM \
+				$ANALYSIS_DIR_SAMPLE \
+				$RESULTS_DIR_SAMPLE \
+				$PORT 
+
+  	      	PORT=`expr $PORT + 50`   
+
+	fi
+
+done
+
+
+  
+	    
+
+
+
