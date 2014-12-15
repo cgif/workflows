@@ -636,11 +636,6 @@ ls -l\n \
 			sed -i -e "s/#nextGenUtilsVersion/$NXTGENUTILS_VERSION/" $script_path
     	  		sed -i -e "s/#tmpSpaceMb/$tmp_space_mb/g" $script_path
 
-			#don't remove realigned bam chunk until postrecalibration report is done 
-			local string_gatk="rm \$REALIGNED_BAM_FILE \$REALIGNED_BAM_FILE.bai"
-			local string_mutect="#rm \$REALIGNED_BAM_FILE \$REALIGNED_BAM_FILE.bai"
-			sed -i -e "s/$string_gatk/${string_mutect//\//\\/}/" $script_path
-
 			sed -i -e "s/#cpuThreads/$PR_CPUTHREADS/" $script_path
 			sed -i -e "s/#nctThreads/$PR_DATATHREADS/" $script_path
 			sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
