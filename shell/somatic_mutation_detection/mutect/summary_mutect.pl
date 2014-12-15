@@ -56,7 +56,7 @@ foreach $sample (@sample){
 	$realignment_log = "$project_dir_analysis/$date/$sample/run/RR_$sample"."_$formatted_chunk.log";
 	if (-s $realignment_log){
 	    $realignment_grep = "";
-	    $realignment_grep = `grep ERROR $realignment_log`;
+	    $realignment_grep = `grep -P 'ERROR|WARNING' $realignment_log`;
 
 	    if ($realignment_grep eq ""){
                 $sum{$sample}{$chunk}{'realigned_bam'} = "PASS";
@@ -75,7 +75,7 @@ foreach $sample (@sample){
         $recalibration_log = "$project_dir_analysis/$date/$sample/run/PR_$sample"."_$formatted_chunk.log";
         if (-s $recalibration_log){
 	    $recalibrated_grep = "";
-	    $recalibrated_grep = `grep ERROR $recalibration_log`;
+	    $recalibrated_grep = `grep -P 'ERROR|WARNING' $recalibration_log`;
 
 	    if ($recalibrated_grep eq ""){
                 $sum{$sample}{$chunk}{'recalibrated_bam'} = "PASS";
