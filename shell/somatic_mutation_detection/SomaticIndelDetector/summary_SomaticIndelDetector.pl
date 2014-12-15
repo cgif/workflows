@@ -53,6 +53,7 @@ foreach $sample_norm (@sample){
     next if $i % 2 != 1;
     $sample_tumor = "$sample[$i]";
     $sample_pair = "$sample_norm.vs.$sample_tumor";
+
     foreach $chunk (1..$total_chunks){
 	$chunk_formatted=`printf "%.3d\n" $chunk`;
 	chomp($chunk_formatted);
@@ -95,8 +96,9 @@ print OUT "<TH><CENTER>SomaticIndelDetector";
 
 $i = 0;
 foreach $sample_norm (@sample){
-    next if $i % 2 == 1;
-    $sample_tumor = "$sample[$i+1]";
+    $i++;
+    next if $i % 2 != 1;
+    $sample_tumor = "$sample[$i]";
     $sample_pair = "$sample_norm.vs.$sample_tumor";
     foreach $chunk (1..$total_chunks){
 	if ($chunk == 1){
@@ -160,7 +162,6 @@ foreach $sample_norm (@sample){
 	    print OUT "<TD><CENTER><IMG SRC=error.png ALT=FAIL>\n"
 	}
     }
-    $i++;
 } 
 
 system("scp -r $summary_results/index.html $deployment_server:$summary_deployment/index.html > /dev/null 2>&1");
