@@ -11,8 +11,8 @@ module load java/jdk-7u25
 GROUP_VOL_CGI=/ax3-cgi
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 
-ANNOVAR_DATE=2014-03-06
-HGMD_RELEASE=2013_4
+ANNOVAR_DATE=2014-11-13
+HGMD_RELEASE=2014_3
 GI_BED_FILE=CCDS_genic_intolerance_noNA.bed
 
 REFERENCE_FASTA=/groupvol/cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.fa

@@ -4,8 +4,8 @@
 #script to combine summary variant annotation 
 # generated with ANNOVAR table_annovar.pl
 
-#PBS -l walltime=1:00:00
-#PBS -l select=1:ncpus=1:mem=6gb
+#PBS -l walltime=5:00:00
+#PBS -l select=1:ncpus=1:mem=20gb
 
 #PBS -M cgi@imperial.ac.uk
 #PBS -m ea

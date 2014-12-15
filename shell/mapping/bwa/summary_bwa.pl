@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-$is_project_dir = "isProject";
+$is_project_dir = "T";
 $project_dir_analysis = "projectDirAnalysis";
 $project_dir_results = "projectDirResults";
 $today = "Today";

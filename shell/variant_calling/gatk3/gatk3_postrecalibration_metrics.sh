@@ -102,6 +102,13 @@ then
 	STATUS=FAILED
 fi
 
+if [[ "$STATUS" == "OK" ]]; then
+	echo "`${NOW}`deleting realigned chunk file $INPUT_BAM"
+	rm $INPUT_BAM $INPUT_BAM.bai
+else
+	echo "`${NOW}`keeping realigned chunk file for rerun $INPUT_BAM"
+fi
+
 echo -e "`${NOW}`$SCRIPT_CODE\t$SAMPLE\tall\tpostrecalibration_report\t$STATUS" >> $RUN_LOG
 
 

@@ -12,6 +12,7 @@
 #PBS -M cgi@imperial.ac.uk
 #PBS -j oe
 
+#PBS -q pqcgi
 
 module load fastqc/0.10.0
 
