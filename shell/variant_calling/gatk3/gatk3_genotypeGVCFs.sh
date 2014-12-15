@@ -158,3 +158,8 @@ fi
 
 echo -e "`${NOW}`$SCRIPT_CODE\tmultisample\t$FRAGMENT\traw_vcf\t$STATUS" >> $RUN_LOG
 
+if [[ "$STATUS" == "FAILED" ]]; then
+	exit 1;
+fi
+
+echo -e "`${NOW}` done"

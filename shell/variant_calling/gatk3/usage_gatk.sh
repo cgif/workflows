@@ -27,7 +27,7 @@ do
         JOB_ID=`basename $JOB_ID .cx1b` 
 
         env MAILRC=/dev/null \
-        password-cgi@exchange.imperial.ac.uk='T45e32g1' \
+        password-cgi@exchange.imperial.ac.uk='teSSel14g' \
         ssl-verify=ignore \
         nss-config-dir=/groupvol/cgi/resources/mailsert/ \
         nail -n -N -R -f imaps://cgi@exchange.imperial.ac.uk/cx1 <<EOF > $TMPDIR/usage 2>&1

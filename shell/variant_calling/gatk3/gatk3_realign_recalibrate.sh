@@ -3,7 +3,7 @@
 ## script to run GATK
 
 #PBS -l walltime=24:00:00
-#PBS -l select=1:ncpus=#dataThreads:mem=5gb
+#PBS -l select=1:ncpus=#dataThreads:mem=5gb:tmpspace=#tmpSpaceMbmb
 
 #PBS -M cgi@imperial.ac.uk
 #PBS -m ae
@@ -29,6 +29,7 @@ JAVA_XMX=4800M
 SCRIPT_CODE="GATKRARC"
 
 RUN_LOG=#runLog
+WARNING_LOG=#warningLog
 
 LOG_INFO="`${NOW}`INFO $SCRIPT_CODE"
 LOG_ERR="`${NOW}`ERR $SCRIPT_CODE"
@@ -89,7 +90,7 @@ cp $REFRENCE_SEQ_DICT $TMPDIR/reference.dict
 # make tmp folder for temporary java files
 mkdir $TMPDIR/tmp
 
-# create target intervals for IndelRealigner
+# create target intervals for IndelRealigner !!!THIS LINE NOT TO BE CHANGED!!!!USED FOR MUTECT!!!
 # although the input BAM file contains only a subset of reads
 # RealignerTargetCreator will still traverse all sequences
 # in the input header. Therefor, we still have to supply 
@@ -208,25 +209,38 @@ READ_COUNT_OUTPUT=`samtools flagstat $TMPDIR/$SAMPLE.$FRAGMENT.realigned.bam | h
 echo "Number of reads in input chunk file: $READ_COUNT_INPUT"
 echo "Number of reads in realigned file: $READ_COUNT_OUTPUT"
 
-if [[ $READ_COUNT_INPUT -eq $READ_COUNT_OUTPUT ]]; then
-	echo "`${NOW}`INFO $SCRIPT_CODE copying realigned BAM to output directory $ANALYSIS_DIR/realignment..."
-	cp $SAMPLE.$FRAGMENT.realigned.bam $ANALYSIS_DIR/realignment/
-	cp $SAMPLE.$FRAGMENT.realigned.bam.bai $ANALYSIS_DIR/realignment/
-else
-	echo "ERROR: $SCRIPT_CODE input bam and realined bam have different numbers of reads"
+echo "`${NOW}`INFO $SCRIPT_CODE copying realigned BAM to output directory $ANALYSIS_DIR/realignment..."
+cp $SAMPLE.$FRAGMENT.realigned.bam $ANALYSIS_DIR/realignment/
+cp $SAMPLE.$FRAGMENT.realigned.bam.bai $ANALYSIS_DIR/realignment/
+
+
+if [[ $READ_COUNT_INPUT -ne $READ_COUNT_OUTPUT ]]; then
+	echo "WARNING: $SCRIPT_CODE input bam and realined bam have different numbers of reads"	
+	echo "$SAMPLE $SCRIPT_CODE input chunk bam and realined bam have different numbers of reads" >> $WARNING_LOG
+	echo "$SAMPLE $SCRIPT_CODE Number of reads in input chunk file: $READ_COUNT_INPUT" >> $WARNING_LOG
+	echo "$SAMPLE $SCRIPT_CODE Number of reads in realigned chunk file: $READ_COUNT_OUTPUT" >> $WARNING_LOG
 fi
 
-#logging and deleting internediate file
-if [[ -s $ANALYSIS_DIR/realignment/$SAMPLE.$FRAGMENT.realigned.bam ]]; then
+#logging and deleting intermediate file
+
+if [[ -s $ANALYSIS_DIR/realignment/$SAMPLE.$FRAGMENT.realigned.bam ]] && [[ $READ_COUNT_INPUT -eq $READ_COUNT_OUTPUT ]] ; then
 	STATUS=OK
 	echo "deleting realigned bam file $INPUT_BAM"
 	rm $INPUT_BAM $INPUT_BAM.bai
+elif [[ -s $ANALYSIS_DIR/realignment/$SAMPLE.$FRAGMENT.realigned.bam ]] && [[ $READ_COUNT_INPUT -ne $READ_COUNT_OUTPUT ]]; then
+	STATUS=WARNING
+	echo "WARNING: $SCRIPT_CODE keeping input file for checks $INPUT_BAM"
 else
 	STATUS=FAILED
-	echo "realignment, keeping input file for rerun $INPUT_BAM"
+	echo "ERROR: $SCRIPT_CODE realignment failed, keeping input file for rerun $INPUT_BAM"
 fi
 
 echo -e "`${NOW}`$SCRIPT_CODE\t$SAMPLE\t$FRAGMENT\trealigned_bam\t$STATUS" >> $RUN_LOG
+
+if  [[ "$STATUS" == "FAILED" ]]; then 
+	echo "`${NOW}` realignement failed, exiting"
+	exit 1
+fi
 
 #run summary script
 perl $SUMMARY_SCRIPT_PATH

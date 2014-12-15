@@ -95,7 +95,7 @@ java -Xmx$JAVA_XMX -XX:+UseSerialGC -jar $GATK_HOME/GenomeAnalysisTK.jar \
 echo "`${NOW}`copying recalibration report to $ANALYSIS_DIR/recalibration/reports/post..."
 cp ${SAMPLE}.${FRAGMENT}.realigned.recalibrated.recal_data.grp $ANALYSIS_DIR/recalibration/reports/post/
 
-#logging
+#logging !!!THIS LINE NOT TO BE CHANGES!!!USED FR MUTECT!!!
 STATUS=OK
 if [[ ! -s $ANALYSIS_DIR/recalibration/reports/post/${SAMPLE}.${FRAGMENT}.realigned.recalibrated.recal_data.grp ]]
 then

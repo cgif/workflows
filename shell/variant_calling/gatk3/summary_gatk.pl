@@ -160,7 +160,7 @@ if (-s $recalibrate_vcf_log){
 }
 
 my %report = ();
-my $eval_report = "$project_dir_results/$date/multisample/genotypeGVCFs/recalibration/$project"."_multisample.varianteval.report";
+my $eval_report = "$project_dir_results/$date/multisample/genotypeGVCFs/recalibration/$project"."_multisample.varianteval.dbSNP129.report";
 if (-s $eval_report){
     open (REPORT, "$eval_report");
     while (<REPORT>){
@@ -315,11 +315,11 @@ print OUT "<TH COLSPAN='8'><CENTER>Called Variants";
 print OUT "<TH COLSPAN='3'><CENTER>Filtered Variants";
 
 print OUT "<TR><TH><CENTER>Total";
-print OUT "<TH><CENTER>Known,%";
+print OUT "<TH><CENTER>Known<BR>(dbSNP129),%";
 print OUT "<TH><CENTER>TiTv<BR>total";
 
 print OUT "<TH><CENTER>Total";
-print OUT "<TH><CENTER>Known,%";
+print OUT "<TH><CENTER>Known<BR>(dbSNP129),%";
 print OUT "<TH><CENTER>TiTv<BR>total";
 print OUT "<TH><CENTER>TiTv<BR>known";
 print OUT "<TH><CENTER>TiTv<BR>novel";
@@ -328,7 +328,7 @@ print OUT "<TH><CENTER>Insertions<BR>total";
 print OUT "<TH><CENTER>Deletions<BR>total";
 
 print OUT "<TH><CENTER>Total";
-print OUT "<TH><CENTER>Known,%";
+print OUT "<TH><CENTER>Known<BR>(dbSNP129),%";
 print OUT "<TH><CENTER>TiTv<BR>total";
 
 #table rows
@@ -385,8 +385,8 @@ foreach my $chunk (1..$total_chunks){
 	    print OUT "<TD><CENTER>$report{'called'}{'total'}";
 	    print OUT "<TD><CENTER>$report{'called'}{'snp'}";
 	    print OUT "<TD><CENTER>$report{'called'}{'TiTvall'}";
-	    print OUT "<TD><CENTER>$report{'called'}{'TiTvnovel'}";
 	    print OUT "<TD><CENTER>$report{'called'}{'TiTvknown'}";
+	    print OUT "<TD><CENTER>$report{'called'}{'TiTvnovel'}";
 	    print OUT "<TD><CENTER>$report{'called'}{'SNP'}";
 	    print OUT "<TD><CENTER>$report{'called'}{'insertion'}";
 	    print OUT "<TD><CENTER>$report{'called'}{'deletion'}";

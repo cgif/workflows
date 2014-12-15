@@ -364,6 +364,7 @@ fi
 echo "`$NOW`running variant evalutation"
 FINAL_VCF_UNCOMPRESSED=`basename $FINAL_VCF .gz`
 gzip -d $FINAL_VCF
+#against dbSNP 129
 
 java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
   -T VariantEval \
@@ -377,11 +378,31 @@ java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME
   -EV CompOverlap \
   -EV CountVariants \
   -EV TiTvVariantEvaluator \
-  -o $TMPDIR/$SAMPLE.varianteval.report
+  -o $TMPDIR/$SAMPLE.varianteval.dbSNP129.report
 
 
-echo "`$NOW`INFO $SCRIPT_CODE copying variant evaluation report to $RESULTS_DIR/recalibration..."
-cp $TMPDIR/$SAMPLE.varianteval.report $RESULTS_DIR/recalibration
+echo "`$NOW`INFO $SCRIPT_CODE copying variant evaluation report dbSNP 129 to $RESULTS_DIR/recalibration..."
+cp $TMPDIR/$SAMPLE.varianteval.dbSNP129.report $RESULTS_DIR/recalibration
+
+#against current version
+ 
+java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
+  -T VariantEval \
+  -nt $NT \
+  -R $TMPDIR/reference.fa \
+  --eval $FINAL_VCF_UNCOMPRESSED \
+  --dbsnp $DBSNP_FILENAME \
+  -ST Sample \
+  -ST Filter \
+  -noEV \
+  -EV CompOverlap \
+  -EV CountVariants \
+  -EV TiTvVariantEvaluator \
+  -o $TMPDIR/$SAMPLE.varianteval.dbSNP_current.report
+
+
+echo "`$NOW`INFO $SCRIPT_CODE copying variant evaluation report dbSNP 129 to $RESULTS_DIR/recalibration..."
+cp $TMPDIR/$SAMPLE.varianteval.dbSNP_current.report $RESULTS_DIR/recalibration
 
 find $ANALYSIS_DIR -type f | xargs chmod 750 
 find $RESULTS_DIR -type f | xargs chmod 750

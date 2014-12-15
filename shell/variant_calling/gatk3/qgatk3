@@ -5,8 +5,8 @@
 
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 
-GATK_VERSION=3.2-2
-SAMTOOLS_VERSION=0.1.18
+GATK_VERSION=3.3
+SAMTOOLS_VERSION=1.1
 #!!!Picard Version needs to be > 1.85 for ClipPrimerSequences 
 #in gatk3_realign_recalibrate.sh to work properly!!! 
 PICARD_VERSION=1.91
@@ -96,9 +96,10 @@ PED_FILE="none"
 SUBMIT="T"
 AUX_LIST=""
 CAPTURE_KIT="none"
+CLIP_CYCLES=0
 
 #parse command line args
-while getopts "n:r:s:d:t:a:u:x:l:p:o:q:c:g" OPTION;
+while getopts "n:r:s:d:t:a:u:x:l:p:o:q:c:y:g" OPTION;
 do
 
     case "$OPTION" in
@@ -114,7 +115,8 @@ do
 	p) PRIMER_COORD_BED="$OPTARG";;
 	o) PRIMER_COORD_OFFSET="$OPTARG";;
 	q) PED_FILE="$OPTARG";;	
-	c) CAPTURE_KIT="$OPTARG";;	
+	c) CAPTURE_KIT="$OPTARG";;
+	y) CLIP_CYCLES="$OPTARG";;	
 	g) SUBMIT="F";;
 	h) cat $USAGE; exit 0;;
 	[?]) cat $USAGE; exit 1;;
@@ -226,11 +228,9 @@ else
     exit 1
 fi
 
-if [[ "$TYPE" != "WGS" ]]; then
-	if [ "$CAPTURE_KIT" == "none" ]]; then
-		echo "`$NOW`ERROR: for exome sequencing or target capture data capture kit name has be supplied via the -c command line argument"
-		exit 1
-	fi
+if [[ "$TYPE" != "WGS" ]] && [[ "$CAPTURE_KIT" == "none" ]]; then
+	echo "`$NOW`ERROR: for exome sequencing or target capture data capture kit name has be supplied via the -c command line argument"
+	exit 1
 fi
 
 
@@ -390,9 +390,13 @@ function submitRealignmentAndRecalibrationJobs {
 
 		local last_subset=F
 
-		if [[ $subset_count -eq $job_count ]]; then
-			last_subset=T
-		fi
+## commented out, because we don't need unmapped reads for variant calling
+## final bam files will only be used for visualisation, so don't need unmapped reads
+## -L unmapped has bug in IndelRealigner, and caused some reads to be lost
+
+#		if [[ $subset_count -eq $job_count ]]; then
+#			last_subset=T
+#		fi
 
 		echo "`$NOW`processing chunk subset $subset_count of $job_count..."
 
@@ -505,9 +509,11 @@ function submitRealignmentAndRecalibrationJobs {
 			echo "`$NOW`creating chunk BED file..."
 			grep -P "chunk_${chunk_name}\." $REFERENCE_CHUNKS > $chunk_bed
 
-			if [[ $chunk_count -eq $TOTAL_CHUNK_COUNT ]]; then 		
-				includes_unmapped=T
-			fi
+## we don't need unmapped reads for variant calling
+
+#			if [[ $chunk_count -eq $TOTAL_CHUNK_COUNT ]]; then 		
+#				includes_unmapped=T
+#			fi
 
 			local chunk_bam=$analysis_dir/chunks/$input_bam_name.$chunk.bam
 
@@ -531,6 +537,7 @@ function submitRealignmentAndRecalibrationJobs {
     		
 			sed -i -e "s/#inputBam/${chunk_bam//\//\\/}/" $script_path
 			sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
+			sed -i -e "s/#warningLog/${WARNING_LOG//\//\\/}/" $script_path
 			sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
 			sed -i -e "s/#analysisDir/${analysis_dir//\//\\/}/" $script_path
 			sed -i -e "s/#fragmentName/$chunk/" $script_path
@@ -691,9 +698,11 @@ function submitRealignmentAndRecalibrationJobs {
 			local realigned_recalibrated_bam_file=$analysis_dir/recalibration/$sample.$chunk.realigned.recalibrated.bam
 			local includes_unmapped=F
 
-			if [[ $chunk_count -eq $TOTAL_CHUNK_COUNT ]]; then
-				includes_unmapped=T
-			fi
+## we don't need unmapped reads for variant calling
+
+#			if [[ $chunk_count -eq $TOTAL_CHUNK_COUNT ]]; then
+#				includes_unmapped=T
+#			fi
 
 			local chunk_formatted=`printf "%.3d\n" $chunk_name`
 
@@ -709,6 +718,7 @@ function submitRealignmentAndRecalibrationJobs {
 			sed -i -e "s/#cpuThreads/$PR_CPUTHREADS/" $script_path
 			sed -i -e "s/#nctThreads/$PR_DATATHREADS/" $script_path
 			sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
+			sed -i -e "s/#warningLog/${WARNING_LOG//\//\\/}/" $script_path
 			sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
 			sed -i -e "s/#analysisDir/${analysis_dir//\//\\/}/" $script_path
 			sed -i -e "s/#sample/$sample/" $script_path
@@ -718,6 +728,8 @@ function submitRealignmentAndRecalibrationJobs {
 			sed -i -e "s/#recalibratedBamOutput/${realigned_recalibrated_bam_file//\//\\/}/" $script_path
 			sed -i -e "s/#includesUnmapped/$includes_unmapped/" $script_path
 			sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $script_path
+			sed -i -e "s/#type/$TYPE/" $script_path
+			sed -i -e "s/#clipCycles/$CLIP_CYCLES/" $script_path
 
 			## change from GATKv2 pipeline - we output all reads, not just target region
 
@@ -1413,7 +1425,8 @@ function submitPostProcessingJobs {
 			local chunk_bed=$analysis_dir/chunks/$chunk.bed
 			local chunk_bam=$analysis_dir/realignment/$sample.$chunk.realigned.bam
 
-			local chunk_pre_recalibration_report=$analysis_dir/recalibration/reports/pre/$sample.$chunk.realigned.recal_data.grp
+#			local chunk_pre_recalibration_report=$analysis_dir/recalibration/reports/pre/$sample.$chunk.realigned.recal_data.grp
+			local merged_pre_recalibration_report=$results_dir/recalibration/reports/pre/$sample.realigned.recal_data.grp
 
 			echo "`$NOW`creating and submitting job script to get post-recalibration report on chunk..."
 
@@ -1439,7 +1452,8 @@ function submitPostProcessingJobs {
 			sed -i -e "s/#resultsDir/${results_dir//\//\\/}/" $script_path	
 			sed -i -e "s/#fragmentName/$chunk/" $script_path
 			sed -i -e "s/#sample/$sample/" $script_path
-			sed -i -e "s/#preRecalibrationReport/${chunk_pre_recalibration_report//\//\\/}/" $script_path
+#			sed -i -e "s/#preRecalibrationReport/${chunk_pre_recalibration_report//\//\\/}/" $script_path
+			sed -i -e "s/#preRecalibrationReport/${merged_pre_recalibration_report//\//\\/}/" $script_path
 
 			## change from GATKv2 pipeline - we use all reads, not just target region
 #			if [[ $TARGET_INTERVALS_BED != ""  ]];then
@@ -1753,6 +1767,9 @@ chmod 770 $RESULTS_DIR_MSVC/metrics
 RUN_LOG=$ANALYSIS_DIR_MSVC/run.log
 echo -n "" > $RUN_LOG
 echo -e "DATE\tTIME\tSCRIPT\tSAMPLE\tCHUNK\tSTEP\tSTATUS" >> $RUN_LOG
+
+WARNING_LOG=$ANALYSIS_DIR_MSVC/warning.log
+echo -n "" > $WARNING_LOG
 
 SETUP_LOG=$ANALYSIS_DIR_MSVC/setup.log
 echo -n "" > $SETUP_LOG
