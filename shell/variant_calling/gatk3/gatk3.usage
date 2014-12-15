@@ -13,6 +13,7 @@ USAGE
       		[-u <user provided chunks file>]
       		[-p <primer_probe_genomic_coordinates_bed>]
       		[-o <primer_probe_coordinates_offset; default = 10>]
+			[-y <number of leading cycles to clip; default = 0>]
       		[-q <ped_file>]
       		[-g]
 	
