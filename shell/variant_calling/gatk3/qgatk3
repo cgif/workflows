@@ -422,7 +422,7 @@ function submitRealignmentAndRecalibrationJobs {
 		local subset_count_formatted=`printf "%.3d\n" $subset_count`
 	
 		#...create and configuring job script
-		script_path=$run_dir/SB_${input_bam_name}_${subset_count_formatted}.sh
+		script_path=$run_dir/SB${input_bam_name}${subset_count_formatted}.sh
 		cp $BASEDIR/splitBam.sh $script_path
 
 		local output_dir=$analysis_dir/chunks
@@ -521,7 +521,7 @@ function submitRealignmentAndRecalibrationJobs {
 			
 			local chunk_formatted=`printf "%.3d\n" $chunk_name`
 
-			local script_path=$run_dir/RR_${sample}_${chunk_formatted}.sh
+			local script_path=$run_dir/RR${sample}${chunk_formatted}.sh
 			cp $BASEDIR/gatk3_realign_recalibrate.sh $script_path
 
 			sed -i -e "s/#gatkVersion/$GATK_VERSION/" $script_path
@@ -609,7 +609,7 @@ function submitRealignmentAndRecalibrationJobs {
 	echo "`$NOW`====================================================================================="
 	echo "`$NOW`Merge recalibration reports"
 	echo "`$NOW`====================================================================================="
-	script_path=$run_dir/MR_${sample}_000.sh
+	script_path=$run_dir/MR${sample}000.sh
 	cp $BASEDIR/gatk3_merge_recalibration_reports.sh $script_path
 
 	sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
@@ -707,7 +707,7 @@ function submitRealignmentAndRecalibrationJobs {
 			local chunk_formatted=`printf "%.3d\n" $chunk_name`
 
 			echo "`$NOW`creating and submitting job script to print recalibrated reads..."
-			script_path=$run_dir/PR_${sample}_${chunk_formatted}.sh
+			script_path=$run_dir/PR${sample}${chunk_formatted}.sh
 			cp $BASEDIR/gatk3_print_reads.sh $script_path
 
 			sed -i -e "s/#gatkVersion/$GATK_VERSION/" $script_path
@@ -789,7 +789,7 @@ function submitRealignmentAndRecalibrationJobs {
 			local hc_bam_file=$analysis_dir/haplotypecaller/$sample.$chunk.hc.bam
 
 			echo "`$NOW`creating and submitting job script to run haplotype caller..."
-			script_path=$run_dir/HC_${sample}_${chunk_formatted}.sh
+			script_path=$run_dir/HC${sample}${chunk_formatted}.sh
 			cp $BASEDIR/gatk3_haplotype_caller.sh $script_path
 
 			sed -i -e "s/#gatkVersion/$GATK_VERSION/" $script_path
@@ -974,7 +974,7 @@ function submitGenotypeGVCFsJobs {
 
 			local chunk_formatted=`printf "%.3d\n" $chunk_name`
 
-			local script_path=$run_dir/GG_00000000_${chunk_formatted}.sh
+			local script_path=$run_dir/GGIGFP000000${chunk_formatted}.sh
 			cp $BASEDIR/gatk3_genotypeGVCFs.sh $script_path
 				
 		  		
@@ -1093,7 +1093,7 @@ function submitGenotypeGVCFsJobs {
 	# note: also could do recalibration by suplying all separate VCF files together
 	# but we want to keep raw calls file as well, so we merge them first
 
-	script_path=$run_dir/RV_00000000_000.sh
+	script_path=$run_dir/RVIGFP000000000.sh
 	cp $BASEDIR/gatk3_recalibrate_vcf.sh $script_path
 
 	local analysis_dir_vc=$analysis_dir/genotypeGVCFs
@@ -1277,7 +1277,7 @@ function submitPostProcessingJobs {
 	echo "`$NOW`creating and submitting job script to merge realigned and recalibrated chunk BAMs..."
 		
 	#create and configure job script to merge realigned BAM files		
-	script_path=$run_dir/MB_${sample}_000.sh
+	script_path=$run_dir/MB${sample}000.sh
 	cp $BASEDIR/gatk3_merge_recalibrated_bams_and_gvcfs.sh $script_path
 
  	sed -i -e "s/#samtoolsVersion/$SAMTOOLS_VERSION/" $script_path
@@ -1432,7 +1432,7 @@ function submitPostProcessingJobs {
 
 			local chunk_formatted=`printf "%.3d\n" $chunk_name`
 			
-			local script_path=$run_dir/PM_${sample}_${chunk_formatted}.sh
+			local script_path=$run_dir/PM${sample}${chunk_formatted}.sh
 			cp $BASEDIR/gatk3_postrecalibration_metrics.sh $script_path
 
 			sed -i -e "s/#gatkVersion/$GATK_VERSION/" $script_path
@@ -1521,7 +1521,7 @@ function submitPostProcessingJobs {
 		
 	echo "`$NOW`creating and submitting job script to generate summary metrics..."
 			
-	local script_path=$run_dir/CS_${sample}_000.sh
+	local script_path=$run_dir/CS${sample}000.sh
 	local summary_script_path=$run_dir/summary_gatk.$sample.pl
 	cp $BASEDIR/gatk3_collect_summary_metrics.sh $script_path
 
@@ -1637,7 +1637,7 @@ function submitMergeAndPlotMetricsJob {
  	sed -i -e "s/#sampleIntervalSummary/$sample_interval_summary/" $script_path	
  	sed -i -e "s/#sampleCumulativeCoverageProportions/$sample_cumulative_coverage_proportions/" $script_path	
 
-	script_path=$run_dir/MM_00000000_000.sh
+	script_path=$run_dir/MMIGFP000000000.sh
 	cp $BASEDIR/gatk3_merge_summary_metrics.sh $script_path
 	transpose_table_script=$BASEDIR/../../helper/transposeTable.R
 
@@ -1692,7 +1692,7 @@ function submitMergeAndPlotMetricsJob {
 function submitCompUse {
 
 	echo "`$NOW`creating and submitting usage script..."
-	local script_path=$ANALYSIS_DIR_MSVC/run/US_00000000_000.sh
+	local script_path=$ANALYSIS_DIR_MSVC/run/USIGFP000000000.sh
 	cp $BASEDIR/usage_gatk.sh $script_path
 
 	local usage_file="$RESULTS_DIR_MSVC/usage.$TODAY.txt"
