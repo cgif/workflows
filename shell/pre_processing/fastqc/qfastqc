@@ -25,18 +25,20 @@ DEPLOYMENT_BASE_DIR=/www/html/report
 
 PATTERN_READ_1='_R1_'
 PATTERN_READ_2='_R2_'
+SINGLE_READS="F"
 
 USAGE="USAGE: qfastqc -i <input_path> -t <read1_tag, default '_R1_'> -p <read1_tag, default '_R2_'>"
 
 #COMMAND LINE ARGS
 ##################
 
-while getopts "i:t:p:h" option; do
+while getopts "i:t:p:h:s" option; do
     case "$option" in
 
 	i) INPUT_PATH="$OPTARG";;
 	t) PATTERN_READ_1="$OPTARG";;
 	p) PATTERN_READ_2="$OPTARG";;
+	s) SINGLE_READS="T";;
 	h) echo $USAGE; exit 1;;
 	[?]) echo $USAGE; exit 1;;
 
@@ -94,7 +96,7 @@ function submitJob {
 		done
 
 		#check if mate file was found...
-		if [ -z $fastq_read2 ]
+		if [ -z $fastq_read2 ] && [[ "$SINGLE_READS" == "F" ]];
 		then
 			#...if not skip fastq file
 			echo "`$NOW`ERROR:No mate file found for $fastq_read1. Skipped."   		
@@ -112,11 +114,12 @@ function submitJob {
 			sed -i -e "s/#deploymentServer/$deployment_server/" $script_path
 			sed -i -e "s/#deploymentPath/${deployment_path//\//\\/}/" $script_path
 			sed -i -e "s/#summaryPath/${summary_deployment//\//\\/}/" $script_path
+			sed -i -e "s/#singleReads/$SINGLE_READS/" $script_path
 
 	  		#submit job 
 	  		log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
 	  		job_id=`qsub -q $QUEUE -o $log_output_path $script_path`
-			echo "`$NOW`Read pair: $fastq_read1 $fastq_read1"
+			echo "`$NOW`Read pair: $fastq_read1 $fastq_read2"
 			echo "`$NOW`Job ID:$job_id"
 			echo -e "$job_id" >> $job_id_list
 
