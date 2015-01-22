@@ -45,6 +45,10 @@ ADAPTER5_REV=`echo $ADAPTER5 | perl -pe 'tr/ATCGatcg/TAGCtagc/'|rev`
 ADAPTER3_REV=`echo $ADAPTER3 | perl -pe 'tr/ATCGatcg/TAGCtagc/'|rev`
 ADAPTERS="-g $ADAPTER5 -a $ADAPTER3 -g $ADAPTER3_REV -a $ADAPTER5_REV"
 
+if [[ $ADAPTER5 == "none" ]]; then
+	ADAPTERS="-a $ADAPTER3"
+fi
+
 echo "`${NOW}`running cutadapt"
 cutadapt $ADAPTERS -O $OVERLAP -o $TMPDIR/${FASTQ_BASENAME}_trimmed.fq.gz -q $CUTOFF $TMPDIR/$FASTQ_NAME
 
