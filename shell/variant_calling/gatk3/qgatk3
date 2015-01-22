@@ -374,6 +374,10 @@ function submitRealignmentAndRecalibrationJobs {
 
 	echo 'SB_DEPENDENCY=afterok' >> $rerun_script
 
+	#store bam size info to calculate required tmp space for each job 
+	local bam_size=`du $input_bam | cut -f 1`
+	echo -e "$input_bam_name\t$bam_size\t$chunk_count" >> $BAM_SIZE_FILE
+
 	#for each subset of chunks...
 	local subset_count=0
 	for (( c=0; c<$chunk_count; c=c+$BAM_SPLIT_MAX_THREADS )); do
@@ -518,9 +522,27 @@ function submitRealignmentAndRecalibrationJobs {
 			local chunk_bam=$analysis_dir/chunks/$input_bam_name.$chunk.bam
 
 			echo "`$NOW`creating and submitting job script to realign and recalibrate chunk..."
+
+			local total_file_size_mb=0
+			for file in $INDELS_1000G $INDELS_GOLDSTD $DBSNP $REFERENCE_FASTA ; do
+
+			    local file_size_kb=`du $file | cut -f1`
+			    if [ $file_size_kb != 0 ]; then
+				local file_size_mb=$(( $file_size_kb / 1024 ))
+			    fi
+			    total_file_size_mb=$(( $total_file_size_mb + $file_size_mb ))
+
+			done
+
+			local bam_size=`grep -P "^$sample" $BAM_SIZE_FILE|cut -f2`
+			local chunks_total=`grep -P "^$sample" $BAM_SIZE_FILE|cut -f3`
+			local bam_chunk_size=$(( $bam_size / $chunks_total ))
+			local bam_chunk_size_mb=$(( $bam_chunk_size / 1024 ))
+			total_file_size_mb=$(( $total_file_size_mb + $bam_chunk_size_mb ))
+
+			local tmp_space_mb=$(( $total_file_size_mb * 2 )) 
 			
 			local chunk_formatted=`printf "%.3d\n" $chunk_name`
-
 			local script_path=$run_dir/RR${sample}${chunk_formatted}.sh
 			cp $BASEDIR/gatk3_realign_recalibrate.sh $script_path
 
@@ -530,6 +552,7 @@ function submitRealignmentAndRecalibrationJobs {
 			sed -i -e "s/#rVersion/$R_VERSION/" $script_path	
 			sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
 	    	  	sed -i -e "s/#nxtGenUtilsVersion/$NXTGENUTILS_VERSION/" $script_path
+    	  		sed -i -e "s/#tmpSpaceMb/$tmp_space_mb/g" $script_path
     	  
 			sed -i -e "s/#indels1000G/${INDELS_1000G//\//\\/}/" $script_path	
 			sed -i -e "s/#indelsGoldStd/${INDELS_GOLDSTD//\//\\/}/" $script_path
@@ -704,9 +727,27 @@ function submitRealignmentAndRecalibrationJobs {
 #				includes_unmapped=T
 #			fi
 
-			local chunk_formatted=`printf "%.3d\n" $chunk_name`
+			local total_file_size_mb=0
+			for file in $REFERENCE_FASTA ; do
+
+			    local file_size_kb=`du $file | cut -f1`
+			    if [ $file_size_kb != 0 ]; then
+				local file_size_mb=$(( $file_size_kb / 1024 ))
+			    fi
+			    total_file_size_mb=$(( $total_file_size_mb + $file_size_mb ))
+
+			done
+
+			local bam_size=`grep -P "^$sample" $BAM_SIZE_FILE|cut -f2`
+			local chunks_total=`grep -P "^$sample" $BAM_SIZE_FILE|cut -f3`
+			local bam_chunk_size=$(( $bam_size / $chunks_total ))
+			local bam_chunk_size_mb=$(( $bam_chunk_size    / 1024 ))
+			total_file_size_mb=$(( $total_file_size_mb + $bam_chunk_size_mb ))
+
+			local tmp_space_mb=$(( $total_file_size_mb * 2 ))
 
 			echo "`$NOW`creating and submitting job script to print recalibrated reads..."
+			local chunk_formatted=`printf "%.3d\n" $chunk_name`
 			script_path=$run_dir/PR${sample}${chunk_formatted}.sh
 			cp $BASEDIR/gatk3_print_reads.sh $script_path
 
@@ -714,6 +755,7 @@ function submitRealignmentAndRecalibrationJobs {
 			sed -i -e "s/#samtoolsVersion/$SAMTOOLS_VERSION/" $script_path
 			sed -i -e "s/#nextGenUtilsVersion/$NXTGENUTILS_VERSION/" $script_path
 			sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
+    	  		sed -i -e "s/#tmpSpaceMb/$tmp_space_mb/g" $script_path
 
 			sed -i -e "s/#cpuThreads/$PR_CPUTHREADS/" $script_path
 			sed -i -e "s/#nctThreads/$PR_DATATHREADS/" $script_path
@@ -1430,8 +1472,26 @@ function submitPostProcessingJobs {
 
 			echo "`$NOW`creating and submitting job script to get post-recalibration report on chunk..."
 
-			local chunk_formatted=`printf "%.3d\n" $chunk_name`
-			
+			local total_file_size_mb=0
+			for file in $INDELS_1000G $INDELS_GOLDSTD $DBSNP $REFERENCE_FASTA; do
+
+			    local file_size_kb=`du $file | cut -f1`
+			    if [ $file_size_kb != 0 ]; then
+				local file_size_mb=$(( $file_size_kb / 1024 ))
+			    fi
+			    total_file_size_mb=$(( $total_file_size_mb + $file_size_mb ))
+
+			done
+
+			local bam_size=`grep -P "^$sample" $BAM_SIZE_FILE|cut -f2`
+			local chunks_total=`grep -P "^$sample" $BAM_SIZE_FILE|cut -f3`
+			local bam_chunk_size=$(( $bam_size / $chunks_total ))
+			local bam_chunk_size_mb=$(( $bam_chunk_size / 1024 ))
+			total_file_size_mb=$(( $total_file_size_mb + $bam_chunk_size_mb ))
+
+			local tmp_space_mb=$(( $total_file_size_mb * 2 ))
+
+			local chunk_formatted=`printf "%.3d\n" $chunk_name`			
 			local script_path=$run_dir/PM${sample}${chunk_formatted}.sh
 			cp $BASEDIR/gatk3_postrecalibration_metrics.sh $script_path
 
@@ -1440,6 +1500,7 @@ function submitPostProcessingJobs {
 			sed -i -e "s/#picardVersion/$PICARD_VERSION/" $script_path
 			sed -i -e "s/#rVersion/$R_VERSION/" $script_path
 			sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
+    	  		sed -i -e "s/#tmpSpaceMb/$tmp_space_mb/" $script_path
     	  
 			sed -i -e "s/#indels1000G/${INDELS_1000G//\//\\/}/" $script_path	
 			sed -i -e "s/#indelsGoldStd/${INDELS_GOLDSTD//\//\\/}/" $script_path
@@ -1520,6 +1581,23 @@ function submitPostProcessingJobs {
 	local post_recalibration_plots_output_dir=$results_dir/recalibration/plots/post/	
 		
 	echo "`$NOW`creating and submitting job script to generate summary metrics..."
+
+	local total_file_size_mb=0
+	for file in $REFERENCE_FASTA; do
+
+	    local file_size_kb=`du $file | cut -f1`
+	    if [ $file_size_kb != 0 ]; then
+		local file_size_mb=$(( $file_size_kb / 1024 ))
+	    fi
+	    total_file_size_mb=$(( $total_file_size_mb + $file_size_mb ))
+
+	done
+
+	local bam_size=`grep -P "^$sample" $BAM_SIZE_FILE|cut -f2`
+	local bam_size_mb=$(( $bam_size / 1024 ))
+	total_file_size_mb=$(( $total_file_size_mb + $bam_size_mb ))
+
+	local tmp_space_mb=$(( $total_file_size_mb * 2 ))
 			
 	local script_path=$run_dir/CS${sample}000.sh
 	local summary_script_path=$run_dir/summary_gatk.$sample.pl
@@ -1529,6 +1607,7 @@ function submitPostProcessingJobs {
 	sed -i -e "s/#rVersion/$R_VERSION/" $script_path
 	sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
  	sed -i -e "s/#nxtGenUtilsVersion/$NXTGENUTILS_VERSION/" $script_path
+   	sed -i -e "s/#tmpSpaceMb/$tmp_space_mb/" $script_path
     	  	
    	sed -i -e "s/#analysisDir/${analysis_dir//\//\\/}/" $script_path
 	sed -i -e "s/#resultsDir/${results_dir//\//\\/}/" $script_path
@@ -1773,6 +1852,9 @@ echo -n "" > $WARNING_LOG
 
 SETUP_LOG=$ANALYSIS_DIR_MSVC/setup.log
 echo -n "" > $SETUP_LOG
+
+BAM_SIZE_FILE=$ANALYSIS_DIR_MSVC/bam_size.txt
+echo -n "" > $BAM_SIZE_FILE
 
 #redirect stdout and stderr to terminal and log file
 exec > >(tee $SETUP_LOG)

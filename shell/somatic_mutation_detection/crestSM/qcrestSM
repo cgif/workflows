@@ -70,8 +70,8 @@ if [[ -z $PROJECT ]] || [[ -z $SAMPLE_LIST ]] ; then
 fi
 
 #check if input directory exists
-if [[ ! -d $GROUP_VOL_CGI/results/$PROJECT/mutect ]]; then
-        echo "`$NOW`ERROR: input directory does not exist: $GROUP_VOL_CGI/results/$PROJECT/mutect"
+if [[ ! -d $GROUP_VOL_CGI/analysis/$PROJECT/mutect ]]; then
+        echo "`$NOW`ERROR: input directory does not exist: $GROUP_VOL_CGI/analysis/$PROJECT/mutect"
         exit 1
 fi
 
