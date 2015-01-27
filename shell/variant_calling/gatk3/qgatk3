@@ -28,6 +28,7 @@ TODAY=`date +%Y-%m-%d`
 
 #get the directory this script resides in
 GROUP_VOL_CGI=/groupvol/cgi
+PROJECT_TGU=/project/tgu
 DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
 DEPLOYMENT_BASE_DIR=/www/html/report
 QUEUE=pqcgi
@@ -1810,7 +1811,7 @@ DEPENDENCY_COLLECT_SUMMARY_METRICS_ALL=afterok
 
 
 ANALYSIS_DIR_PROJECT=$GROUP_VOL_CGI/analysis/$PROJECT/gatk3
-RESULTS_DIR_PROJECT=$GROUP_VOL_CGI/results/$PROJECT/gatk3
+RESULTS_DIR_PROJECT=$PROJECT_TGU/results/$PROJECT/gatk3
 
 #create and set permissions for analysis project parent directory    
 mkdir -p $ANALYSIS_DIR_PROJECT
@@ -1987,7 +1988,7 @@ fi
 sort $SAMPLE_LIST | uniq | while read SAMPLE DATE SAMPLE_PROJECT; do
 	if [[ "$SAMPLE" != "" ]]; then
 #		echo "`$NOW`cheching input bam existance for $SAMPLE"
-    	IN_BAM_SAMPLE=$GROUP_VOL_CGI/results/$SAMPLE_PROJECT/mergetag/$DATE/$SAMPLE/$SAMPLE.bam
+    	IN_BAM_SAMPLE=$PROJECT_TGU/results/$SAMPLE_PROJECT/mergetag/$DATE/$SAMPLE/$SAMPLE.bam
 		if [[ ! -e $IN_BAM_SAMPLE ]]; then
        		echo "`$NOW`ERROR: input bam for $SAMPLE does not exist: $IN_BAM_SAMPLE"
 			echo "check $SAMPLE_LIST file"
@@ -2026,7 +2027,7 @@ sort $SAMPLE_LIST | uniq | while read SAMPLE DATE SAMPLE_PROJECT; do
 	    echo "`$NOW`"
 	    echo "`$NOW`processing sample $SAMPLE_COUNT of $TOTAL_SAMPLE_COUNT: $SAMPLE"
 	
-    	IN_BAM_SAMPLE=$GROUP_VOL_CGI/results/$SAMPLE_PROJECT/mergetag/$DATE/$SAMPLE/$SAMPLE.bam
+    	IN_BAM_SAMPLE=$PROJECT_TGU/results/$SAMPLE_PROJECT/mergetag/$DATE/$SAMPLE/$SAMPLE.bam
 	    ANALYSIS_DIR_SAMPLE=$ANALYSIS_DIR_PROJECT/$TODAY/$SAMPLE
 	    RESULTS_DIR_SAMPLE=$RESULTS_DIR_PROJECT/$TODAY/$SAMPLE
 
