@@ -175,7 +175,7 @@ then
 	# added --target_titv, which is used for plotting purposes only 
 
 	echo "`$NOW`INFO $SCRIPT_CODE building SNP recalibration model..."
-	ANNOTATIONS_SNP="-an QD -an MQ -an MQRankSum -an ReadPosRankSum -an FS "
+	ANNOTATIONS_SNP="-an QD -an MQ -an MQRankSum -an ReadPosRankSum -an SOR -an FS "
 	if [[ "$SEQUENCING_TYPE" == "WGS" ]]; then
 		ANNOTATIONS_SNP="$ANNOTATIONS_SNP -an DP"
 		TARGET_TITV="2.15"
@@ -217,7 +217,7 @@ then
         # -an DP only taken into account for whole genome sequencing
 
 	echo "`$NOW`INFO $SCRIPT_CODE building INDEL recalibration model"
-        ANNOTATIONS_INDEL="-an QD -an FS -an ReadPosRankSum -an MQRankSum"
+        ANNOTATIONS_INDEL="-an QD -an FS -an SOR -an ReadPosRankSum -an MQRankSum"
         if [[ "$SEQUENCING_TYPE" = "WGS" ]]
         then
                 ANNOTATIONS_INDEL="$ANNOTATIONS_INDEL -an DP"
