@@ -143,7 +143,7 @@ foreach my $chunk (1..$total_chunks){
     }
 }
 
-my $recalibrate_vcf_log =  "$project_dir_analysis/$date/multisample/run/RVIGFP0000000.log";
+my $recalibrate_vcf_log =  "$project_dir_analysis/$date/multisample/run/RVIGFP000000000.log";
 if (-s $recalibrate_vcf_log){
     my $raw_vcf = "$project_dir_results/$date/multisample/genotypeGVCFs/$project"."_multisample.raw.vcf.gz";
     if (-s $raw_vcf){
