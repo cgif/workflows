@@ -14,7 +14,7 @@ targets <- read.delim(file = targets.file, stringsAsFactors = FALSE)
 targets
 
 #read in data files
-d <- readDGE(targets, header = FALSE)
+d <- readDGE(targets, header = FALSE, comment.char = "#")
 samples <- read.table(file = samples.file, header = TRUE, stringsAsFactors = FALSE)
 colnames(d) <- samples[,1]
 d$samples
