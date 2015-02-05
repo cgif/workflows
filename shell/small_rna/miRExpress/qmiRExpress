@@ -60,9 +60,8 @@ function submitJob {
 
 	path_reads_dir=$1
 	output_dir=$2
-	adaptor=$3
-	mirbase_dir=$4
-	path_script_dir=$5
+	mirbase_dir=$3
+	path_script_dir=$4
 #	deployment_server=$6
 #	deployment_path=$7
 #    summary_deployment=$8
@@ -73,11 +72,33 @@ function submitJob {
 	echo "`$NOW`creating and submitting job scripts for mirExpress run for sample $sample"
 	#create fastqc script from template
 	
-	#for each read1 fastq file 
+	#for each fastq file 
 	for fastq_read in `ls --color=never $path_reads_dir/*.f*q* | grep trimmed_filtered `
 	do
  
         fastq_read_name=`basename $fastq_read`
+
+		echo "scripts directory: $path_script_dir"
+
+		#configure R script for summary statistics
+
+		read_statistics_file=$output_dir/$sample.read_statistics.txt
+		nohit_file=$output_dir/mirExpress_results/nohit
+		collapsed_reads_file=$output_dir/$sample.stp1
+		expression_file=$output_dir/mirExpress_results/$sample.miRNA_expression.txt
+
+		R_script_path=$path_script_dir/mE.$sample.$fastq_read_name.R
+  		cp $BASEDIR/miRExpress_summary.R $R_script_path
+  		chmod 770 $R_script_path
+
+		sed -i -e "s/#sampleName/$sample/" $R_script_path
+		sed -i -e "s/#outputDir/${output_dir//\//\\/}/" $R_script_path
+		sed -i -e "s/#readStatistics/${read_statistics_file//\//\\/}/" $R_script_path
+		sed -i -e "s/#nohitFile/${nohit_file//\//\\/}/" $R_script_path
+		sed -i -e "s/#collapsedReadsFile/${collapsed_reads_file//\//\\/}/" $R_script_path
+		sed -i -e "s/#expressionFile/${expression_file//\//\\/}/" $R_script_path
+
+
 
   		script_path=$path_script_dir/mE.$sample.$fastq_read_name.sh
   		cp $BASEDIR/miRExpress.sh $script_path
@@ -88,6 +109,7 @@ function submitJob {
 #    	sed -i -e "s/#fastqRead1/${fastq_read1//\//\\/}/" $script_path
 		sed -i -e "s/#inputFastq/${fastq_read//\//\\/}/" $script_path
 		sed -i -e "s/#outputDir/${output_dir//\//\\/}/" $script_path
+		sed -i -e "s/#Rscript/${R_script_path//\//\\/}/" $script_path
 #		sed -i -e "s/#deploymentServer/$deployment_server/" $script_path
 #		sed -i -e "s/#deploymentPath/${deployment_path//\//\\/}/" $script_path
 #		sed -i -e "s/#summaryPath/${summary_deployment//\//\\/}/" $script_path

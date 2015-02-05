@@ -15,6 +15,7 @@ NOW="date +%Y-%m-%d%t%T%t"
 TODAY=`date +%Y-%m-%d`
 
 module load mirexpress/2.1.4
+module load R/3.1.0
 
 INPUT_FASTQ=#inputFastq
 OUTPUT_DIR=#outputDir
@@ -22,6 +23,7 @@ SAMPLE=#sample
 ADAPTOR=#adaptor		
 MIRBASE_DIR=#mirbaseDir
 NCPUS=#ncpus
+R_SCRIPT=#Rscript
 
 echo "`${NOW}`copying fasq file $INPUT_FASTQ to temporary scratch space..."
 cp $INPUT_FASTQ $TMPDIR/reads.fq.gz
@@ -63,10 +65,16 @@ echo "`${NOW}`copying results to $OUTPUT_DIR..."
 cp ${SAMPLE}* $OUTPUT_DIR
 rm -R $TMPDIR/mirExpress_results/Temp
 cp -R $TMPDIR/mirExpress_results $OUTPUT_DIR
+
+echo "`${NOW}`running summary statistics script..."
+
+R CMD BATCH --no-save --no-restore $R_SCRIPT ${R_SCRIPT}.log
+
 chmod 660 $OUTPUT_DIR/*
 chmod 770 $OUTPUT_DIR/mirExpress_results
 chmod 660 $OUTPUT_DIR/mirExpress_results/*
 
+echo "`${NOW}`listing $TMPDIR..."
 ls -al $TMPDIR
 ls -al $TMPDIR/mirExpress_results
 
