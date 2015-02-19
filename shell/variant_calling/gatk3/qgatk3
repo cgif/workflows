@@ -263,11 +263,12 @@ function submitRealignmentAndRecalibrationJobs {
 	local input_bam=$1
 	local analysis_dir=$2
 	local results_dir=$3
-
-	local run_dir=$analysis_dir/run    
+	local run_dir=$4
+	run_dir=$run_dir/run
+   
 	local input_bam_name=`basename $input_bam .bam`
 	local sample=$input_bam_name
-	local rerun_script=$run_dir/rerun.sh
+#	local rerun_script=$run_dir/rerun.sh
 
 
 	#create directory structure for samples
@@ -297,24 +298,24 @@ function submitRealignmentAndRecalibrationJobs {
 #	mkdir -p $results_dir/metrics
 
 	#initialise rerun script
-	echo "#$sample" > $rerun_script
-	echo "" >> $rerun_script
-	echo 'NOW="date +%Y-%m-%d%t%T%t"' >>  $rerun_script
-	echo "" >>  $rerun_script
-	echo 'STAGE=$1' >> $rerun_script
-	echo 'IS_DEPENDING=$2' >> $rerun_script
-	echo -n 'SAMPLE="' >> $rerun_script
-	echo -n $sample >> $rerun_script
-	echo '"' >> $rerun_script
+#	echo "#$sample" > $rerun_script
+#	echo "" >> $rerun_script
+#	echo 'NOW="date +%Y-%m-%d%t%T%t"' >>  $rerun_script
+#	echo "" >>  $rerun_script
+#	echo 'STAGE=$1' >> $rerun_script
+#	echo 'IS_DEPENDING=$2' >> $rerun_script
+#	echo -n 'SAMPLE="' >> $rerun_script
+#	echo -n $sample >> $rerun_script
+#	echo '"' >> $rerun_script
 	
 
-	echo 'if [[ -z $STAGE ]] || [[ $STAGE == "pre" ]]' >> $rerun_script
-	echo "then" >> $rerun_script
-	echo "" >> $rerun_script
-	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
-	echo 'echo "`$NOW`PRE-PROCESSING"' >> $rerun_script
-	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
-	echo 'echo ""' >> $rerun_script
+#	echo 'if [[ -z $STAGE ]] || [[ $STAGE == "pre" ]]' >> $rerun_script
+#	echo "then" >> $rerun_script
+#	echo "" >> $rerun_script
+#	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+#	echo 'echo "`$NOW`PRE-PROCESSING"' >> $rerun_script
+#	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+#	echo 'echo ""' >> $rerun_script
 
 	#configure script to print progress summary for submitted jobs
 	#if job is completed and log file is created in /run directory
@@ -326,12 +327,13 @@ function submitRealignmentAndRecalibrationJobs {
 
 	sed -i -e "s/projectDirAnalysis/${ANALYSIS_DIR_PROJECT//\//\\/}/" $summary_script_path
 	sed -i -e "s/projectDirResults/${RESULTS_DIR_PROJECT//\//\\/}/" $summary_script_path
+	sed -i -e "s/projectDirScripts/${SCRIPTS_DIR_PROJECT//\//\\/}/" $summary_script_path
 	sed -i -e "s/#project/$PROJECT/" $summary_script_path
 	sed -i -e "s/#today/$TODAY/" $summary_script_path
 	sed -i -e "s/deploymentServer/$DEPLOYMENT_SERVER/" $summary_script_path
 	sed -i -e "s/summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $summary_script_path
 	sed -i -e "s/dataDeployment/${DATA_DEPLOYMENT//\//\\/}/" $summary_script_path
-	sed -i -e "s/summaryResults/${ANALYSIS_DIR_MSVC//\//\\/}/" $summary_script_path
+	sed -i -e "s/summaryResults/${SCRIPTS_DIR_MSVC//\//\\/}/" $summary_script_path
 	sed -i -e "s/sampleList/${SAMPLE_LIST//\//\\/}/" $summary_script_path
 	sed -i -e "s/refChunks/${REFERENCE_CHUNKS//\//\\/}/" $summary_script_path
 	sed -i -e "s/refIntervals/null/" $summary_script_path
@@ -368,12 +370,12 @@ function submitRealignmentAndRecalibrationJobs {
 	#realignment and recalibration job dependencies
 	echo -n "" > $run_dir/realign_recalibrate_dependencies.tsv
 
-	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
-	echo 'echo "`$NOW`Split BAM, realign & recalibrate"' >> $rerun_script
-	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
-	echo "#split" >> $rerun_script
+#	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+#	echo 'echo "`$NOW`Split BAM, realign & recalibrate"' >> $rerun_script
+#	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+#	echo "#split" >> $rerun_script
 
-	echo 'SB_DEPENDENCY=afterok' >> $rerun_script
+#	echo 'SB_DEPENDENCY=afterok' >> $rerun_script
 
 	#store bam size info to calculate required tmp space for each job 
 	local bam_size=`du $input_bam | cut -f 1`
@@ -457,16 +459,16 @@ function submitRealignmentAndRecalibrationJobs {
 		echo "`$NOW`job ID: $job_id"
     		        
 		#write qsub to re-submission script
-		echo -n 'echo "`$NOW`submitting job script ' >> $rerun_script
-		echo -n $script_path >> $rerun_script
-		echo '..."' >> $rerun_script
-		echo -n 'JOB_ID=`' >> $rerun_script
-		echo -n "qsub -o $log_output_path $script_path" >> $rerun_script
-		echo '`' >> $rerun_script
-		echo 'SB_DEPENDENCY=$SB_DEPENDENCY:$JOB_ID' >> $rerun_script
-		echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
-		echo '$JOB_ID"' >> $rerun_script
-		echo "" >> $rerun_script
+#		echo -n 'echo "`$NOW`submitting job script ' >> $rerun_script
+#		echo -n $script_path >> $rerun_script
+#		echo '..."' >> $rerun_script
+#		echo -n 'JOB_ID=`' >> $rerun_script
+#		echo -n "qsub -o $log_output_path $script_path" >> $rerun_script
+#		echo '`' >> $rerun_script
+#		echo 'SB_DEPENDENCY=$SB_DEPENDENCY:$JOB_ID' >> $rerun_script
+#		echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
+#		echo '$JOB_ID"' >> $rerun_script
+#		echo "" >> $rerun_script
 	
 		#store job id for realignment and recalibration dependency
 		for (( i=$from; i<=$to; i=i+1 )); do
@@ -482,9 +484,9 @@ function submitRealignmentAndRecalibrationJobs {
 	
 	echo "`$NOW`realigning and recalibrating BAM files..."
 	
-	echo "#realign_recalibrat" >> $rerun_script
+#	echo "#realign_recalibrat" >> $rerun_script
 
-	echo 'RR_DEPENDENCY=afterok' >> $rerun_script
+#	echo 'RR_DEPENDENCY=afterok' >> $rerun_script
 						
 	local chunk_count=0
 	for chunk_name in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`; do
@@ -600,21 +602,21 @@ function submitRealignmentAndRecalibrationJobs {
 			echo "`$NOW`job ID: $job_id"
     		        
 			#write qsub to re-submission script
-			echo -n 'echo "`$NOW`submitting job script ' >> $rerun_script
-			echo -n $script_path >> $rerun_script
-			echo '..."' >> $rerun_script
+#			echo -n 'echo "`$NOW`submitting job script ' >> $rerun_script
+#			echo -n $script_path >> $rerun_script
+#			echo '..."' >> $rerun_script
 			
-			echo -n 'JOB_ID=`' >> $rerun_script
-			echo -n "qsub -o $log_output_path -W depend=" >> $rerun_script
-			echo -n '$SB_DEPENDENCY ' >> $rerun_script
-			echo -n "$script_path" >> $rerun_script
-			echo '`' >> $rerun_script
+#			echo -n 'JOB_ID=`' >> $rerun_script
+#			echo -n "qsub -o $log_output_path -W depend=" >> $rerun_script
+#			echo -n '$SB_DEPENDENCY ' >> $rerun_script
+#			echo -n "$script_path" >> $rerun_script
+#			echo '`' >> $rerun_script
 			
-			echo 'RR_DEPENDENCY=$RR_DEPENDENCY:$JOB_ID' >> $rerun_script
+#			echo 'RR_DEPENDENCY=$RR_DEPENDENCY:$JOB_ID' >> $rerun_script
 			
-			echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
-			echo '$JOB_ID"' >> $rerun_script
-			echo "" >> $rerun_script
+#			echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
+#			echo '$JOB_ID"' >> $rerun_script
+#			echo "" >> $rerun_script
 
 			echo "`$NOW`-------------------------------------------------------------------------------------"
 		
@@ -660,28 +662,28 @@ function submitRealignmentAndRecalibrationJobs {
 
 	#write qsub to re-submission script
 	#with new realign recalibration dependency
-	echo "#merge_recal_report" >> $rerun_script
+#	echo "#merge_recal_report" >> $rerun_script
 	
-	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
-	echo 'echo "`$NOW`Merge recalibration reports"' >> $rerun_script
-	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+#	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+#	echo 'echo "`$NOW`Merge recalibration reports"' >> $rerun_script
+#	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
 
 	
-	echo -n 'echo "`$NOW`submitting job script ' >> $rerun_script
-	echo -n $script_path >> $rerun_script
-	echo '..."' >> $rerun_script
+#	echo -n 'echo "`$NOW`submitting job script ' >> $rerun_script
+#	echo -n $script_path >> $rerun_script
+#	echo '..."' >> $rerun_script
 
-	echo -n 'JOB_ID=`' >> $rerun_script
-	echo -n "qsub -o $log_output_path -W depend=" >> $rerun_script
-	echo -n '$RR_DEPENDENCY ' >> $rerun_script
-	echo -n "$script_path" >> $rerun_script
-	echo '`' >> $rerun_script
+#	echo -n 'JOB_ID=`' >> $rerun_script
+#	echo -n "qsub -o $log_output_path -W depend=" >> $rerun_script
+#	echo -n '$RR_DEPENDENCY ' >> $rerun_script
+#	echo -n "$script_path" >> $rerun_script
+#	echo '`' >> $rerun_script
 
-	echo 'MRR_DEPENDENCY=afterok:$JOB_ID' >> $rerun_script
+#	echo 'MRR_DEPENDENCY=afterok:$JOB_ID' >> $rerun_script
 	
-	echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
-	echo '$JOB_ID"' >> $rerun_script
-	echo "" >> $rerun_script
+#	echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
+#	echo '$JOB_ID"' >> $rerun_script
+#	echo "" >> $rerun_script
 
 
 	#add sample to PrintReads dependency file
@@ -695,13 +697,13 @@ function submitRealignmentAndRecalibrationJobs {
 	echo "`$NOW`====================================================================================="
 
 
-	echo "#print_reads" >> $rerun_script
-	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
-	echo 'echo "`$NOW`Print reads"' >> $rerun_script
-	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+#	echo "#print_reads" >> $rerun_script
+#	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+#	echo 'echo "`$NOW`Print reads"' >> $rerun_script
+#	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
 
 	
-	echo 'PR_DEPENDENCY=afterok' >> $rerun_script
+#	echo 'PR_DEPENDENCY=afterok' >> $rerun_script
 
 	for chunk_name in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`; do 
 
@@ -798,25 +800,25 @@ function submitRealignmentAndRecalibrationJobs {
  
 			#write qsub to re-submission script
     			#with new merge recalibration report dependency
-    			echo -n 'echo "`$NOW`submitting job script ' >> $rerun_script
-			echo -n $script_path >> $rerun_script
-			echo '..."' >> $rerun_script
+#    			echo -n 'echo "`$NOW`submitting job script ' >> $rerun_script
+#			echo -n $script_path >> $rerun_script
+#			echo '..."' >> $rerun_script
     		
     		
-    			echo -n 'JOB_ID=`' >> $rerun_script
-			echo -n "qsub -o $log_output_path -W depend=" >> $rerun_script
-			echo -n '$MRR_DEPENDENCY ' >> $rerun_script
-			echo -n "$script_path" >> $rerun_script
-			echo '`' >> $rerun_script
+#    			echo -n 'JOB_ID=`' >> $rerun_script
+#			echo -n "qsub -o $log_output_path -W depend=" >> $rerun_script
+#			echo -n '$MRR_DEPENDENCY ' >> $rerun_script
+#			echo -n "$script_path" >> $rerun_script
+#			echo '`' >> $rerun_script
 
-			echo 'PR_DEPENDENCY=$PR_DEPENDENCY:$JOB_ID' >> $rerun_script
+#			echo 'PR_DEPENDENCY=$PR_DEPENDENCY:$JOB_ID' >> $rerun_script
 			
-			echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
-			echo '$JOB_ID"' >> $rerun_script
-			echo "" >> $rerun_script
-			echo -n 'echo -e "$SAMPLE\t$JOB_ID" >> ' >> $rerun_script
-			echo "$ANALYSIS_DIR_MSVC/run/pre.$chunk.dependencies.txt" >> $rerun_script
-
+#			echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
+#			echo '$JOB_ID"' >> $rerun_script
+#			echo "" >> $rerun_script
+#			echo -n 'echo -e "$SAMPLE\t$JOB_ID" >> ' >> $rerun_script
+#			echo "$ANALYSIS_DIR_MSVC/run/pre.$chunk.dependencies.txt" >> $rerun_script
+#
 #			#store job ID in PrintReads dependencies file
 #			if [[ $chunk_count -ne $TOTAL_CHUNK_COUNT ]]; then
 #				echo -n -e "$job_id\t" >> $PRINT_READS_DEPENDENCY
@@ -899,10 +901,10 @@ function submitRealignmentAndRecalibrationJobs {
 
 	done
 
-	echo 'echo "`$NOW`-------------------------------------------------------------------------------------"' >> $rerun_script
+#	echo 'echo "`$NOW`-------------------------------------------------------------------------------------"' >> $rerun_script
 
-	echo "fi" >> $rerun_script
-	echo "" >> $rerun_script
+#	echo "fi" >> $rerun_script
+#	echo "" >> $rerun_script
 
 #       to reduce number of job submissions summary script now
 #       invoked from gatk3_print_reads_haplotype_caller.sh script
@@ -923,10 +925,10 @@ function submitGenotypeGVCFsJobs {
 
 	local analysis_dir=$1
 	local results_dir=$2
-#	local variant_caller=$3
-	local run_dir=$analysis_dir/run
+	local run_dir=$3
+	run_dir=$run_dir/run
 
-	local rerun_script=$run_dir/rerun.genotype_gVCFs.sh
+#	local rerun_script=$run_dir/rerun.genotype_gVCFs.sh
 
 	#create output directories
 	mkdir -p $analysis_dir/chunks
@@ -939,9 +941,9 @@ function submitGenotypeGVCFsJobs {
 	mkdir -p $run_dir
 
 	#intitialise rerun script
-	echo -n "" > $rerun_script
-	echo 'IS_DEPENDING=$1' >> $rerun_script
-	echo 'NOW="date +%Y-%m-%d%t%T%t"' >> $rerun_script
+#	echo -n "" > $rerun_script
+#	echo 'IS_DEPENDING=$1' >> $rerun_script
+#	echo 'NOW="date +%Y-%m-%d%t%T%t"' >> $rerun_script
 
 	echo "`$NOW`"	
 	echo "`$NOW`"
@@ -956,11 +958,11 @@ function submitGenotypeGVCFsJobs {
 	local raw_vcf_files=""
 
 	
-	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
-	echo 'echo "`$NOW`Multi-sample genotypeGVCFs..."' >> $rerun_script
-	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
-	echo "#variant_calling" >> $rerun_script
-	echo 'VC_DEPENDENCY=afterok' >> $rerun_script
+#	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+#	echo 'echo "`$NOW`Multi-sample genotypeGVCFs..."' >> $rerun_script
+#	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+#	echo "#variant_calling" >> $rerun_script
+#	echo 'VC_DEPENDENCY=afterok' >> $rerun_script
 
 	local hc_intervals="null"
 
@@ -1060,36 +1062,36 @@ function submitGenotypeGVCFsJobs {
 
 
 			#write qsub to re-submission script
-			echo "CHUNK=$chunk" >> $rerun_script
+#			echo "CHUNK=$chunk" >> $rerun_script
 					
-			echo 'if [[ "$IS_DEPENDING" == "TRUE" ]]' >> $rerun_script
-			echo 'then' >> $rerun_script
-			echo '   PR_DEPENDENCY=afterok' >> $rerun_script 
-			echo -n '    for JOB_ID in `cut -f2 ' >> $rerun_script
-			echo -n "$run_dir/pre.$chunk.dependencies.txt" >> $rerun_script
-			echo '`' >> $rerun_script
-			echo '    do' >> $rerun_script
-			echo '        ALIVE=`qselect -s QRHSW | grep $JOB_ID`' >> $rerun_script
-			echo '        if [[ $ALIVE != "" ]]' >> $rerun_script
-			echo '        then' >> $rerun_script
-			echo '            PR_DEPENDENCY=$PR_DEPENDENCY:$JOB_ID' >> $rerun_script
-			echo '        fi'  >> $rerun_script
-			echo '    done' >> $rerun_script
-			echo "" >> $rerun_script	
-			echo -n '    JOB_ID=`' >> $rerun_script
-			echo -n 'qsub -W depend=$PR_DEPENDENCY ' >> $rerun_script
-			echo -n "-o $log_output_path $script_path" >> $rerun_script
-			echo '`' >> $rerun_script
-			echo 'else' >> $rerun_script
-			echo -n '    JOB_ID=`' >> $rerun_script
-			echo -n "qsub -o $log_output_path $script_path" >> $rerun_script
-			echo '`' >> $rerun_script
-			echo 'fi' >> $rerun_script
-			echo 'VC_DEPENDENCY=$VC_DEPENDENCY:$JOB_ID' >> $rerun_script
+#			echo 'if [[ "$IS_DEPENDING" == "TRUE" ]]' >> $rerun_script
+#			echo 'then' >> $rerun_script
+#			echo '   PR_DEPENDENCY=afterok' >> $rerun_script 
+#			echo -n '    for JOB_ID in `cut -f2 ' >> $rerun_script
+#			echo -n "$run_dir/pre.$chunk.dependencies.txt" >> $rerun_script
+#			echo '`' >> $rerun_script
+#			echo '    do' >> $rerun_script
+#			echo '        ALIVE=`qselect -s QRHSW | grep $JOB_ID`' >> $rerun_script
+#			echo '        if [[ $ALIVE != "" ]]' >> $rerun_script
+#			echo '        then' >> $rerun_script
+#			echo '            PR_DEPENDENCY=$PR_DEPENDENCY:$JOB_ID' >> $rerun_script
+#			echo '        fi'  >> $rerun_script
+#			echo '    done' >> $rerun_script
+#			echo "" >> $rerun_script	
+#			echo -n '    JOB_ID=`' >> $rerun_script
+#			echo -n 'qsub -W depend=$PR_DEPENDENCY ' >> $rerun_script
+#			echo -n "-o $log_output_path $script_path" >> $rerun_script
+#			echo '`' >> $rerun_script
+#			echo 'else' >> $rerun_script
+#			echo -n '    JOB_ID=`' >> $rerun_script
+#			echo -n "qsub -o $log_output_path $script_path" >> $rerun_script
+#			echo '`' >> $rerun_script
+#			echo 'fi' >> $rerun_script
+#			echo 'VC_DEPENDENCY=$VC_DEPENDENCY:$JOB_ID' >> $rerun_script
 					
-			echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
-			echo '$JOB_ID"' >> $rerun_script
-			echo "" >> $rerun_script
+#			echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
+#			echo '$JOB_ID"' >> $rerun_script
+#			echo "" >> $rerun_script
 			dependency_genotypeGVCFs=$dependency_genotypeGVCFs:$job_id
 
 			raw_vcf_files="$raw_vcf_files $analysis_dir/genotypeGVCFs/$sample.$chunk.raw.vcf"
@@ -1119,12 +1121,13 @@ function submitGenotypeGVCFsJobs {
 
 	sed -i -e "s/projectDirAnalysis/${ANALYSIS_DIR_PROJECT//\//\\/}/" $summary_script_path
 	sed -i -e "s/projectDirResults/${RESULTS_DIR_PROJECT//\//\\/}/" $summary_script_path
+	sed -i -e "s/projectDirScripts/${SCRIPTS_DIR_PROJECT//\//\\/}/" $summary_script_path
 	sed -i -e "s/#project/$PROJECT/" $summary_script_path
 	sed -i -e "s/#today/$TODAY/" $summary_script_path
 	sed -i -e "s/deploymentServer/$DEPLOYMENT_SERVER/" $summary_script_path
 	sed -i -e "s/summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $summary_script_path
 	sed -i -e "s/dataDeployment/${DATA_DEPLOYMENT//\//\\/}/" $summary_script_path
-	sed -i -e "s/summaryResults/${ANALYSIS_DIR_MSVC//\//\\/}/" $summary_script_path
+	sed -i -e "s/summaryResults/${SCRIPTS_DIR_MSVC//\//\\/}/" $summary_script_path
 	sed -i -e "s/sampleList/${SAMPLE_LIST//\//\\/}/" $summary_script_path
 	sed -i -e "s/refChunks/${REFERENCE_CHUNKS//\//\\/}/" $summary_script_path
 	sed -i -e "s/refIntervals/${hc_intervals//\//\\/}/" $summary_script_path
@@ -1198,25 +1201,25 @@ function submitGenotypeGVCFsJobs {
 
 	#write qsub to re-submission script
 	#with new Unified Genotyper dependency
-	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
-	echo 'echo "`$NOW`Merge, recalibrate & filter VCF"' >> $rerun_script
-	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
-	echo "" >> $rerun_script
-	echo "#vqsr" >> $rerun_script
-	echo -n 'JOB_ID=`' >> $rerun_script
-	echo -n "qsub -o $log_output_path -W depend=" >> $rerun_script
-	echo -n '$VC_DEPENDENCY ' >> $rerun_script
-	echo -n "$script_path" >> $rerun_script
-	echo '`' >> $rerun_script
+#	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+#	echo 'echo "`$NOW`Merge, recalibrate & filter VCF"' >> $rerun_script
+#	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+#	echo "" >> $rerun_script
+#	echo "#vqsr" >> $rerun_script
+#	echo -n 'JOB_ID=`' >> $rerun_script
+#	echo -n "qsub -o $log_output_path -W depend=" >> $rerun_script
+#	echo -n '$VC_DEPENDENCY ' >> $rerun_script
+#	echo -n "$script_path" >> $rerun_script
+#	echo '`' >> $rerun_script
 	
-	echo 'RC_DEPENDENCY=afterok:$JOB_ID' >> $rerun_script
+#	echo 'RC_DEPENDENCY=afterok:$JOB_ID' >> $rerun_script
 
-	echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
-	echo '$JOB_ID"' >> $rerun_script
-	echo "" >> $rerun_script
-	echo -n 'echo -e "genotypeGVCFs\t$JOB_ID" >> ' >> $rerun_script
-	echo "$ANALYSIS_DIR_MSVC/run/variant_calling.dependencies.txt" >> $rerun_script
-	echo "" >> $rerun_script
+#	echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
+#	echo '$JOB_ID"' >> $rerun_script
+#	echo "" >> $rerun_script
+#	echo -n 'echo -e "genotypeGVCFs\t$JOB_ID" >> ' >> $rerun_script
+#	echo "$ANALYSIS_DIR_MSVC/run/variant_calling.dependencies.txt" >> $rerun_script
+#	echo "" >> $rerun_script
 
 
 #   to reduce number of job submissions script is now invoked from 
@@ -1239,10 +1242,10 @@ function submitPostProcessingJobs {
 	local sample=$1
 	local analysis_dir=$2
 	local results_dir=$3
+	local run_dir=$4
+	run_dir=$run_dir/run    
 
-	local run_dir=$analysis_dir/run    
-
-	local rerun_script=$run_dir/rerun.sh
+#	local rerun_script=$run_dir/rerun.sh
 
 	#recalibration
 	mkdir -p $results_dir/recalibration
@@ -1250,14 +1253,14 @@ function submitPostProcessingJobs {
 	#rerun script
 	echo ""
 	
-	echo 'if [[ -z $STAGE ]] || [[ $STAGE == "post" ]]' >> $rerun_script
-	echo "then" >> $rerun_script
-	echo "" >> $rerun_script
+#	echo 'if [[ -z $STAGE ]] || [[ $STAGE == "post" ]]' >> $rerun_script
+#	echo "then" >> $rerun_script
+#	echo "" >> $rerun_script
 
-	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
-	echo 'echo "`$NOW`POST-PROCESSING"' >> $rerun_script
-	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
-	echo 'echo ""' >> $rerun_script
+#	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+#	echo 'echo "`$NOW`POST-PROCESSING"' >> $rerun_script
+#	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+#	echo 'echo ""' >> $rerun_script
 	echo ""
 	########## script 6: merge realigned and recalibrated chunk BAM files
 	
@@ -1265,7 +1268,7 @@ function submitPostProcessingJobs {
 	echo "`$NOW`====================================================================================="
 	echo "`$NOW`Merging realigned and recalibrated chunk BAM files"
 	echo "`$NOW`====================================================================================="
-	echo "" >> $rerun_script
+#	echo "" >> $rerun_script
 
 	local recalibrated_merged_bam_output_dir=$results_dir/recalibration
 	local recalibrated_input_dir=$analysis_dir/recalibration
@@ -1368,68 +1371,68 @@ function submitPostProcessingJobs {
 	echo "`$NOW`job ID: $job_id"
 
 	#write qsub to re-submission script
-	echo "#merge_bam" >> $rerun_script
-	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
-	echo 'echo "`$NOW`Merge realigned and recalibrated chunk BAM files"' >> $rerun_script
-	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
-	echo "" >> $rerun_script
+#	echo "#merge_bam" >> $rerun_script
+#	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+#	echo 'echo "`$NOW`Merge realigned and recalibrated chunk BAM files"' >> $rerun_script
+#	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+#	echo "" >> $rerun_script
 	
-	echo -n 'echo "`$NOW`submitting job script ' >> $rerun_script
-	echo -n $script_path >> $rerun_script
-	echo '..."' >> $rerun_script
+#	echo -n 'echo "`$NOW`submitting job script ' >> $rerun_script
+#	echo -n $script_path >> $rerun_script
+#	echo '..."' >> $rerun_script
 			
-	echo 'if [[ "$IS_DEPENDING" == "TRUE" ]]' >> $rerun_script
-	echo 'then' >> $rerun_script
-	echo '   PR_DEPENDENCY=afterok' >> $rerun_script 
-	echo -n '    for JOB_ID in `grep $SAMPLE ' >> $rerun_script
-	echo -n "$ANALYSIS_DIR_MSVC/run/pre.$chunk.dependencies.txt | cut -f2" >> $rerun_script
-	echo '`' >> $rerun_script
-	echo '    do' >> $rerun_script
-	echo '        ALIVE=`qselect -s QRHSW | grep $JOB_ID`' >> $rerun_script
-	echo '        if [[ $ALIVE != "" ]]' >> $rerun_script
-	echo '        then' >> $rerun_script
-	echo '            PR_DEPENDENCY=$PR_DEPENDENCY:$JOB_ID' >> $rerun_script
-	echo '        fi'  >> $rerun_script
-	echo '    done' >> $rerun_script
-	echo "if [[ -f $ANALYSIS_DIR_MSVC/run/variant_calling.dependencies.txt ]]" >> $rerun_script
-	echo "    then" >> $rerun_script
-	echo -n '        for JOB_ID in `cut -f2 ' >> $rerun_script
-	echo -n "$ANALYSIS_DIR_MSVC/run/variant_calling.dependencies.txt" >> $rerun_script
-	echo '`' >> $rerun_script
-	echo '        do' >> $rerun_script
-	echo '            ALIVE=`qselect -s QRHSW | grep $JOB_ID`' >> $rerun_script
-	echo '            if [[ $ALIVE != "" ]]' >> $rerun_script
-	echo '            then' >> $rerun_script
-	echo '                PR_DEPENDENCY=$PR_DEPENDENCY:$JOB_ID' >> $rerun_script
-	echo '            fi'  >> $rerun_script
-	echo '         done' >> $rerun_script
-	echo "     fi" >> $rerun_script 
-	echo "" >> $rerun_script	
-	echo 'fi' >> $rerun_script
+#	echo 'if [[ "$IS_DEPENDING" == "TRUE" ]]' >> $rerun_script
+#	echo 'then' >> $rerun_script
+#	echo '   PR_DEPENDENCY=afterok' >> $rerun_script 
+#	echo -n '    for JOB_ID in `grep $SAMPLE ' >> $rerun_script
+#	echo -n "$ANALYSIS_DIR_MSVC/run/pre.$chunk.dependencies.txt | cut -f2" >> $rerun_script
+#	echo '`' >> $rerun_script
+#	echo '    do' >> $rerun_script
+#	echo '        ALIVE=`qselect -s QRHSW | grep $JOB_ID`' >> $rerun_script
+#	echo '        if [[ $ALIVE != "" ]]' >> $rerun_script
+#	echo '        then' >> $rerun_script
+#	echo '            PR_DEPENDENCY=$PR_DEPENDENCY:$JOB_ID' >> $rerun_script
+#	echo '        fi'  >> $rerun_script
+#	echo '    done' >> $rerun_script
+#	echo "if [[ -f $ANALYSIS_DIR_MSVC/run/variant_calling.dependencies.txt ]]" >> $rerun_script
+#	echo "    then" >> $rerun_script
+#	echo -n '        for JOB_ID in `cut -f2 ' >> $rerun_script
+#	echo -n "$ANALYSIS_DIR_MSVC/run/variant_calling.dependencies.txt" >> $rerun_script
+#	echo '`' >> $rerun_script
+#	echo '        do' >> $rerun_script
+#	echo '            ALIVE=`qselect -s QRHSW | grep $JOB_ID`' >> $rerun_script
+#	echo '            if [[ $ALIVE != "" ]]' >> $rerun_script
+#	echo '            then' >> $rerun_script
+#	echo '                PR_DEPENDENCY=$PR_DEPENDENCY:$JOB_ID' >> $rerun_script
+#	echo '            fi'  >> $rerun_script
+#	echo '         done' >> $rerun_script
+#	echo "     fi" >> $rerun_script 
+#	echo "" >> $rerun_script	
+#	echo 'fi' >> $rerun_script
 			
-	echo 'if [[ -z $PR_DEPENDENCY ]]' >> $rerun_script
-	echo 'then' >> $rerun_script
+#	echo 'if [[ -z $PR_DEPENDENCY ]]' >> $rerun_script
+#	echo 'then' >> $rerun_script
 
-	echo -n 'JOB_ID=`' >> $rerun_script	
-	echo -n "qsub -o $log_output_path $script_path" >> $rerun_script
-	echo '`' >> $rerun_script
+#	echo -n 'JOB_ID=`' >> $rerun_script	
+#	echo -n "qsub -o $log_output_path $script_path" >> $rerun_script
+#	echo '`' >> $rerun_script
 
-	echo 'else' >> $rerun_script
+#	echo 'else' >> $rerun_script
 
-	echo -n 'JOB_ID=`' >> $rerun_script	
-	echo -n "qsub -o $log_output_path -W depend=" >> $rerun_script
-	echo -n '$PR_DEPENDENCY ' >> $rerun_script
-	echo -n "$script_path" >> $rerun_script
-	echo '`' >> $rerun_script
+#	echo -n 'JOB_ID=`' >> $rerun_script	
+#	echo -n "qsub -o $log_output_path -W depend=" >> $rerun_script
+#	echo -n '$PR_DEPENDENCY ' >> $rerun_script
+#	echo -n "$script_path" >> $rerun_script
+#	echo '`' >> $rerun_script
 
-	echo 'fi' >> $rerun_script
+#	echo 'fi' >> $rerun_script
 
-	echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
-	echo '$JOB_ID"' >> $rerun_script
-	echo "" >> $rerun_script
+#	echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
+#	echo '$JOB_ID"' >> $rerun_script
+#	echo "" >> $rerun_script
 
-	echo 'MRB_DEPENDENCY=afterok:$JOB_ID' >> $rerun_script
-	echo "" >> $rerun_script
+#	echo 'MRB_DEPENDENCY=afterok:$JOB_ID' >> $rerun_script
+#	echo "" >> $rerun_script
 	
 	
 	echo "`$NOW`done"
@@ -1441,15 +1444,15 @@ function submitPostProcessingJobs {
 	echo "`$NOW`====================================================================================="
 
 	#rerun script
-	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
-	echo 'echo "`$NOW`Recalibration and coverage reports"' >> $rerun_script
-	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+#	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
+#	echo 'echo "`$NOW`Recalibration and coverage reports"' >> $rerun_script
+#	echo 'echo "`$NOW`====================================================================================="' >> $rerun_script
 	
 	
 	#script 7: post-recalibration reports on chunks
 	local post_recalibration_reports=""
 	
-	echo "#post_recal_metrics" >> $rerun_script
+#	echo "#post_recal_metrics" >> $rerun_script
 	
 	chunk_count=0
 	for chunk_name in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`; do
@@ -1545,30 +1548,30 @@ function submitPostProcessingJobs {
 	
 			#write qsub to re-submission script
 			#with new merge recalibrated BAM dependency
-			echo -n 'echo "`$NOW`submitting job script ' >> $rerun_script
-			echo -n $script_path >> $rerun_script
-			echo '..."' >> $rerun_script
+#			echo -n 'echo "`$NOW`submitting job script ' >> $rerun_script
+#			echo -n $script_path >> $rerun_script
+#			echo '..."' >> $rerun_script
 
-			echo 'if [[ -z $PR_DEPENDENCY ]]' >> $rerun_script
-			echo 'then' >> $rerun_script
+#			echo 'if [[ -z $PR_DEPENDENCY ]]' >> $rerun_script
+#			echo 'then' >> $rerun_script
 
-			echo -n 'JOB_ID=`' >> $rerun_script	
-			echo -n "qsub -o $log_output_path $script_path" >> $rerun_script
-			echo '`' >> $rerun_script
+#			echo -n 'JOB_ID=`' >> $rerun_script	
+#			echo -n "qsub -o $log_output_path $script_path" >> $rerun_script
+#			echo '`' >> $rerun_script
 
-			echo 'else' >> $rerun_script
+#			echo 'else' >> $rerun_script
 
-			echo -n 'JOB_ID=`' >> $rerun_script	
-			echo -n "qsub -o $log_output_path -W depend=" >> $rerun_script
-			echo -n '$PR_DEPENDENCY ' >> $rerun_script
-			echo -n "$script_path" >> $rerun_script
-			echo '`' >> $rerun_script
+#			echo -n 'JOB_ID=`' >> $rerun_script	
+#			echo -n "qsub -o $log_output_path -W depend=" >> $rerun_script
+#			echo -n '$PR_DEPENDENCY ' >> $rerun_script
+#			echo -n "$script_path" >> $rerun_script
+#			echo '`' >> $rerun_script
 
-			echo 'fi' >> $rerun_script
+#			echo 'fi' >> $rerun_script
 
-			echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
-			echo '$JOB_ID"' >> $rerun_script
-			echo "" >> $rerun_script
+#			echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
+#			echo '$JOB_ID"' >> $rerun_script
+#			echo "" >> $rerun_script
 	    		
 			echo "`$NOW`-------------------------------------------------------------------------------------"
 		
@@ -1649,27 +1652,27 @@ function submitPostProcessingJobs {
     
 	#write qsub to re-submission script
 	#with new post recalibration metrics dependency
-	echo "#summary_metrics" >> $rerun_script
+#	echo "#summary_metrics" >> $rerun_script
 	
-	echo -n 'echo "`$NOW`submitting job script ' >> $rerun_script
-	echo -n $script_path >> $rerun_script
-	echo '..."' >> $rerun_script
+#	echo -n 'echo "`$NOW`submitting job script ' >> $rerun_script
+#	echo -n $script_path >> $rerun_script
+#	echo '..."' >> $rerun_script
 
-	echo -n 'JOB_ID=`' >> $rerun_script
- 	echo -n "qsub -o $log_output_path -W depend=" >> $rerun_script
-	echo -n '$MRB_DEPENDENCY ' >> $rerun_script
-	echo -n "$script_path" >> $rerun_script
-	echo '`' >> $rerun_script
+#	echo -n 'JOB_ID=`' >> $rerun_script
+# 	echo -n "qsub -o $log_output_path -W depend=" >> $rerun_script
+#	echo -n '$MRB_DEPENDENCY ' >> $rerun_script
+#	echo -n "$script_path" >> $rerun_script
+#	echo '`' >> $rerun_script
 
-	echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
-	echo '$JOB_ID"' >> $rerun_script
-	echo "" >> $rerun_script
+#	echo -n 'echo "`$NOW`job ID: ' >> $rerun_script
+#	echo '$JOB_ID"' >> $rerun_script
+#	echo "" >> $rerun_script
 
 
-	echo 'echo "`$NOW`-------------------------------------------------------------------------------------"' >> $rerun_script
+#	echo 'echo "`$NOW`-------------------------------------------------------------------------------------"' >> $rerun_script
 
-	echo "fi" >> $rerun_script
-	echo "" >> $rerun_script
+#	echo "fi" >> $rerun_script
+#	echo "" >> $rerun_script
 
 
 	#print progress summary for submitted jobs
@@ -1699,8 +1702,9 @@ function submitMergeAndPlotMetricsJob {
 	#get args
 	local results_dir=$1
 	local analysis_dir=$2
-	local run_dir=$analysis_dir/run
-	local project_name=$3
+	local run_dir=$3
+	run_dir=$run_dir/run
+	local project_name=$4
 	local sample_summary="$project_name.$TODAY.sample_summary"	
 	local sample_interval_summary="$project_name.$TODAY.sample_interval_summary"
 	local sample_cumulative_coverage_proportions="$project_name.$TODAY.sample_cumulative_coverage_proportions"
@@ -1772,11 +1776,11 @@ function submitMergeAndPlotMetricsJob {
 function submitCompUse {
 
 	echo "`$NOW`creating and submitting usage script..."
-	local script_path=$ANALYSIS_DIR_MSVC/run/USIGFP000000000.sh
+	local script_path=$SCRIPTS_DIR_MSVC/run/USIGFP000000000.sh
 	cp $BASEDIR/usage_gatk.sh $script_path
 
 	local usage_file="$RESULTS_DIR_MSVC/usage.$TODAY.txt"
-	local summary_script_path=$ANALYSIS_DIR_MSVC/run/summary_gatk.${PROJECT}_multisample.pl
+	local summary_script_path=$SCRIPTS_DIR_MSVC/run/summary_gatk.${PROJECT}_multisample.pl
 
 	sed -i -e "s/setupLog/${SETUP_LOG//\//\\/}/" $script_path
 	sed -i -e "s/usageFile/${usage_file//\//\\/}/" $script_path
@@ -1812,6 +1816,7 @@ DEPENDENCY_COLLECT_SUMMARY_METRICS_ALL=afterok
 
 ANALYSIS_DIR_PROJECT=$GROUP_VOL_CGI/analysis/$PROJECT/gatk3
 RESULTS_DIR_PROJECT=$PROJECT_TGU/results/$PROJECT/gatk3
+SCRIPTS_DIR_PROJECT=$PROJECT_TGU/runs/$PROJECT/gatk3
 
 #create and set permissions for analysis project parent directory    
 mkdir -p $ANALYSIS_DIR_PROJECT
@@ -1821,15 +1826,23 @@ chmod 770 $ANALYSIS_DIR_PROJECT
 mkdir -p $RESULTS_DIR_PROJECT
 chmod 770 $RESULTS_DIR_PROJECT
 
+#create and set permissions for scripts project parent directory
+mkdir -p $SCRIPTS_DIR_PROJECT
+chmod 770 $SCRIPTS_DIR_PROJECT
+
 #set up directory structure for multi-sample variant calling
 mkdir -p $ANALYSIS_DIR_PROJECT/$TODAY
 chmod 770 $ANALYSIS_DIR_PROJECT/$TODAY
     
 mkdir -p $RESULTS_DIR_PROJECT/$TODAY
 chmod 770 $RESULTS_DIR_PROJECT/$TODAY
+
+mkdir -p $SCRIPTS_DIR_PROJECT/$TODAY
+chmod 770 $SCRIPTS_DIR_PROJECT/$TODAY
 	
 ANALYSIS_DIR_MSVC=$ANALYSIS_DIR_PROJECT/$TODAY/multisample
 RESULTS_DIR_MSVC=$RESULTS_DIR_PROJECT/$TODAY/multisample
+SCRIPTS_DIR_MSVC=$SCRIPTS_DIR_PROJECT/$TODAY/multisample
 
 #create and set permissions for multi-sample variant calling analysis directory
 mkdir -p $ANALYSIS_DIR_MSVC
@@ -1839,19 +1852,23 @@ chmod 770 $ANALYSIS_DIR_MSVC
 mkdir -p $RESULTS_DIR_MSVC
 chmod 770 $RESULTS_DIR_MSVC
 
+#create and set permissions for multi-sample variant calling scripts directory
+mkdir -p $SCRIPTS_DIR_MSVC
+chmod 770 $SCRIPTS_DIR_MSVC
+
 #create and set permissions for multi-sample metrics results directory
 mkdir -p $RESULTS_DIR_MSVC/metrics
 chmod 770 $RESULTS_DIR_MSVC/metrics
 
 #intialise log files
-RUN_LOG=$ANALYSIS_DIR_MSVC/run.log
+RUN_LOG=$SCRIPTS_DIR_MSVC/run.log
 echo -n "" > $RUN_LOG
 echo -e "DATE\tTIME\tSCRIPT\tSAMPLE\tCHUNK\tSTEP\tSTATUS" >> $RUN_LOG
 
-WARNING_LOG=$ANALYSIS_DIR_MSVC/warning.log
+WARNING_LOG=$SCRIPTS_DIR_MSVC/warning.log
 echo -n "" > $WARNING_LOG
 
-SETUP_LOG=$ANALYSIS_DIR_MSVC/setup.log
+SETUP_LOG=$SCRIPTS_DIR_MSVC/setup.log
 echo -n "" > $SETUP_LOG
 
 BAM_SIZE_FILE=$ANALYSIS_DIR_MSVC/bam_size.txt
@@ -1882,6 +1899,7 @@ echo "`$NOW`chunk coordinates : $REFERENCE_CHUNKS"
 #setup realignment and recalibration jobs
 echo "`$NOW`analysis directory: $ANALYSIS_DIR_PROJECT"
 echo "`$NOW`results directory: $RESULTS_DIR_PROJECT"
+echo "`$NOW`scripts directory: $SCRIPTS_DIR_PROJECT"
     
 #initialise file to store PrintReads dependencies for genotypeGVCFs jobs
 PRINT_READS_DEPENDENCY=$ANALYSIS_DIR_MSVC/print_reads_dependencies.tsv
@@ -1991,8 +2009,9 @@ sort $SAMPLE_LIST | uniq | while read SAMPLE DATE SAMPLE_PROJECT; do
     	IN_BAM_SAMPLE=$PROJECT_TGU/results/$SAMPLE_PROJECT/mergetag/$DATE/$SAMPLE/$SAMPLE.bam
 		if [[ ! -e $IN_BAM_SAMPLE ]]; then
        		echo "`$NOW`ERROR: input bam for $SAMPLE does not exist: $IN_BAM_SAMPLE"
+			echo "$IN_BAM_SAMPLE" >> $ANALYSIS_DIR_PROJECT/$TODAY/missing_files.txt
 			echo "check $SAMPLE_LIST file"
-        	exit 1
+#        	exit 1
 #		else
 #			echo "INFO: input bam check ok - $IN_BAM_SAMPLE is present"
 		fi
@@ -2007,13 +2026,24 @@ if [[ $AUX_LIST != "" ]]; then
 			if [[ ! -e $GVCF ]]; then
         		echo "`$NOW`ERROR: input genomic vcf for $SAMPLE does not exist: $GVCF"
 				echo "check $AUX_LIST file"
-        		exit 1
+				echo "$GVCF" >> $ANALYSIS_DIR_PROJECT/$TODAY/missing_files.txt
+#        		exit 1
 #			else 
 #				echo "INFO: input GVCF file check ok - $GVCF is present"
 			fi    
 		fi
 	done;
 fi
+
+if [[ -e $ANALYSIS_DIR_PROJECT/$TODAY/missing_files.txt ]]; then
+	echo "Some bam or gvcf files are missing"
+	echo "the list is in $ANALYSIS_DIR_PROJECT/$TODAY/missing_files.txt"
+	echo "exiting"
+	exit 1
+else 
+	echo "bam and gvcf input file check complete: all files are present"
+fi
+
 
 #now we can submit jobs for each sample (make sure that all entries are unique)...
 #get sample count from sample list skipping blank lines
@@ -2030,16 +2060,19 @@ sort $SAMPLE_LIST | uniq | while read SAMPLE DATE SAMPLE_PROJECT; do
     	IN_BAM_SAMPLE=$PROJECT_TGU/results/$SAMPLE_PROJECT/mergetag/$DATE/$SAMPLE/$SAMPLE.bam
 	    ANALYSIS_DIR_SAMPLE=$ANALYSIS_DIR_PROJECT/$TODAY/$SAMPLE
 	    RESULTS_DIR_SAMPLE=$RESULTS_DIR_PROJECT/$TODAY/$SAMPLE
+	    SCRIPTS_DIR_SAMPLE=$SCRIPTS_DIR_PROJECT/$TODAY/$SAMPLE
 
 	    submitRealignmentAndRecalibrationJobs $IN_BAM_SAMPLE \
 						$ANALYSIS_DIR_SAMPLE \
-						$RESULTS_DIR_SAMPLE 
+						$RESULTS_DIR_SAMPLE \
+						$SCRIPTS_DIR_SAMPLE
 	fi
 done;
 
 #submit GenotypeGVCFs
 submitGenotypeGVCFsJobs $ANALYSIS_DIR_MSVC \
-					   $RESULTS_DIR_MSVC
+						$RESULTS_DIR_MSVC \
+						$SCRIPTS_DIR_MSVC
 
              	      		
 		
@@ -2056,10 +2089,12 @@ sort $SAMPLE_LIST | uniq | while read SAMPLE DATE; do
 	
 		ANALYSIS_DIR_SAMPLE=$ANALYSIS_DIR_PROJECT/$TODAY/$SAMPLE
 		RESULTS_DIR_SAMPLE=$RESULTS_DIR_PROJECT/$TODAY/$SAMPLE
+		SCRIPTS_DIR_SAMPLE=$SCRIPTS_DIR_PROJECT/$TODAY/$SAMPLE
 
 		submitPostProcessingJobs $SAMPLE \
-					 $ANALYSIS_DIR_SAMPLE \
-               		 	     	$RESULTS_DIR_SAMPLE 
+					 			$ANALYSIS_DIR_SAMPLE \
+               		 	     	$RESULTS_DIR_SAMPLE \
+								$SCRIPTS_DIR_SAMPLE
 	fi	    
 
 	echo -n "$DEPENDENCY_COLLECT_SUMMARY_METRICS_ALL" > $ALL_JOBS_DEPENDENCY    	   
@@ -2068,6 +2103,7 @@ done;
 #merge and plot summary statistics
 submitMergeAndPlotMetricsJob $RESULTS_DIR_MSVC \
 							$ANALYSIS_DIR_MSVC \
+							$SCRIPTS_DIR_MSVC \
 							$PROJECT
 
 #collect data on using computational resources
