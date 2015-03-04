@@ -15,7 +15,7 @@ NOW="date +%Y-%m-%d%t%T%t"
 TODAY=`date +%Y-%m-%d`
 
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
-GROUP_VOL_CGI=/groupvol/cgi
+GROUP_VOL_CGI=/project/tgu
 
 QUEUE=pqcgi
 WALLTIME_HOURS_PER_RUN=30
@@ -129,14 +129,14 @@ if [ -d $INPUT_PATH ] ; then
     PROJECT=`basename $PROJECT`
 
     #create and set permissions for analysis project parent directory
-    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT
-    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT
+    mkdir -p $GROUP_VOL_CGI/runs/$PROJECT
+    chmod 770 $GROUP_VOL_CGI/runs/$PROJECT
 
-    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/cutadapt
-    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/cutadapt
+    mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/cutadapt
+    chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/cutadapt
 
-    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/cutadapt/$TODAY
-    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/cutadapt/$TODAY
+    mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/cutadapt/$TODAY
+    chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/cutadapt/$TODAY
 
     #create and set permissions for results project parent directory
     mkdir -p $GROUP_VOL_CGI/results/$PROJECT
@@ -164,15 +164,15 @@ if [ -d $INPUT_PATH ] ; then
 			echo "`$NOW`processing directory $SAMPLE..."
 
 			#create and set permissions for analysis sample parent directory
-			mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/cutadapt/$TODAY/$SAMPLE
-			chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/cutadapt/$TODAY/$SAMPLE
+			mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/cutadapt/$TODAY/$SAMPLE
+			chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/cutadapt/$TODAY/$SAMPLE
 
  			#create and set permissions for results sample parent directory
    			mkdir -p $GROUP_VOL_CGI/results/$PROJECT/cutadapt/$TODAY/$SAMPLE
     			chmod 770 $GROUP_VOL_CGI/results/$PROJECT/cutadapt/$TODAY/$SAMPLE
 
         		#...create output directory
-			PATH_RUN_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/cutadapt/$TODAY/$SAMPLE
+			PATH_RUN_DIR=$GROUP_VOL_CGI/runs/$PROJECT/cutadapt/$TODAY/$SAMPLE
 			PATH_OUT_DIR=$GROUP_VOL_CGI/results/$PROJECT/cutadapt/$TODAY/$SAMPLE      
 	
 			#create, configure and submit job scripts
