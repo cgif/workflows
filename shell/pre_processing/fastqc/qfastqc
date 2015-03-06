@@ -27,7 +27,7 @@ PATTERN_READ_1='_R1_'
 PATTERN_READ_2='_R2_'
 SINGLE_READS="F"
 
-USAGE="USAGE: qfastqc -i <input_path> -t <read1_tag, default '_R1_'> -p <read1_tag, default '_R2_'>"
+USAGE="USAGE: qfastqc -i <input_path> -t <read1_tag, default '_R1_'> -p <read2_tag, default '_R2_'>"
 
 #COMMAND LINE ARGS
 ##################
