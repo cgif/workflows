@@ -6,6 +6,7 @@
 
 #PBS -l walltime=#walltimeHours:00:00
 #PBS -l select=1:ncpus=#threads:mem=1024mb:tmpspace=#tmpSpacemb
+#PBS -l place=excl
 
 #PBS -m ea
 #PBS -M cgi@imperial.ac.uk

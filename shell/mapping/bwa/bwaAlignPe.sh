@@ -13,8 +13,8 @@
 
 #PBS -q pqcgi
 
-module load bio-bwa/0.7.2
-module load samtools/0.1.19
+module load bio-bwa/0.7.10
+module load samtools/1.1
 
 #now
 NOW="date +%Y-%m-%d%t%T%t"

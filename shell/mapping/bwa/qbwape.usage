@@ -32,5 +32,7 @@ DESCRIPTION
 	-m	Keeps multiple primary alignments for different parts of a query sequence. 
 		Shorter split hits are marked as secondary (BWA mem -M option) and can be removed with samtools.
 
+	-c	Generate CRAM files.
+
 	-h	Display help and exit.
 

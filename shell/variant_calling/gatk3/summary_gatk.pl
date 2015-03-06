@@ -10,6 +10,7 @@ use strict;
 
 my $project_dir_analysis = "projectDirAnalysis";
 my $project_dir_results = "projectDirResults";
+my $project_dir_scripts = "projectDirScripts";
 my $project = "#project";
 my $date = "#today";
 my $summary_results = "summaryResults";
@@ -48,7 +49,7 @@ my @sample = Uniq(@sample_all);
 foreach my $sample (@sample){
     foreach my $chunk (1..$total_chunks){
 	my $chunk_formatted = sprintf("%03d", $chunk);
-	my $realignment_log = "$project_dir_analysis/$date/$sample/run/RR${sample}${chunk_formatted}.log";
+	my $realignment_log = "$project_dir_scripts/$date/$sample/run/RR${sample}${chunk_formatted}.log";
 	if (-s $realignment_log){
    	    my $realignment_target = "$project_dir_analysis/$date/$sample/realignment/$sample".".chunk_"."$chunk".".RTC.intervals";
 	    if (-s $realignment_target){
@@ -72,7 +73,7 @@ foreach my $sample (@sample){
 	    }
 	}
 
-        my $recalibration_print_reads_log = "$project_dir_analysis/$date/$sample/run/PR${sample}${chunk_formatted}.log";
+        my $recalibration_print_reads_log = "$project_dir_scripts/$date/$sample/run/PR${sample}${chunk_formatted}.log";
         if (-s $recalibration_print_reads_log){
 	    my $recalibrated_bam = "$project_dir_analysis/$date/$sample/recalibration/$sample".".chunk_"."$chunk.realigned.recalibrated.bam";
 	    if (-s $recalibrated_bam){
@@ -82,7 +83,7 @@ foreach my $sample (@sample){
 	    }
 	}
 
-        my $hap_caller_log = "$project_dir_analysis/$date/$sample/run/HC${sample}${chunk_formatted}.log";
+        my $hap_caller_log = "$project_dir_scripts/$date/$sample/run/HC${sample}${chunk_formatted}.log";
         if (-s $hap_caller_log){
 	    my $haplotype_caller_grep = "";
 	    $haplotype_caller_grep = `grep ERROR $hap_caller_log`;
@@ -94,7 +95,7 @@ foreach my $sample (@sample){
 	    }
 	}
 
-	my $recalibration_merge_log = "$project_dir_analysis/$date/$sample/run/MR${sample}000.log";
+	my $recalibration_merge_log = "$project_dir_scripts/$date/$sample/run/MR${sample}000.log";
 	if (-s $recalibration_merge_log){
 	    my $recalibration_report = "$project_dir_results/$date/$sample/recalibration/reports/pre/$sample".".realigned.recal_data.grp";
 	    if (-s $recalibration_report){
@@ -104,7 +105,7 @@ foreach my $sample (@sample){
 	    }
 	}
 
-	my $merge_bam_gvcf_log = "$project_dir_analysis/$date/$sample/run/MB${sample}000.log";
+	my $merge_bam_gvcf_log = "$project_dir_scripts/$date/$sample/run/MB${sample}000.log";
 	if (-s $merge_bam_gvcf_log){
 	    my $merged_gvcf = "$project_dir_results/$date/$sample/haplotypecaller/$sample".".genomic.vcf.gz";
 	    if (-s $merged_gvcf){
@@ -130,7 +131,7 @@ foreach my $sample (@sample){
 
 foreach my $chunk (1..$total_chunks){
     my $chunk_formatted = sprintf("%03d", $chunk);
-    my $genotypeGVCFs_log = "$project_dir_analysis/$date/multisample/run/GGIGFP000000${chunk_formatted}.log";
+    my $genotypeGVCFs_log = "$project_dir_scripts/$date/multisample/run/GGIGFP000000${chunk_formatted}.log";
     if (-s $genotypeGVCFs_log){
 	my $genotypeGVCFs_grep = "";
 	$genotypeGVCFs_grep = `grep ERROR $genotypeGVCFs_log`;
@@ -143,7 +144,7 @@ foreach my $chunk (1..$total_chunks){
     }
 }
 
-my $recalibrate_vcf_log =  "$project_dir_analysis/$date/multisample/run/RVIGFP0000000.log";
+my $recalibrate_vcf_log =  "$project_dir_scripts/$date/multisample/run/RVIGFP000000000.log";
 if (-s $recalibrate_vcf_log){
     my $raw_vcf = "$project_dir_results/$date/multisample/genotypeGVCFs/$project"."_multisample.raw.vcf.gz";
     if (-s $raw_vcf){
@@ -228,7 +229,7 @@ foreach my $sample (sort @sample){
 	    if ($tag eq "recalibration_report"){
 		if ($chunk == 1){
 		    if (defined $sum{$sample}{$tag}){
-			my $recalibration_merge_plot_log = "$project_dir_analysis/$date/$sample/run/CS${sample}000.log";
+			my $recalibration_merge_plot_log = "$project_dir_scripts/$date/$sample/run/CS${sample}000.log";
 			if (-s $recalibration_merge_plot_log){
 			    my $pdf = "$project_dir_results/$date/$sample/recalibration/plots/post/$sample.realigned.recalibrated.recal_plot-1.jpeg";
 			    my $pdf_deployment = "$summary_deployment/$sample.jpeg";
@@ -444,9 +445,9 @@ my $sample_summary = "$project_dir_results/$date/multisample/metrics/$project.$d
 my $sample_interval_summary = "$project_dir_results/$date/multisample/metrics/$project.$date.sample_interval_summary";
 my $sample_cumulative_coverage_proportions = "$project_dir_results/$date/multisample/metrics/$project.$date.sample_cumulative_coverage_proportions";
 
-my $sample_summary_php = "$project_dir_analysis/$date/multisample/run/sample_summary.php";
-my $sample_interval_summary_php = "$project_dir_analysis/$date/multisample/run/sample_interval_summary.php";
-my $sample_cumulative_coverage_proportions_php = "$project_dir_analysis/$date/multisample/run/sample_cumulative_coverage_proportions.php";
+my $sample_summary_php = "$project_dir_scripts/$date/multisample/run/sample_summary.php";
+my $sample_interval_summary_php = "$project_dir_scripts/$date/multisample/run/sample_interval_summary.php";
+my $sample_cumulative_coverage_proportions_php = "$project_dir_scripts/$date/multisample/run/sample_cumulative_coverage_proportions.php";
 
 
 #create target directory on server

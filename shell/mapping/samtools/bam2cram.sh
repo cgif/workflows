@@ -9,7 +9,7 @@
 #PBS -l select=1:ncpus=threads:mem=7800mb:tmpspace=50gb
 
 #PBS -m ea
-#PBS -M mkanwagi@imperial.ac.uk
+#PBS -M cgi@imperial.ac.uk
 #PBS -j oe
 
 #PBS -q pqcgi
@@ -38,7 +38,8 @@ PATH_OUTPUT_CRAM_DIR=pathOutputCramDir
 OUTPUT_PREFIX=outputPrefix
 
 						
-CRAM_NAME=`echo $PATH_INPUT_BAM | awk 'BEGIN{FS="/"} {print $8}' | awk 'BEGIN {FS="."} {print $1}'`
+#CRAM_NAME=`echo $PATH_INPUT_BAM | awk 'BEGIN{FS="/"} {print $8}' | awk 'BEGIN {FS="."} {print $1}'`
+CRAM_NAME=`echo $OUTPUT_PREFIX | awk 'BEGIN {FS="."} {print $1}'`
 PATH_OUTPUT_CRAM=$PATH_OUTPUT_CRAM_DIR/$CRAM_NAME.cram
 
 #path to reference genome fasta file without gzip extension

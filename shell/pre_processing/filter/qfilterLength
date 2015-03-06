@@ -15,7 +15,7 @@ NOW="date +%Y-%m-%d%t%T%t"
 TODAY=`date +%Y-%m-%d`
 
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
-GROUP_VOL_CGI=/groupvol/cgi
+PROJECT_TGU=/project/tgu
 
 QUEUE=pqcgi
 
@@ -113,19 +113,19 @@ function submitJobs {
 #if the input path is a directory...
 if [ -d $INPUT_PATH ] ; then
 
-    #create and set permissions for analysis project parent directory
-    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT
-    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT
+    #create and set permissions for runs project parent directory
+    mkdir -p $PROJECT_TGU/runs/$PROJECT
+    chmod 770 $PROJECT_TGU/runs/$PROJECT
 
-    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/filerLength
-    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/filerLength
+    mkdir -p $PROJECT_TGU/runs/$PROJECT/filerLength
+    chmod 770 $PROJECT_TGU/runs/$PROJECT/filerLength
 
-    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/filerLength/$TODAY
-    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/filerLength/$TODAY
+    mkdir -p $PROJECT_TGU/runs/$PROJECT/filerLength/$TODAY
+    chmod 770 $PROJECT_TGU/runs/$PROJECT/filerLength/$TODAY
 
     #create and set permissions for results project parent directory
-    mkdir -p $GROUP_VOL_CGI/results/$PROJECT
-    chmod 770 $GROUP_VOL_CGI/results/$PROJECT
+    mkdir -p $PROJECT_TGU/results/$PROJECT
+    chmod 770 $PROJECT_TGU/results/$PROJECT
 
     #for each sample directory...
     for SAMPLE in `ls --color=never $INPUT_PATH`
@@ -143,11 +143,11 @@ if [ -d $INPUT_PATH ] ; then
 			echo "`$NOW`processing directory $SAMPLE..."
 
 			#create and set permissions for analysis sample parent directory
-			mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/filerLength/$TODAY/$SAMPLE
-			chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/filerLength/$TODAY/$SAMPLE
+			mkdir -p $PROJECT_TGU/runs/$PROJECT/filerLength/$TODAY/$SAMPLE
+			chmod 770 $PROJECT_TGU/runs/$PROJECT/filerLength/$TODAY/$SAMPLE
 
         		#...create output directory
-			PATH_RUN_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/filerLength/$TODAY/$SAMPLE
+			PATH_RUN_DIR=$PROJECT_TGU/runs/$PROJECT/filerLength/$TODAY/$SAMPLE
     
 	
 			#create, configure and submit job scripts
