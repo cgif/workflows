@@ -1,0 +1,197 @@
+#!/bin/bash
+
+#
+# sets up directory structure and generates, configures and submits 
+# scripts to run cutadapt algorithm for removing adapters and low quality ends 
+#
+
+#CONFIGURATION
+##############
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+GROUP_VOL_CGI=/project/tgu
+
+#COMMAND LINE ARGS
+##################
+
+USAGE="USAGE: qcutadapt_primers -i <path_to_fastq_directory> -f <file containing forward primers, one per line> -r <file containing reverse primers, one per line>"
+
+#parse command line args
+while getopts "i:f:r:h" option; do
+    case "$option" in
+
+		i) INPUT_PATH="$OPTARG";;
+		f) FORWARD_PRIMERS="$OPTARG";;
+		r) REVERSE_PRIMERS="$OPTARG";;
+        h) echo "$USAGE"; exit 1;;
+	[?]) echo "$USAGE"; exit 1;;
+
+esac
+done
+
+#check if required arguments are missing
+if [ -z $INPUT_PATH ]; then
+    echo $USAGE
+    exit 1
+fi
+
+#if [[ -s $FORWARD_PRIMERS ]] || [[ -s $REVERSE_PRIMERS ]]; then
+#    echo $USAGE
+#	echo "check that primer files exist and not empty"
+#    exit 1
+#fi
+
+#FUNCTIONS
+##########
+
+#creates job scripts
+function submitJobs {
+
+	FASTQ_DIR=$1
+	PATH_RUN_DIR=$2
+	PATH_OUT_DIR=$3
+	FORWARD=$4
+	REVERSE=$5
+
+	PATH_SCRIPT_DIR=$PATH_RUN_DIR/run  
+	mkdir -p $PATH_SCRIPT_DIR
+	chmod 770 $PATH_SCRIPT_DIR
+
+	PATH_RESULTS_DIR=$PATH_OUT_DIR
+	mkdir -p $PATH_RESULTS_DIR
+	chmod 770 $PATH_RESULTS_DIR
+
+	SETUP_LOG=$PATH_SCRIPT_DIR/setup.log
+
+	echo -n "" > $SETUP_LOG
+	echo "`$NOW`setting up cutadapt run(s)... "
+	echo "`$NOW`(see $SETUP_LOG for details)"
+
+	echo "`$NOW`setting up cutadapt run(s)... " >> $SETUP_LOG
+	echo "`$NOW`fastq read directory: $FASTQ_DIR" >> $SETUP_LOG
+	echo "`$NOW`trimmed fastq output directory: $PATH_RESULTS_DIR" >> $SETUP_LOG
+	echo "`$NOW`script directory: $PATH_SCRIPT_DIR" >> $SETUP_LOG
+	echo "`$NOW`creating and submitting job scripts:" >> $SETUP_LOG
+
+	#for each fastq file (fastq files have to be gzipped and 
+	#have to have a fq.gz or fastq.gz extension
+	for FASTQ in `ls --color=never $FASTQ_DIR/*.f*q*`; do 
+    
+		FASTQ_BASENAME=`basename $FASTQ .gz`
+		SCRIPT_PATH=$PATH_SCRIPT_DIR/cutadapt_pr.$FASTQ_BASENAME.sh
+		cp $BASEDIR/cutadapt_primers.sh $SCRIPT_PATH
+	    chmod 770 $SCRIPT_PATH
+
+		PATH_READS_FASTQ=$PATH_READS_DIRECTORY/$FASTQ
+
+		if [[ "$FASTQ" =~ "R1" ]]; then
+			PRIMERS_FILE=$FORWARD
+		elif [[ "$FASTQ" =~ "R2" ]]; then
+			PRIMERS_FILE=$REVERSE
+		else 
+			echo "cannot determine whether fastq is read1 or read2. file name has to contain R1 or R2"
+			exit 1
+		fi
+
+		#set variables
+		sed -i -e "s/pathReadsFastq/${PATH_READS_FASTQ//\//\\/}/" $SCRIPT_PATH
+		sed -i -e "s/pathTrimmedDir/${PATH_RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
+		sed -i -e "s/primersFile/${PRIMERS_FILE//\//\\/}/" $SCRIPT_PATH
+
+		#submit job 
+		LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+		echo "`$NOW`$SCRIPT_PATH" >> $SETUP_LOG
+		qsub -o $LOG_OUTPUT_PATH $SCRIPT_PATH
+ 
+	done;
+
+	echo "`$NOW`done" >> $SETUP_LOG
+}
+
+#if the input path is a directory...
+if [ -d $INPUT_PATH ] ; then
+
+    PROJECT=`dirname $INPUT_PATH`
+    PROJECT=`basename $PROJECT`
+
+    #create and set permissions for analysis project parent directory
+    mkdir -p $GROUP_VOL_CGI/runs/$PROJECT
+    chmod 770 $GROUP_VOL_CGI/runs/$PROJECT
+
+    mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/cutadapt
+    chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/cutadapt
+
+    mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/cutadapt/$TODAY
+    chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/cutadapt/$TODAY
+
+    #create and set permissions for results project parent directory
+    mkdir -p $GROUP_VOL_CGI/results/$PROJECT
+    chmod 770 $GROUP_VOL_CGI/results/$PROJECT
+
+    mkdir -p $GROUP_VOL_CGI/results/$PROJECT/cutadapt
+    chmod 770 $GROUP_VOL_CGI/results/$PROJECT/cutadapt
+
+    mkdir -p $GROUP_VOL_CGI/results/$PROJECT/cutadapt/$TODAY
+    chmod 770 $GROUP_VOL_CGI/results/$PROJECT/cutadapt/$TODAY
+
+    #for each sample directory...
+    for SAMPLE in `ls --color=never $INPUT_PATH`
+    do
+
+	FASTQ_DIR=$INPUT_PATH/$SAMPLE
+
+	if [ -d $FASTQ_DIR ]; then
+
+		#count fastq files in directory		
+		FASTQ_COUNT=`ls --color=never $FASTQ_DIR/*.f*q* | wc -l`
+
+		if [ $FASTQ_COUNT -gt 0 ]; then
+
+			echo "`$NOW`processing directory $SAMPLE..."
+
+			#create and set permissions for analysis sample parent directory
+			mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/cutadapt/$TODAY/$SAMPLE
+			chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/cutadapt/$TODAY/$SAMPLE
+
+ 			#create and set permissions for results sample parent directory
+   			mkdir -p $GROUP_VOL_CGI/results/$PROJECT/cutadapt/$TODAY/$SAMPLE
+    		chmod 770 $GROUP_VOL_CGI/results/$PROJECT/cutadapt/$TODAY/$SAMPLE
+
+        		#...create output directory
+			PATH_RUN_DIR=$GROUP_VOL_CGI/runs/$PROJECT/cutadapt/$TODAY/$SAMPLE
+			PATH_OUT_DIR=$GROUP_VOL_CGI/results/$PROJECT/cutadapt/$TODAY/$SAMPLE      
+	
+			#create, configure and submit job scripts
+			submitJobs $FASTQ_DIR \
+                       $PATH_RUN_DIR \
+                       $PATH_OUT_DIR \
+                       $FORWARD_PRIMERS \
+                       $REVERSE_PRIMERS
+                                  
+		else
+
+			echo "`$NOW`directory $SAMPLE does not contain any fastq files (.fq or .fastq file extension)"	
+
+		fi
+
+	fi
+
+    done;
+
+else
+
+    echo "`$NOW`Error: Input path is not a directory."
+    exit 1
+
+fi
+
+
+
+
+
