@@ -30,6 +30,7 @@ CUTADAPT="F"
 
 USAGE="USAGE: qfastqc -i <input_path> -n <project> -t <read1_tag, default '_R1_'> -p <read1_tag, default '_R2_'> -c <if running after cutadapt>"
 
+
 #COMMAND LINE ARGS
 ##################
 
