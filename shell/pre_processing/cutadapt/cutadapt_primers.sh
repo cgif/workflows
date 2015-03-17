@@ -3,7 +3,7 @@
 # script run cutadapt algorithm for removing primer sequences from the ends of the reads
 
 #PBS -l walltime=24:00:00
-#PBS -l select=1:ncpus=1:mem=4gb
+#PBS -l select=1:ncpus=2:mem=4gb
 
 #PBS -m bea
 #PBS -M cgi@imperial.ac.uk
