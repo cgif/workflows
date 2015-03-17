@@ -1,0 +1,40 @@
+USAGE
+
+	qgatk3	-n <project_name>
+	      	-s <sample_list_file>
+	       [-l <lambda, default = 4>]
+	       [-b <bin size, default = 100>]
+   	       [-m <multiplicity, default = 5>]
+	       [-w <window, default = 100>]
+ 	       [-e <single_read, default FALSE>]
+
+	
+DESCRIPTION
+
+	-n	project name
+
+	-s	input list of sample pairs (normal/tumor) with dates of mutect directories where realigned, recalibrated bam files are stored
+		in the format sample_normal\tYYYY-MM-DD\tsample_tumor\tYYYY-MM-DD\n
+
+	-l 	the penalty coefficient of the Bayesian Information Criterion (BIC). A larger lambda would give less false positives but would be less sensitive with fewer breakpoints.  
+		Low coverage data (<1X), a smaller lambda=1 or =1.2 can achieve good sensitivity. 
+		For medium coverage (2-5X), lambda=2 should work well. 
+		For high coverage (5-30X), lambda=4 should give very confident calls while still detecting many small CNVs. 
+
+	-b	the initial genomic bin size in base pair for read counts; smaller bin size would need more memory and computational time.
+
+	-m	a parameter used to determine outliers; the larger positive numbers would provide more permissive filtering
+
+	-w	the window size used to determine outliers
+
+	-e 	if specified the data is treated as single-end data
+
+	-h	Display help and exit.
+
+Large CNVs (e.g., >15 kb) identified by BIC-seq were largely concordant with those identified from the two microarray platforms.
+Validation on a subset of small CNVs by quantitative PCR showed >80% true positive rates.
+
+Genomic positions having many orders of magnitude more mapped reads than their neighboring positions (SI Appendix, Fig. S2) are filtered out because they are likely to be a result of amplification bias
+uniquely aligned reads
+
+

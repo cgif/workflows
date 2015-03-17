@@ -1,0 +1,159 @@
+#!/bin/bash
+
+# sets up directory structure and scripts to run 
+# BICseq analysis and submits jobs to queue
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+#path to text file containing usage information
+USAGE="$BASEDIR/BICseq.usage"
+
+#get the directory this script resides in
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+GROUP_VOL_CGI=/groupvol/cgi
+QUEUE=pqcgi
+
+#program versions
+SAMTOOLS_VERSION=0.1.19
+R_VERSION=3.1.0
+BIC_SEQ=/groupvol/cgi/bin/BICseq/PERL_pipeline/BICseq_1.1.2/BIC-seq/BIC-seq.pl
+
+#default values for input arguments
+LAMBDA=4
+BIN_SIZE=100
+MULTIPLICITY=5
+WINDOW=100
+SINGLE_READ=F
+
+#parse command line args
+while getopts "n:s:l:b:m:w:e:h" OPTION; do
+
+    case "$OPTION" in
+
+	n) PROJECT="$OPTARG";;
+	s) SAMPLE_LIST="$OPTARG";;
+	l) LAMBDA="$OPTARG";;
+	b) BIN_SIZE="$OPTARG";;
+	m) MULTIPLICITY="$OPTARG";;
+	w) WINDOW="$OPTARG";;
+	e) SINGLE_READ=T;;
+	h) cat $USAGE; exit 0;;
+	[?]) cat $USAGE; exit 1;;
+    esac
+
+done
+
+#check if sample list file exists
+if [[ ! -e $SAMPLE_LIST ]]; then
+        echo "`$NOW`ERROR: sample list file does not exist: $SAMPLE_LIST"
+        exit 1
+fi
+
+
+#########################################################
+#creates job scripts#####################################
+#########################################################
+
+function submitBICseq {
+
+	local normal_bam=$1
+	local tumor_bam=$2
+	local analysis_dir=$3
+	local results_dir=$4
+	local sample_name=`basename $results_dir`
+
+	#create output directories
+       	mkdir -p $analysis_dir/run
+       	mkdir -p $results_dir
+
+	normal_bam_size=`du $normal_bam | cut -f1`
+	tumor_bam_size=`du $tumor_bam | cut -f1`
+	tmpspace_kb=$(( $normal_bam_size + $tumor_bam_size ))
+	tmpspace_mb=$(( $tmpspace_kb / 1024 ))
+	tmpspace_gb=$(( $tmpspace_mb / 1024 ))
+	tmpspace_gb=$(( $tmpspace_gb * 2 ))
+
+	echo "`$NOW`creating and submitting BICseq script..."
+	local script_path=$analysis_dir/run/BIC_$sample_name.sh
+	cp $BASEDIR/BICseq.sh $script_path
+	chmod 770 $script_path
+
+ 	sed -i -e "s/#tmpSpace/${tmpspace_gb}/" $script_path
+ 	sed -i -e "s/#BICscript/${BIC_SEQ//\//\\/}/" $script_path
+ 	sed -i -e "s/#Rversion/${R_VERSION}/" $script_path
+ 	sed -i -e "s/#samtoolsVersion/${SAMTOOLS_VERSION}/" $script_path
+
+ 	sed -i -e "s/#lambda/${LAMBDA}/" $script_path
+ 	sed -i -e "s/#binSize/${BIN_SIZE}/" $script_path
+ 	sed -i -e "s/#multiplicity/${MULTIPLICITY}/" $script_path
+ 	sed -i -e "s/#window/${WINDOW}/" $script_path
+ 	sed -i -e "s/#singleRead/${SINGLE_READ}/" $script_path
+
+ 	sed -i -e "s/#resultsDir/${results_dir//\//\\/}/" $script_path
+ 	sed -i -e "s/#prefix/${sample_name//\//\\/}/" $script_path
+ 	sed -i -e "s/#tumorBam/${tumor_bam//\//\\/}/" $script_path
+ 	sed -i -e "s/#normalBam/${normal_bam//\//\\/}/" $script_path
+
+	echo "`$NOW`$script_path"
+	log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+	job_id=`qsub -o $log_output_path $script_path`
+	echo "`$NOW`$job_id"
+
+}
+
+#########################################################
+#create and set permissions for project parent directory# 
+#########################################################  
+
+ANALYSIS_DIR_PROJECT=$GROUP_VOL_CGI/analysis/$PROJECT/BICseq
+RESULTS_DIR_PROJECT=$GROUP_VOL_CGI/results/$PROJECT/BICseq
+ 
+mkdir -p $ANALYSIS_DIR_PROJECT
+chmod 770 $ANALYSIS_DIR_PROJECT
+    
+mkdir -p $RESULTS_DIR_PROJECT
+chmod 770 $RESULTS_DIR_PROJECT
+
+mkdir -p $ANALYSIS_DIR_PROJECT/$TODAY
+chmod 770 $ANALYSIS_DIR_PROJECT/$TODAY
+    
+mkdir -p $RESULTS_DIR_PROJECT/$TODAY
+chmod 770 $RESULTS_DIR_PROJECT/$TODAY
+
+echo "`$NOW`setting up BICseq run..."
+echo "`$NOW`list of samples   : $SAMPLE_LIST"
+echo "`$NOW`analysis directory: $ANALYSIS_DIR_PROJECT"
+echo "`$NOW`results directory : $RESULTS_DIR_PROJECT"
+
+#get sample count from sample list skipping blank lines
+TOTAL_SAMPLE_COUNT=`sort $SAMPLE_LIST | uniq | awk '/^\s*$/ {next;} { print; }' | wc -l`
+SAMPLE_COUNT=0     
+
+#for each sample (make sure that each sample and date is unique) run MuTect
+sort $SAMPLE_LIST | uniq | while read SAMPLE_NORMAL DATE_NORMAL SAMPLE_TUMOR DATE_TUMOR; do
+	
+        if [[ "$SAMPLE_NORMAL" != "" ]] && [[ "$SAMPLE_TUMOR" != "" ]]; then
+               
+		SAMPLE_COUNT=$(( $SAMPLE_COUNT + 1 ))
+
+		echo "`$NOW`"
+		echo "`$NOW`running BICseq for sample $SAMPLE_COUNT of $TOTAL_SAMPLE_COUNT: $SAMPLE_NORMAL & $SAMPLE_TUMOR"
+
+                SAMPLE_PAIR=$SAMPLE_NORMAL.vs.$SAMPLE_TUMOR
+		ANALYSIS_DIR_SAMPLE=$ANALYSIS_DIR_PROJECT/$TODAY/$SAMPLE_PAIR
+		RESULTS_DIR_SAMPLE=$RESULTS_DIR_PROJECT/$TODAY/$SAMPLE_PAIR
+		NORMAL_BAM=$GROUP_VOL_CGI/results/$PROJECT/mutect/$DATE_NORMAL/$SAMPLE_NORMAL/recalibration/$SAMPLE_NORMAL.bam
+		TUMOR_BAM=$GROUP_VOL_CGI/results/$PROJECT/mutect/$DATE_TUMOR/$SAMPLE_TUMOR/recalibration/$SAMPLE_TUMOR.bam
+
+		submitBICseq $NORMAL_BAM \
+			     $TUMOR_BAM \
+		    	     $ANALYSIS_DIR_SAMPLE \
+		    	     $RESULTS_DIR_SAMPLE 
+	                   	      		
+	fi
+
+done
