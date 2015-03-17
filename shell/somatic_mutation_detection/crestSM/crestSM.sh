@@ -22,43 +22,42 @@ REFERENCE_FASTA=#referenceFasta
 REFERENCE_2BIT=#reference2Bit
 
 BAM_NAME=#sample
+CHROM=#chrom
 TUMOR_BAM=#tumorBam
 GERMLINE_BAM=#germlineBam
 ANALYSIS_PATH=#analysisPath
-PREF=`basename $TUMOR_BAM`
+CHROM=#chrom
+TUMOR_NAME=`basename $TUMOR_BAM .bam`
+TUMOR_PREF=$TUMOR_NAME.$CHROM
+GERMLINE_NAME=`basename $GERMLINE_BAM .bam`
+GERMLINE_PREF=$GERMLINE_NAME.$CHROM
 
 READ_LENGTH=#readLength
 MIN_SC_READS=#minScReads
 SENSITIVE=#sensitive
 PORT=#serverPort
 
-cp $REFERENCE_FASTA $TMPDIR/tmp.fasta
-cp $REFERENCE_FASTA.fai $TMPDIR/tmp.fasta.fai
-cp $REFERENCE_2BIT $TMPDIR/tmp.2bit
-
-cp $TUMOR_BAM $TMPDIR/tumor.bam
-cp $TUMOR_BAM.bai $TMPDIR/tumor.bam.bai
-
-cp $GERMLINE_BAM $TMPDIR/germline.bam
-cp $GERMLINE_BAM.bai $TMPDIR/germline.bam.bai
-
 ######################################
 #step 1. Get soft-clipping positions.
 echo "`${NOW}`getting soft-clipping positions"
-echo "`${NOW}`file $ANALYSIS_PATH/crestSM/$PREF.cover will be generated"
+echo "`${NOW}`files $ANALYSIS_PATH/crestSM/$TUMOR_PREF.cover and $ANALYSIS_PATH/crestSM/$GERMLINE_PREF.cover will be generated"
 
-extractSClip.pl -i $TMPDIR/tumor.bam --ref_genome $TMPDIR/tmp.fasta 
+extractSClip.pl -i $TUMOR_BAM --ref_genome $REFERENCE_FASTA -r $CHROM -o $ANALYSIS_PATH/crestSM -p $TUMOR_NAME
+extractSClip.pl -i $GERMLINE_BAM --ref_genome $REFERENCE_FASTA -r $CHROM -o $ANALYSIS_PATH/crestSM -p $GERMLINE_NAME
 
-# change permissions of the results files
-cp $TMPDIR/tumor.bam.cover $ANALYSIS_PATH/crestSM/$PREF.cover
-chmod 0660 $ANALYSIS_PATH/crestSM/$PREF.cover
+######################################
+#step 2. Remove germline events.
+echo "`${NOW}`removing germline events"
+echo "`${NOW}`file $ANALYSIS_PATH/crestSM/$TUMOR_PREF.cover.somatic.cover will be generated"
+
+$ANALYSIS_PATH/run/countDiff.pl -d $ANALYSIS_PATH/crestSM/$TUMOR_PREF.cover -g $ANALYSIS_PATH/crestSM/$GERMLINE_PREF.cover > $ANALYSIS_PATH/crestSM/$TUMOR_PREF.soft_clip.dist.txt
 
 ##################################
-# step 2: Run SV detection script.
+# step 3: Run SV detection script.
 echo "`${NOW}`running SV detection script"
-echo "`${NOW}`file $ANALYSIS_PATH/crestSM/$PREF.predSV.txt will be generated"
+echo "`${NOW}`file $ANALYSIS_PATH/crestSM/$TUMOR_PREF.predSV.txt will be generated"
 
-gfServer start localhost $PORT $TMPDIR/tmp.2bit &
+gfServer start localhost $PORT $REFERENCE_2BIT &
 
 STAT=0
 while [ $STAT -lt 2 ]
@@ -68,27 +67,19 @@ do
 done 
 
 if [[ "$SENSITIVE" == "TRUE" ]]; then
-    CREST.pl -f $TMPDIR/tumor.bam.cover -d $TMPDIR/tumor.bam -g $TMPDIR/germline.bam --ref_genome $TMPDIR/tmp.fasta -t $TMPDIR/tmp.2bit --blatserver localhost --blatport $PORT -l $READ_LENGTH --min_sclip_reads $MIN_SC_READS --sensitive 
+    CREST.pl -f $ANALYSIS_PATH/crestSM/$TUMOR_PREF.cover.somatic.cover -d $TUMOR_BAM -g $GERMLINE_BAM --ref_genome $REFERENCE_FASTA -r $CHROM -t $REFERENCE_2BIT --blatserver localhost --blatport $PORT -l $READ_LENGTH --min_sclip_reads $MIN_SC_READS --sensitive -o $ANALYSIS_PATH/crestSM -p $TUMOR_PREF
 else
-    CREST.pl -f $TMPDIR/tumor.bam.cover -d $TMPDIR/tumor.bam -g $TMPDIR/germline.bam --ref_genome $TMPDIR/tmp.fasta -t $TMPDIR/tmp.2bit --blatserver localhost --blatport $PORT -l $READ_LENGTH --min_sclip_reads $MIN_SC_READS
+    CREST.pl -f $ANALYSIS_PATH/crestSM/$TUMOR_PREF.cover.somatic.cover -d $TUMOR_BAM -g $GERMLINE_BAM --ref_genome $REFERENCE_FASTA -r $CHROM -t $REFERENCE_2BIT --blatserver localhost --blatport $PORT -l $READ_LENGTH --min_sclip_reads $MIN_SC_READS -o $ANALYSIS_PATH/crestSM -p $TUMOR_PREF
 fi
-
-# change permissions of the results files
-cp $TMPDIR/tumor.bam.predSV.txt $ANALYSIS_PATH/crestSM/$PREF.predSV.txt
-chmod 0660 $ANALYSIS_PATH/crestSM/$PREF.predSV.txt
 
 # kill gfserver
 gfServer stop localhost $PORT
 
 ##################################
-# step 3: Create html file to display alignment at breakpoint.
+# step 4: Create html file to display alignment at breakpoint.
 echo "`${NOW}`creating breakpoint html file"
-echo "`${NOW}`file $ANALYSIS_PATH/crestSM/$PREF.predSV.html will be generated"
+echo "`${NOW}`file $ANALYSIS_PATH/crestSM/$TUMOR_PREF.predSV.html will be generated"
 
-bam2html.pl -d $TMPDIR/tumor.bam -g $TMPDIR/germline.bam -i $TMPDIR/tumor.bam.predSV.txt --ref_genome $TMPDIR/tmp.fasta -o $TMPDIR/tumor.bam.predSV.html
-ls -l
-
-# change permissions of the results files
-cp $TMPDIR/tumor.bam.predSV.html $ANALYSIS_PATH/crestSM/$PREF.predSV.html
-chmod 0660 $ANALYSIS_PATH/crestSM/$PREF.predSV.html
+bam2html.pl -d $TUMOR_BAM -g $GERMLINE_BAM -i $ANALYSIS_PATH/crestSM/$TUMOR_PREF.predSV.txt --ref_genome $REFERENCE_FASTA -o $ANALYSIS_PATH/crestSM/$TUMOR_PREF.predSV.html
+chmod 0660 $ANALYSIS_PATH/crestSM/$TUMOR_PREF*
 
