@@ -1,0 +1,176 @@
+#!/bin/bash
+
+# sets up directory structure and generates, configures and submits
+# scripts to run BreakDancer algorithm for detecting genomic structural variations
+
+#CONFIGURATION
+##############
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+USAGE="USAGE: qbd -s <sample_list> -n <project_name>"
+
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+GROUP_VOL_CGI=/groupvol/cgi
+
+SAMTOOLS_VERSION=0.1.19
+BD_VERSION=1.2
+module load samtools/$SAMTOOLS_VERSION
+
+#COMMAND LINE ARGS
+##################
+
+while getopts "s:n:h" option; do
+    	case "$option" in
+	
+		n) PROJECT="$OPTARG";;
+		s) SAMPLE_LIST="$OPTARG";;
+		h) echo "$USAGE";;
+		[?]) echo "$USAGE";;
+
+	esac
+done
+
+if [[ -z $SAMPLE_LIST ]] || [[ -z $PROJECT ]]; then
+
+    	echo $USAGE
+    	exit 1
+
+fi
+
+#check if input directory exists
+if [[ ! -d $GROUP_VOL_CGI/results/$PROJECT/mutect ]]; then
+
+        echo "`$NOW`ERROR: input directory does not exist: $GROUP_VOL_CGI/results/$PROJECT/mutect"
+        exit 1
+
+fi
+
+#check if sample list file exists
+if [[ ! -e $SAMPLE_LIST ]]; then
+
+        echo "`$NOW`ERROR: sample list file does not exist: $SAMPLE_LIST"
+        exit 1
+
+fi
+
+
+#FUNCTIONS
+##########
+
+#creates job scripts
+function submitBreakDancer {
+
+	local normal_bam=$1
+	local tumor_bam=$2
+	local analysis_dir=$3
+	local results_dir=$4
+
+	#create output directories
+       	mkdir -p $analysis_dir
+       	mkdir -p $analysis_dir/run
+       	mkdir -p $results_dir
+
+	chmod 0770 $analysis_dir
+	chmod 0770 $analysis_dir/run
+	chmod 0770 $results_dir
+
+	for bam_file in $normal_bam $tumor_bam; do
+
+		sample_name=`basename $bam_file .bam`
+
+		bam_size=`du $bam_file | cut -f1`
+		bam_size_mb=$(( $bam_size / 1024 ))
+		bam_size_gb=$(( $bam_size_mb / 1024 ))
+		tmpspace_gb=$(( $bam_size_gb * 2 ))
+
+		#run breakDancer job for translocations
+		echo "`$NOW`-------------------------------------------------------------------------------------"	 
+		echo "`$NOW`running BreakDancer for translocations..."
+
+		local script_path=$analysis_dir/run/BD_${sample_name}_translocations.sh
+		cp $BASEDIR/bd.sh $script_path
+		chmod 0770 $script_path	
+
+		echo "`$NOW`$script_path"
+        	log_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+
+        	#set variables 
+         	sed -i -e "s/#tmpSpace/${tmpspace_gb}/" $script_path
+ 		sed -i -e "s/#samtoolsVersion/${SAMTOOLS_VERSION}/" $script_path
+ 		sed -i -e "s/#bdVersion/${BD_VERSION}/" $script_path
+
+        	sed -i -e "s/#inputBam/${bam_file//\//\\/}/" $script_path
+        	sed -i -e "s/#resultsFolder/${results_dir//\//\\/}/" $script_path
+
+        	job_id=`qsub -o $log_path $script_path`
+        	echo "`$NOW`JOB_ID: $job_id"
+
+	done
+
+}
+
+
+#########################################################
+#create and set permissions for project parent directory# 
+#########################################################  
+
+ANALYSIS_DIR_PROJECT=$GROUP_VOL_CGI/analysis/$PROJECT/breakDancer
+RESULTS_DIR_PROJECT=$GROUP_VOL_CGI/results/$PROJECT/breakDancer
+ 
+mkdir -p $ANALYSIS_DIR_PROJECT
+chmod 0770 $ANALYSIS_DIR_PROJECT
+    
+mkdir -p $RESULTS_DIR_PROJECT
+chmod 0770 $RESULTS_DIR_PROJECT
+
+mkdir -p $ANALYSIS_DIR_PROJECT/$TODAY
+chmod 0770 $ANALYSIS_DIR_PROJECT/$TODAY
+    
+mkdir -p $RESULTS_DIR_PROJECT/$TODAY
+chmod 0770 $RESULTS_DIR_PROJECT/$TODAY
+
+echo "`$NOW`setting up BreakDancer run..."
+echo "`$NOW`list of samples   : $SAMPLE_LIST"
+echo "`$NOW`analysis directory: $ANALYSIS_DIR_PROJECT"
+echo "`$NOW`results directory : $RESULTS_DIR_PROJECT"
+
+#get sample count from sample list skipping blank lines
+TOTAL_SAMPLE_COUNT=`sort $SAMPLE_LIST | uniq | awk '/^\s*$/ {next;} { print; }' | wc -l`
+SAMPLE_COUNT=0     
+
+#for each sample (make sure that each sample and date is unique) run MuTect
+sort $SAMPLE_LIST | uniq | while read SAMPLE_NORMAL DATE_NORMAL SAMPLE_TUMOR DATE_TUMOR; do
+	
+        if [[ "$SAMPLE_NORMAL" != "" ]] && [[ "$SAMPLE_TUMOR" != "" ]]; then
+               
+		SAMPLE_COUNT=$(( $SAMPLE_COUNT + 1 ))
+
+		echo "`$NOW`"
+		echo "`$NOW`"
+		echo "`$NOW`running BreakDancer for sample $SAMPLE_COUNT of $TOTAL_SAMPLE_COUNT: $SAMPLE_NORMAL & $SAMPLE_TUMOR"
+
+                SAMPLE_PAIR=$SAMPLE_NORMAL.vs.$SAMPLE_TUMOR
+		ANALYSIS_DIR_SAMPLE=$ANALYSIS_DIR_PROJECT/$TODAY/$SAMPLE_PAIR
+		RESULTS_DIR_SAMPLE=$RESULTS_DIR_PROJECT/$TODAY/$SAMPLE_PAIR
+		NORMAL_BAM=$GROUP_VOL_CGI/results/$PROJECT/mutect/$DATE_NORMAL/$SAMPLE_NORMAL/recalibration/$SAMPLE_NORMAL.bam
+		TUMOR_BAM=$GROUP_VOL_CGI/results/$PROJECT/mutect/$DATE_TUMOR/$SAMPLE_TUMOR/recalibration/$SAMPLE_TUMOR.bam
+
+		submitBreakDancer 	$NORMAL_BAM \
+			     		$TUMOR_BAM \
+		    	     		$ANALYSIS_DIR_SAMPLE \
+		    	     		$RESULTS_DIR_SAMPLE 
+	                   	      		
+	fi
+
+done
+
+
+  	    
+
+
+
