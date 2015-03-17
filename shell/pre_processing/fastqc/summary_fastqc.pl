@@ -193,14 +193,15 @@ print OUT "<TH><CENTER>Read name";
 print OUT "<TH><CENTER>Number of reads";
 print OUT "<TH><CENTER>Low quality positions";
 print OUT "<TH><CENTER>Per base quality";
+print OUT "<TH><CENTER>Per tile quality";
 print OUT "<TH><CENTER>Per seq quality";
 print OUT "<TH><CENTER>Per base content";
-print OUT "<TH><CENTER>Per base GC content";
 print OUT "<TH><CENTER>Per seq GC content";
 print OUT "<TH><CENTER>Per base N content";
 print OUT "<TH><CENTER>Seq length";
 print OUT "<TH><CENTER>Seq duplication";
 print OUT "<TH><CENTER>Overrepr seq";
+print OUT "<TH><CENTER>Adapter content";
 print OUT "<TH><CENTER>Kmer content\n";
 
 my $f1 = 0;

@@ -7,15 +7,16 @@
 
 module load gatk/2.6-5
 module load java/jdk-7u25
+module load bcftools/2015-02-17
 
-GROUP_VOL_CGI=/ax3-cgi
+AX3_CGI=/ax3-cgi
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 
-ANNOVAR_DATE=2014-11-13
-HGMD_RELEASE=2014_3
+ANNOVAR_DATE=2015-02-17
+HGMD_RELEASE=2014_4
 GI_BED_FILE=CCDS_genic_intolerance_noNA.bed
 
-REFERENCE_FASTA=/groupvol/cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.fa
+REFERENCE_FASTA=/project/tgu/resources/reference/fasta/eukaryote/hsapiens/hs37d5/hs37d5.fa
 
 
 # now
@@ -53,7 +54,7 @@ while getopts "i:chs:p:o:m:a:d:f:" option; do
 esac
 done
 
-ANNOVAR_PATH=$GROUP_VOL_CGI/resources/annovar/$ANNOVAR_DATE
+ANNOVAR_PATH=$AX3_CGI/resources/annovar/$ANNOVAR_DATE
 ANNOVAR_DB=$ANNOVAR_PATH/db/hg19
 HGMD_VCF=HGMD_PRO_$HGMD_RELEASE.vcf
 
@@ -120,8 +121,8 @@ then
 
 	echo "$PROJECT $CALLER $DATE"
 
-	ANALYSIS_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/annovar/$TODAY
-	RESULTS_DIR=$GROUP_VOL_CGI/results/$PROJECT/annovar/$TODAY
+	ANALYSIS_DIR=$AX3_CGI/analysis/$PROJECT/annovar/$TODAY
+	RESULTS_DIR=$AX3_CGI/results/$PROJECT/annovar/$TODAY
 
 	#construct ouput file prefix
 	#remove gz extension
@@ -151,7 +152,19 @@ echo "`$NOW`creating directory structure"
 mkdir -m 770 -p $RESULTS_DIR
 mkdir -m 770 -p $ANALYSIS_DIR
 mkdir -m 770 -p $SCRIPT_DIR
-chmod -R 770 $GROUP_VOL_CGI/analysis/$PROJECT/annovar
+chmod -R 770 $AX3_CGI/analysis/$PROJECT/annovar
+
+echo "`$NOW`copying reference fasta to analysis folder..."
+cp $REFERENCE_FASTA $ANALYSIS_DIR
+cp $REFERENCE_FASTA.fai $ANALYSIS_DIR
+
+REFERENCE_NAME_NO_EXT=`basename $REFERENCE_FASTA .fa`
+REFERENCE_DIR=`dirname $REFERENCE_FASTA`
+cp $REFERENCE_DIR/$REFERENCE_NAME_NO_EXT.dict $ANALYSIS_DIR
+
+REFERENCE_NAME=`basename $REFERENCE_FASTA`
+REFERENCE=$ANALYSIS_DIR/$REFERENCE_NAME
+
 
 #select variants
 if [[ ! -z $SAMPLE_LIST ]] 
@@ -162,7 +175,7 @@ then
 
 		echo "`$NOW`extracting samples specified in $SAMPLE_LIST from input VCF file..."
 		java -jar $GATK_HOME/GenomeAnalysisTK.jar \
-   			-R $REFERENCE_FASTA \
+   			-R $REFERENCE \
    			-T SelectVariants \
    			--variant $INPUT_VCF \
    			--sample_file $SAMPLE_LIST \
@@ -188,17 +201,28 @@ else
 
 	fi
 
-fi	
+fi
 
+######### this needs to be a job #####################
+#split multiallelic variants and left-normalize indels
+echo "`$NOW`splitting VCF file multiallelic variants into single variants per line..."
+bcftools norm -m-both -o $ANALYSIS_DIR/$OUTPUT_PREFIX.norm1.vcf $ANALYSIS_DIR/$OUTPUT_PREFIX.vcf
+
+echo "`$NOW`left-normalizing indels in VCF file..."
+bcftools norm -f $REFERENCE -o $ANALYSIS_DIR/$OUTPUT_PREFIX.norm2.vcf $ANALYSIS_DIR/$OUTPUT_PREFIX.norm1.vcf 
+	
 #split VCF file	
 echo "`$NOW`splitting VCF file by sample..."
-#mkdir $ANALYSIS_DIR/avinput
-#$ANNOVAR_PATH/convert2annovar.pl -format vcf4 $ANALYSIS_DIR/$OUTPUT_PREFIX.vcf -outfile $ANALYSIS_DIR/avinput/$OUTPUT_PREFIX -allsample
-$ANNOVAR_PATH/convert2annovar.pl -format vcf4 $ANALYSIS_DIR/$OUTPUT_PREFIX.vcf -outfile $ANALYSIS_DIR/$OUTPUT_PREFIX -allsample
+$ANNOVAR_PATH/convert2annovar.pl -format vcf4 $ANALYSIS_DIR/$OUTPUT_PREFIX.norm2.vcf -outfile $ANALYSIS_DIR/$OUTPUT_PREFIX -allsample
 
+######### this needs to be a job ######################
 
-#remove input VCF file
+#remove reference from analysis folder (not removing at the moment for testing)
+#rm $REFERENCE
+
+#remove input and intermediate VCF file (not removing at the moment for testing)
 #rm $ANALYSIS_DIR/$OUTPUT_PREFIX.vcf
+#rm $ANALYSIS_DIR/$OUTPUT_PREFIX.norm1.vcf
 
 #get anotation list from the configuration file
 
@@ -297,8 +321,24 @@ LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
 JOB_ID=`qsub -W depend=$ANNOVAR_DEPENDENCY -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
 echo "`$NOW`$JOB_ID"
 
-chmod -R 770 $GROUP_VOL_CGI/analysis/$PROJECT/annovar
-	
+chmod -R 770 $AX3_CGI/analysis/$PROJECT/annovar
+
+#create a job script for moving results to /project/tgu 
+echo "`$NOW`creating and submitting job script to move results and scripts to /project/tgu..." 
+
+SCRIPT_PATH=$SCRIPT_DIR/moveResults.sh
+cp $BASEDIR/moveResults.sh $SCRIPT_PATH
+chmod 660 $SCRIPT_PATH
+
+sed -i -e "s/#runDir/${SCRIPT_DIR//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#project/$PROJECT/" $SCRIPT_PATH
+sed -i -e "s/#today/$TODAY/" $SCRIPT_PATH
+
+LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+JOB_ID_MOVE=`qsub -W depend=afterok:$JOB_ID -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+echo "`$NOW`$JOB_ID_MOVE"
+
 echo "`$NOW`done"
 	
 	

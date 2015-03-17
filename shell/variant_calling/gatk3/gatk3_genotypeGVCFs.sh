@@ -143,6 +143,7 @@ java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME
 	-A ReadPosRankSumTest \
 	-A MappingQualityRankSumTest \
 	-A InbreedingCoeff \
+	-A StrandOddsRatio \
 	-L $TMPDIR/fragment.intervals
 
 echo "`${NOW}`INFO $SCRIPT_CODE copying raw VCF file to output directory $ANALYSIS_DIR/genotypeGVCFs..."

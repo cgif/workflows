@@ -17,33 +17,18 @@ TODAY=`date +%Y-%m-%d`
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 GROUP_VOL_CGI=/project/tgu
 
-QUEUE=pqcgi
-WALLTIME_HOURS_PER_RUN=30
-
-
-#CUTADAPT
-#########
-
-ADAPTER5='AATGATACGGCGACCACCGAGATCTACACTCTTTCCCTACACGACGCTCTTCCGATCT'
-ADAPTER3='GATCGGAAGAGCACACGTCTGAACTCCAGTCAC'
-OVERLAP=15
-CUTOFF=20
-
-
 #COMMAND LINE ARGS
 ##################
 
-USAGE="USAGE: qcutadapt -i <path_to_fastq_directory> -a <3'_adapter_sequence [TruSeq Indexed Adapter]> -g <5'_adapter_sequence [TruSeq Universal Adapter]> -O <min_overlap_between_the_read_and_the_adapter [15]> -q <cutoff_for_trimming_low_quality_ends [20]>"
+USAGE="USAGE: qcutadapt_primers -i <path_to_fastq_directory> -f <file containing forward primers, one per line> -r <file containing reverse primers, one per line>"
 
 #parse command line args
-while getopts "i:a:g:O:q:h" option; do
+while getopts "i:f:r:h" option; do
     case "$option" in
 
-	i) INPUT_PATH="$OPTARG";;
-        a) ADAPTER3="$OPTARG";;
-        g) ADAPTER5="$OPTARG";;
-        O) OVERLAP="$OPTARG";;
-        q) CUTOFF="$OPTARG";;
+		i) INPUT_PATH="$OPTARG";;
+		f) FORWARD_PRIMERS="$OPTARG";;
+		r) REVERSE_PRIMERS="$OPTARG";;
         h) echo "$USAGE"; exit 1;;
 	[?]) echo "$USAGE"; exit 1;;
 
@@ -51,11 +36,16 @@ esac
 done
 
 #check if required arguments are missing
-if [ -z $INPUT_PATH ] 
-    then
+if [ -z $INPUT_PATH ]; then
     echo $USAGE
     exit 1
 fi
+
+#if [[ -s $FORWARD_PRIMERS ]] || [[ -s $REVERSE_PRIMERS ]]; then
+#    echo $USAGE
+#	echo "check that primer files exist and not empty"
+#    exit 1
+#fi
 
 #FUNCTIONS
 ##########
@@ -63,13 +53,11 @@ fi
 #creates job scripts
 function submitJobs {
 
-        FASTQ_DIR=$1
-        PATH_RUN_DIR=$2
-        PATH_OUT_DIR=$3
-        ADAPTER5=$4
-        ADAPTER3=$5
-        OVERLAP=$6
-	CUTOFF=$7
+	FASTQ_DIR=$1
+	PATH_RUN_DIR=$2
+	PATH_OUT_DIR=$3
+	FORWARD=$4
+	REVERSE=$5
 
 	PATH_SCRIPT_DIR=$PATH_RUN_DIR/run  
 	mkdir -p $PATH_SCRIPT_DIR
@@ -86,40 +74,44 @@ function submitJobs {
 	echo "`$NOW`(see $SETUP_LOG for details)"
 
 	echo "`$NOW`setting up cutadapt run(s)... " >> $SETUP_LOG
-        echo "`$NOW`fastq read directory: $FASTQ_DIR" >> $SETUP_LOG
-        echo "`$NOW`trimmed fastq output directory: $PATH_RESULTS_DIR" >> $SETUP_LOG
-        echo "`$NOW`script directory: $PATH_SCRIPT_DIR" >> $SETUP_LOG
-        echo "`$NOW`creating and submitting job scripts:" >> $SETUP_LOG
+	echo "`$NOW`fastq read directory: $FASTQ_DIR" >> $SETUP_LOG
+	echo "`$NOW`trimmed fastq output directory: $PATH_RESULTS_DIR" >> $SETUP_LOG
+	echo "`$NOW`script directory: $PATH_SCRIPT_DIR" >> $SETUP_LOG
+	echo "`$NOW`creating and submitting job scripts:" >> $SETUP_LOG
 
-        #for each fastq file (fastq files have to be gzipped and 
-        #have to have a fq.gz or fastq.gz extension
-        for FASTQ in `ls --color=never $FASTQ_DIR/*.f*q*`
-        do 
+	#for each fastq file (fastq files have to be gzipped and 
+	#have to have a fq.gz or fastq.gz extension
+	for FASTQ in `ls --color=never $FASTQ_DIR/*.f*q*`; do 
     
-            FASTQ_BASENAME=`basename $FASTQ .gz`
-            SCRIPT_PATH=$PATH_SCRIPT_DIR/cutadapt.$FASTQ_BASENAME.sh
-            cp $BASEDIR/cutadapt.sh $SCRIPT_PATH
+		FASTQ_BASENAME=`basename $FASTQ .gz`
+		SCRIPT_PATH=$PATH_SCRIPT_DIR/cutadapt_pr.$FASTQ_BASENAME.sh
+		cp $BASEDIR/cutadapt_primers.sh $SCRIPT_PATH
 	    chmod 770 $SCRIPT_PATH
 
-            PATH_READS_FASTQ=$PATH_READS_DIRECTORY/$FASTQ
+		PATH_READS_FASTQ=$PATH_READS_DIRECTORY/$FASTQ
 
-            #set variables
-            sed -i -e "s/walltimeHours/$WALLTIME_HOURS_PER_RUN/" $SCRIPT_PATH  
-            sed -i -e "s/pathReadsFastq/${PATH_READS_FASTQ//\//\\/}/" $SCRIPT_PATH
-            sed -i -e "s/pathTrimmedDir/${PATH_RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
-            sed -i -e "s/adapter5/$ADAPTER5/" $SCRIPT_PATH  
-            sed -i -e "s/adapter3/$ADAPTER3/" $SCRIPT_PATH  
-            sed -i -e "s/overlap/$OVERLAP/" $SCRIPT_PATH  
-            sed -i -e "s/cutoff/$CUTOFF/" $SCRIPT_PATH  
+		if [[ "$FASTQ" =~ "R1" ]]; then
+			PRIMERS_FILE=$FORWARD
+		elif [[ "$FASTQ" =~ "R2" ]]; then
+			PRIMERS_FILE=$REVERSE
+		else 
+			echo "cannot determine whether fastq is read1 or read2. file name has to contain R1 or R2"
+			exit 1
+		fi
 
-            #submit job 
-            LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
-            echo "`$NOW`$SCRIPT_PATH" >> $SETUP_LOG
-            qsub -q $QUEUE -o $LOG_OUTPUT_PATH $SCRIPT_PATH
+		#set variables
+		sed -i -e "s/pathReadsFastq/${PATH_READS_FASTQ//\//\\/}/" $SCRIPT_PATH
+		sed -i -e "s/pathTrimmedDir/${PATH_RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
+		sed -i -e "s/primersFile/${PRIMERS_FILE//\//\\/}/" $SCRIPT_PATH
+
+		#submit job 
+		LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+		echo "`$NOW`$SCRIPT_PATH" >> $SETUP_LOG
+		qsub -o $LOG_OUTPUT_PATH $SCRIPT_PATH
  
-        done;
+	done;
 
-        echo "`$NOW`done" >> $SETUP_LOG
+	echo "`$NOW`done" >> $SETUP_LOG
 }
 
 #if the input path is a directory...
@@ -169,7 +161,7 @@ if [ -d $INPUT_PATH ] ; then
 
  			#create and set permissions for results sample parent directory
    			mkdir -p $GROUP_VOL_CGI/results/$PROJECT/cutadapt/$TODAY/$SAMPLE
-    			chmod 770 $GROUP_VOL_CGI/results/$PROJECT/cutadapt/$TODAY/$SAMPLE
+    		chmod 770 $GROUP_VOL_CGI/results/$PROJECT/cutadapt/$TODAY/$SAMPLE
 
         		#...create output directory
 			PATH_RUN_DIR=$GROUP_VOL_CGI/runs/$PROJECT/cutadapt/$TODAY/$SAMPLE
@@ -177,12 +169,10 @@ if [ -d $INPUT_PATH ] ; then
 	
 			#create, configure and submit job scripts
 			submitJobs $FASTQ_DIR \
-                                   $PATH_RUN_DIR \
-                                   $PATH_OUT_DIR \
-                                   $ADAPTER5 \
-                                   $ADAPTER3 \
-                                   $OVERLAP \
-				   $CUTOFF 
+                       $PATH_RUN_DIR \
+                       $PATH_OUT_DIR \
+                       $FORWARD_PRIMERS \
+                       $REVERSE_PRIMERS
                                   
 		else
 

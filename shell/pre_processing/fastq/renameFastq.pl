@@ -17,7 +17,7 @@ my $platform = $ARGV[2];
 
 #parse run ID from input directory
 $input_directory=~s/\/$//;
-opendir(INDIR, $input_directory) || die "ERROR: Unable to read $input_directory: $!";
+opendir(INDIR, $input_directory) || die "ERROR: Unable to read $input_directory: $!\n";
 my @tokens = split(/\//, $input_directory);
 my $run_id = @tokens[@tokens-1];
 
@@ -26,11 +26,11 @@ my $run_id = @tokens[@tokens-1];
 my $sample_sheet_file_name = $tokens[@tokens-1];
 @tokens = split(/\./, $sample_sheet_file_name);
 my $run_id_sample_sheet = $tokens[0];
-open(SS, $sample_sheet) || die "ERROR: Unable to open $sample_sheet: $!";
+open(SS, $sample_sheet) || die "ERROR: Unable to open $sample_sheet: $!\n";
 
 #make sure input directory and sample sheet run ID match
 if($run_id ne $run_id_sample_sheet){
-	die "ERROR: Run ID of input directory and sample sheet do not match: $run_id != $run_id_sample_sheet";
+	die "ERROR: Run ID of input directory and sample sheet do not match: $run_id != $run_id_sample_sheet\n";
 }
 
 my %sample_barcodes;

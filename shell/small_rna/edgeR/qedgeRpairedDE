@@ -1,0 +1,96 @@
+#!/bin/bash
+
+# sets up directory structure and configures scripts for DESeq run
+
+#CONFIGURATION
+###################
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+#returns absolute path to DESeq directory, not changing your current directory
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+
+RESULTS_VOL=/project/tgu
+WALLTIME_HOURS_PER_RUN=10
+USAGE=$BASEDIR/qedgeRpairedDE.usage
+ANALYSIS_NAME=edgeR
+SUBFOLDER=""
+MIN_CPM=1
+
+
+#COMMAND LINE ARGS
+####################
+while getopts "i:s:n:o:m:r:h" option; do
+    case "$option" in
+	
+	i) TARGETS_TABLE="$OPTARG";;
+	s) SAMPLES_FILE="$OPTARG";;
+    n) PROJECT="$OPTARG";;
+	o) SUBFOLDER="$OPTARG";;
+	m) MIN_CPM="$OPTARG";;
+	r) GROUP_SIZE="$OPTARG";;
+	h) cat $USAGE;;
+	[?]) cat $USAGE;;
+
+esac
+done
+
+if [ -z $TARGETS_TABLE ] || \
+   [ -z $SAMPLES_FILE ] || \
+   [ -z $PROJECT ] || \
+   [ -z $GROUP_SIZE ]
+    then
+    cat $USAGE
+    exit 1
+fi
+
+#create and set permissions for project runs
+mkdir -p $RESULTS_VOL/runs/$PROJECT/$ANALYSIS_NAME
+chmod 770 $RESULTS_VOL/runs/$PROJECT/$ANALYSIS_NAME
+
+mkdir -p $RESULTS_VOL/runs/$PROJECT/$ANALYSIS_NAME/$TODAY
+chmod 770 $RESULTS_VOL/runs/$PROJECT/$ANALYSIS_NAME/$TODAY
+
+SCRIPTS_DIR=$RESULTS_VOL/runs/$PROJECT/$ANALYSIS_NAME/$TODAY/$SUBFOLDER
+mkdir -p $SCRIPTS_DIR
+chmod 770 $SCRIPTS_DIR
+
+
+#create and set permissions for results project parent directory
+mkdir -p $RESULTS_VOL/results/$PROJECT/$ANALYSIS_NAME
+chmod 770 $RESULTS_VOL/results/$PROJECT/$ANALYSIS_NAME
+
+mkdir -p $RESULTS_VOL/results/$PROJECT/$ANALYSIS_NAME/$TODAY
+chmod 770 $RESULTS_VOL/results/$PROJECT/$ANALYSIS_NAME/$TODAY
+
+RESULTS_DIR=$RESULTS_VOL/results/$PROJECT/$ANALYSIS_NAME/$TODAY/$SUBFOLDER
+mkdir -p $RESULTS_DIR
+chmod 770 $RESULTS_DIR
+
+#create and edit scripts for running DESeq
+SHELL_SCRIPT_PATH=$SCRIPTS_DIR/edgeR_paired_DE_${PROJECT}.sh
+cp $BASEDIR/edgeR_paired_DE.sh $SHELL_SCRIPT_PATH
+chmod 770 $SHELL_SCRIPT_PATH
+
+R_SCRIPT_PATH=$SCRIPTS_DIR/edgeR_paired_DE_${PROJECT}.R
+cp $BASEDIR/edgeR_paired_DE.R $R_SCRIPT_PATH
+chmod 770 $R_SCRIPT_PATH
+
+sed -i -e "s/#walltimeHours/$WALLTIME_HOURS_PER_RUN/" $SHELL_SCRIPT_PATH
+sed -i -e "s/#rScript/${R_SCRIPT_PATH//\//\\/}/" $SHELL_SCRIPT_PATH
+sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $SHELL_SCRIPT_PATH
+
+sed -i -e "s/#targetsFile/${TARGETS_TABLE//\//\\/}/" $R_SCRIPT_PATH
+sed -i -e "s/#samplesFile/${SAMPLES_FILE//\//\\/}/" $R_SCRIPT_PATH
+sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $R_SCRIPT_PATH
+sed -i -e "s/#prefix/$PROJECT/" $R_SCRIPT_PATH
+sed -i -e "s/minCPM/$MIN_CPM/" $R_SCRIPT_PATH
+sed -i -e "s/groupSize/$GROUP_SIZE/" $R_SCRIPT_PATH
+
+#submit job
+LOG_PATH=`echo $SHELL_SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+echo "`$NOW`$SHELL_SCRIPT_PATH"
+JOB_ID=`qsub -o $LOG_PATH -q pqcgi $SHELL_SCRIPT_PATH`
+echo "$JOB_ID"
+

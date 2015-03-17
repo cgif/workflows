@@ -14,7 +14,7 @@
 
 #PBS -q pqcgi
 
-module load fastqc/0.10.0
+module load fastqc/0.11.2
 
 #now
 NOW="date +%Y-%m-%d%t%T%t"
@@ -31,6 +31,7 @@ PATH_READS_DIRECTORY=#pathReadsFastq
 #PATTERN_READ2=#patternRead2
 FASTQ_READ1=#fastqRead1
 FASTQ_READ2=#fastqRead2
+SINGLE_READS=#singleReads
 
 
 #QC output directory
@@ -49,20 +50,19 @@ echo "`${NOW}`copying fasq files to temporary scratch space..."
 echo "`${NOW}`$FASTQ_READ1"
 cp $PATH_READS_DIRECTORY/$FASTQ_READ1 $TMPDIR/$FASTQ_READ1
 
-echo "`${NOW}`$FASTQ_READ2"
-cp $PATH_READS_DIRECTORY/$FASTQ_READ2 $TMPDIR/$FASTQ_READ2
-
+if [[ "$SINGLE_READS" == "F" ]]; then
+	echo "`${NOW}`$FASTQ_READ2"
+	cp $PATH_READS_DIRECTORY/$FASTQ_READ2 $TMPDIR/$FASTQ_READ2
+fi
            
 #check if mate file found and the number of lines in mate files is the same
 gzip -t $TMPDIR/$FASTQ_READ1
-if [ $? -ne "0" ]
-then
+if [ $? -ne "0" ]; then
 	echo "`${NOW}`ERROR:File $FASTQ_READ1 is corrupted. Skipped." 
-else
+elif [[ "$SINGLE_READS" == "F" ]]; then
 
 	gzip -t $TMPDIR/$FASTQ_READ2
-	if [ $? -ne "0" ]
-	then
+	if [ $? -ne "0" ]; then
 		echo "`${NOW}`ERROR:File $FASTQ_READ2 is corrupted. Skipped." 
     else 
 
@@ -70,8 +70,7 @@ else
 		COUNT_LINES_READ1=`gzip -d -c $TMPDIR/$FASTQ_READ1 | wc -l | cut -f 1 -d ' '`
 		COUNT_LINES_READ2=`gzip -d -c $TMPDIR/$FASTQ_READ2 | wc -l | cut -f 1 -d ' '`
 
-		if [ $COUNT_LINES_READ1 -ne $COUNT_LINES_READ2 ]
-		then
+		if [ $COUNT_LINES_READ1 -ne $COUNT_LINES_READ2 ]; then
 			echo "ERROR:Unequal number of lines in the mate files. Skipped." 
 		else
 
@@ -80,11 +79,16 @@ else
 			#--nogroup     disable grouping of bases for reads >50bp 
 
 			echo "`${NOW}`running FastQC..."
-			$FASTQC_HOME/fastqc -o $TMPDIR/qc --noextract --nogroup  $TMPDIR/$FASTQ_READ1
-			$FASTQC_HOME/fastqc -o $TMPDIR/qc --noextract --nogroup  $TMPDIR/$FASTQ_READ2
+			$FASTQC_HOME/bin/fastqc -o $TMPDIR/qc --noextract --nogroup  $TMPDIR/$FASTQ_READ1
+			$FASTQC_HOME/bin/fastqc -o $TMPDIR/qc --noextract --nogroup  $TMPDIR/$FASTQ_READ2
 
 		fi	
 	fi
+else
+#run FastQC for single reads
+	echo "`${NOW}`running FastQC..."
+	$FASTQC_HOME/bin/fastqc -o $TMPDIR/qc --noextract --nogroup  $TMPDIR/$FASTQ_READ1
+
 fi
 
 

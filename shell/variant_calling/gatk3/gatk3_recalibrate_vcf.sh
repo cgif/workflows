@@ -175,7 +175,7 @@ then
 	# added --target_titv, which is used for plotting purposes only 
 
 	echo "`$NOW`INFO $SCRIPT_CODE building SNP recalibration model..."
-	ANNOTATIONS_SNP="-an QD -an MQ -an MQRankSum -an ReadPosRankSum -an FS "
+	ANNOTATIONS_SNP="-an QD -an MQ -an MQRankSum -an ReadPosRankSum -an SOR -an FS "
 	if [[ "$SEQUENCING_TYPE" == "WGS" ]]; then
 		ANNOTATIONS_SNP="$ANNOTATIONS_SNP -an DP"
 		TARGET_TITV="2.15"
@@ -217,7 +217,7 @@ then
         # -an DP only taken into account for whole genome sequencing
 
 	echo "`$NOW`INFO $SCRIPT_CODE building INDEL recalibration model"
-        ANNOTATIONS_INDEL="-an QD -an FS -an ReadPosRankSum -an MQRankSum"
+        ANNOTATIONS_INDEL="-an QD -an FS -an SOR -an ReadPosRankSum -an MQRankSum"
         if [[ "$SEQUENCING_TYPE" = "WGS" ]]
         then
                 ANNOTATIONS_INDEL="$ANNOTATIONS_INDEL -an DP"
@@ -310,6 +310,16 @@ then
 	cp $SAMPLE.recalibratedSNPs.recalibratedINDELs.noaux.vcf.gz $RESULTS_DIR/$SAMPLE.recalibrated.vcf.gz
 	cp $SAMPLE.recalibratedSNPs.recalibratedINDELs.noaux.vcf.gz.tbi $RESULTS_DIR/$SAMPLE.recalibrated.vcf.gz.tbi
 
+	echo "`$NOW`INFO $SCRIPT_CODE compressing SNP and INDEL recalibrated VCF file for all samples..."
+	$TABIX_HOME/bgzip $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.vcf
+
+	echo "`$NOW`INFO $SCRIPT_CODE indexing SNP and INDEL recalibrated VCF file for all samples..."
+	$TABIX_HOME/tabix -p vcf $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.vcf.gz
+
+	echo "`$NOW`INFO $SCRIPT_CODE copying SNP and INDEL recalibrated VCF file and index to $RESULTS_DIR..."
+	cp $SAMPLE.recalibratedSNPs.recalibratedINDELs.vcf.gz $RESULTS_DIR/$SAMPLE.recalibrated.all_samples.vcf.gz
+	cp $SAMPLE.recalibratedSNPs.recalibratedINDELs.vcf.gz.tbi $RESULTS_DIR/$SAMPLE.recalibrated.all_samples.vcf.gz.tbi
+
 	#logging
 	STATUS=OK
 	if [[ ! -s $RESULTS_DIR/$SAMPLE.recalibrated.vcf.gz ]]
@@ -338,6 +348,18 @@ then
 	echo "`$NOW`INFO $SCRIPT_CODE copying PASS variants VCF file to $RESULTS_DIR..."
 	cp $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.PASS.noaux.vcf.gz $RESULTS_DIR/$SAMPLE.recalibrated.PASS.vcf.gz
 	cp $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.PASS.noaux.vcf.gz.tbi $RESULTS_DIR/$SAMPLE.recalibrated.PASS.vcf.gz.tbi
+
+	echo "`$NOW`INFO $SCRIPT_CODE compressing PASS variants VCF file for all samples..."
+	$TABIX_HOME/bgzip $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.PASS.vcf
+
+	echo "`$NOW`INFO $SCRIPT_CODE indexing PASS variants VCF file..."
+	$TABIX_HOME/tabix -p vcf $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.PASS.vcf.gz
+
+	echo "`$NOW`INFO $SCRIPT_CODE copying PASS variants VCF file to $RESULTS_DIR..."
+	cp $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.PASS.vcf.gz $RESULTS_DIR/$SAMPLE.recalibrated.PASS.all_samples.vcf.gz
+	cp $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.PASS.vcf.gz.tbi $RESULTS_DIR/$SAMPLE.recalibrated.PASS.all_samples.vcf.gz.tbi
+
+
 
 	#logging
 	STATUS=OK

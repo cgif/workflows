@@ -1,0 +1,35 @@
+USAGE
+
+	qedgeRpairedDE	-i <input_file>
+			-s <samples_file>
+			-n <project_name>
+			-o <results_subfolder>
+			-m <min cpm for filtering lowly expressed genes, default 1>
+			-r <group size>
+
+DESCRIPTION
+
+	-i	Absolute path to file containing information on input files. 
+		Contains 3 tab delimited colums with a header line: 
+		absolute path for the count data file, 
+		sample group (e.g. case or control) and sample description.
+		Count data files should contain count data for individual samples,
+		2 columns without header line: tag (miRNA) name and raw (not normalized) count.
+
+	-s	Absolute path to tab-separated samples metadata file.
+		File contains 3 colums with a header line:
+		sample ID, subject ID (same for both samples in a pair) and condition.
+
+	-n	Project name.
+
+	-o	Result/scripts sub-folder (optional). edgeR outputs will be 
+		placed to /project/tgu/results/PROJECT/edgeR/DATE/SUBFOLDER. 
+		Can be used if you run a few DESeq analysis at the same date.
+
+	-m 	minimum cpm (counts per million) to use for filtering lowly expressed genes.
+		Default 1.
+
+	-r	group size, number of samples in each group 
+		(should be half of all samples in paired design).
+
+   	-h 	Display help and exit. 

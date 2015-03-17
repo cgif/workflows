@@ -1,0 +1,178 @@
+#!/bin/bash
+
+#
+# sets up directory structure and generates, configures and submits 
+# scripts to run cutadapt algorithm for removing adapters and low quality ends 
+#
+
+#CONFIGURATION
+##############
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+PROJECT_TGU=/project/tgu
+
+QUEUE=pqcgi
+
+
+#CUTADAPT
+#########
+
+MIN_LENGTH=16
+
+#COMMAND LINE ARGS
+##################
+
+USAGE="USAGE: qfilterLength -i <path_to_fastq_directory> -l <min length [16]> -p <project>"
+
+#parse command line args
+while getopts "i:l:p:h" option; do
+    case "$option" in
+
+	i) INPUT_PATH="$OPTARG";;
+        l) MIN_LENGTH="$OPTARG";;
+		p) PROJECT="$OPTARG";;
+        h) echo "$USAGE"; exit 1;;
+	[?]) echo "$USAGE"; exit 1;;
+
+esac
+done
+
+#check if required arguments are missing
+if [ -z $INPUT_PATH ] 
+    then
+    echo $USAGE
+    exit 1
+fi
+
+if [ -z $PROJECT ] 
+    then
+	echo "ERROR: project name is missing"
+    echo $USAGE 
+    exit 1
+fi
+
+
+#FUNCTIONS
+##########
+
+#creates job scripts
+function submitJobs {
+
+        FASTQ_DIR=$1
+        PATH_RUN_DIR=$2
+        MIN_LENGTH=$3
+
+	PATH_SCRIPT_DIR=$PATH_RUN_DIR/run  
+	mkdir -p $PATH_SCRIPT_DIR
+	chmod 770 $PATH_SCRIPT_DIR
+
+	SETUP_LOG=$PATH_SCRIPT_DIR/setup.log
+
+	echo -n "" > $SETUP_LOG
+	echo "`$NOW`setting up filtering run(s)... "
+	echo "`$NOW`(see $SETUP_LOG for details)"
+
+	echo "`$NOW`setting up filtering run(s)... " >> $SETUP_LOG
+        echo "`$NOW`fastq read directory: $FASTQ_DIR" >> $SETUP_LOG
+        echo "`$NOW`filtered fastq output directory: $FASTQ_DIR" >> $SETUP_LOG
+        echo "`$NOW`script directory: $PATH_SCRIPT_DIR" >> $SETUP_LOG
+        echo "`$NOW`creating and submitting job scripts:" >> $SETUP_LOG
+
+        #for each fastq file (fastq files have to be gzipped and 
+        #have to have a fq.gz or fastq.gz extension
+        for FASTQ in `ls --color=never $FASTQ_DIR/*.f*q*`
+        do 
+    
+            FASTQ_BASENAME=`basename $FASTQ .gz`
+            SCRIPT_PATH=$PATH_SCRIPT_DIR/filterL.$FASTQ_BASENAME.sh
+            cp $BASEDIR/filter_length.sh $SCRIPT_PATH
+	    chmod 770 $SCRIPT_PATH
+
+            PATH_READS_FASTQ=$FASTQ
+
+            #set variables
+            sed -i -e "s/pathReadsFastq/${PATH_READS_FASTQ//\//\\/}/" $SCRIPT_PATH
+            sed -i -e "s/#minLength/$MIN_LENGTH/" $SCRIPT_PATH  
+
+            #submit job 
+            LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+            echo "`$NOW`$SCRIPT_PATH" >> $SETUP_LOG
+            qsub -q $QUEUE -o $LOG_OUTPUT_PATH $SCRIPT_PATH
+ 
+        done;
+
+        echo "`$NOW`done" >> $SETUP_LOG
+}
+
+#if the input path is a directory...
+if [ -d $INPUT_PATH ] ; then
+
+    #create and set permissions for runs project parent directory
+    mkdir -p $PROJECT_TGU/runs/$PROJECT
+    chmod 770 $PROJECT_TGU/runs/$PROJECT
+
+    mkdir -p $PROJECT_TGU/runs/$PROJECT/filerLength
+    chmod 770 $PROJECT_TGU/runs/$PROJECT/filerLength
+
+    mkdir -p $PROJECT_TGU/runs/$PROJECT/filerLength/$TODAY
+    chmod 770 $PROJECT_TGU/runs/$PROJECT/filerLength/$TODAY
+
+    #create and set permissions for results project parent directory
+    mkdir -p $PROJECT_TGU/results/$PROJECT
+    chmod 770 $PROJECT_TGU/results/$PROJECT
+
+    #for each sample directory...
+    for SAMPLE in `ls --color=never $INPUT_PATH`
+    do
+
+	FASTQ_DIR=$INPUT_PATH/$SAMPLE
+
+	if [ -d $FASTQ_DIR ]; then
+
+		#count fastq files in directory		
+		FASTQ_COUNT=`ls --color=never $FASTQ_DIR/*.f*q* | wc -l`
+
+		if [ $FASTQ_COUNT -gt 0 ]; then
+
+			echo "`$NOW`processing directory $SAMPLE..."
+
+			#create and set permissions for analysis sample parent directory
+			mkdir -p $PROJECT_TGU/runs/$PROJECT/filerLength/$TODAY/$SAMPLE
+			chmod 770 $PROJECT_TGU/runs/$PROJECT/filerLength/$TODAY/$SAMPLE
+
+        		#...create output directory
+			PATH_RUN_DIR=$PROJECT_TGU/runs/$PROJECT/filerLength/$TODAY/$SAMPLE
+    
+	
+			#create, configure and submit job scripts
+			submitJobs $FASTQ_DIR \
+                        $PATH_RUN_DIR \
+						$MIN_LENGTH
+                                  
+		else
+
+			echo "`$NOW`directory $SAMPLE does not contain any fastq files (.fq or .fastq file extension)"	
+
+		fi
+
+	fi
+
+    done;
+
+else
+
+    echo "`$NOW`Error: Input path is not a directory."
+    exit 1
+
+fi
+
+
+
+
+

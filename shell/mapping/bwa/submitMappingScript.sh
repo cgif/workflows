@@ -11,7 +11,7 @@
 #PBS -l select=1:ncpus=1:mem=800mb
 
 #PBS -m ea
-#PBS -M mkanwagi@imperial.ac.uk
+#PBS -M cgi@imperial.ac.uk
 #PBS -j oe
 
 #PBS -q pqcgi

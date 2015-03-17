@@ -40,6 +40,8 @@ echo "`${NOW}`annotating calls with annovar"
 
 $ANNOVAR_PATH/table_annovar.pl $AVINPUT $ANNOVAR_DB/ -buildver $BUILD -protocol $PROTOCOL$EXTRA_PROTOCOL -operation $OPERATION$EXTRA_OPERATION --bedfile $GI_BED --vcfdbfile $HGMD_VCF --argument annovarArgumentextraArg -nastring NA --otherinfo --remove
 
+echo "$ANNOVAR_PATH/table_annovar.pl $AVINPUT $ANNOVAR_DB/ -buildver $BUILD -protocol $PROTOCOL$EXTRA_PROTOCOL -operation $OPERATION$EXTRA_OPERATION --bedfile $GI_BED --vcfdbfile $HGMD_VCF --argument annovarArgumentextraArg -nastring NA --otherinfo --remove"
+echo ""
 
 echo "`${NOW}`compressing output..."
 gzip -f $OUTPUT
