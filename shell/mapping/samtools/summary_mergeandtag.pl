@@ -103,9 +103,9 @@ print OUT "<TH>Library<BR>metrics" if $metric_level =~ /L/;
 print OUT "<TH>Read group<BR>metrics" if $metric_level =~ /RG/;
 
 foreach $sample (sort {$a cmp $b} keys %data){
+    print OUT "<TR><TD>$sample";
     $log = "$project_dir_analysis/$date/$sample/samtoolsMergeAndTag.$sample.log";
     next unless (-s $log);
-    print OUT "<TR><TD>$sample";
     $f1 = 1;
     foreach $library (sort {$a cmp $b} keys %{$data{$sample}}){
 	print OUT "<TR><TD><TD>" unless $f1;
