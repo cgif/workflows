@@ -49,7 +49,16 @@ split -d -l $LINES_PER_FILE $INPUT_FASTQ_NAME \
 
 echo "`$NOW`copying split fastq files to $OUTPUT_DIR... "
 
-cp $TMPDIR/split/* $OUTPUT_DIR/
+if [ -d $OUTPUT_DIR ]; then
+
+	cp $TMPDIR/split/* $OUTPUT_DIR/
+
+else
+
+	mkdir -p $OUTPUT_DIR
+	cp $TMPDIR/split/* $OUTPUT_DIR/
+
+fi
 
 ls -al $TMPDIR/
 ls -al $TMPDIR/split
