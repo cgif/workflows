@@ -99,14 +99,14 @@ if [[ "$PED_FILE" != "none" ]]; then
 fi
 
 CUT_OFF=30
-if [[ "$TYPE" != "TARGETED" ]]; then
-	CUT_OFF=20
-fi
+#if [[ "$TYPE" != "TARGETED" ]]; then
+#	CUT_OFF=20
+#fi
 
 
 # step 13: unified genotyper
 echo "`${NOW}`INFO $SCRIPT_CODE running UnifiedGenotyper"
-java -Xmx$JAVA_XMX -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
+java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
     -nt $UG_DATA_THREADS \
     -T UnifiedGenotyper \
     -R $TMPDIR/reference.fa \

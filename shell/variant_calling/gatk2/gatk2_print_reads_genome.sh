@@ -72,7 +72,7 @@ fi
 
 # step 5: print reads with recalibrated base calls
 echo "`${NOW}`INFO $SCRIPT_CODE recalibrating chunk BAM..."
-java -Xmx$JAVA_XMX -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
+java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
    -nct $NCT \
    -T PrintReads \
    -R $TMPDIR/reference.fa \
@@ -102,7 +102,7 @@ echo -e "`${NOW}`$SCRIPT_CODE\t$SAMPLE\t$FRAGMENT\trecalibrated_bam\t$STATUS" >>
 # reduce reads
 echo "`${NOW}`INFO $SCRIPT_CODE reducing recalibrated BAM..."
 
-java -Xmx$JAVA_XMX -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
+java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
    -R $TMPDIR/reference.fa \
    -T ReduceReads \
    -I $TMPDIR/realigned.recalibrated.bam \

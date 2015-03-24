@@ -70,7 +70,7 @@ then
 	INTERVAL_ARG="-L $TARGET_INTERVALS_FILE"
 fi 
 
-java -Xmx$JAVA_XMX -Djava.io.tmpdir=$TMPDIR -jar $GATK_HOME/GenomeAnalysisTK.jar \
+java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR -jar $GATK_HOME/GenomeAnalysisTK.jar \
   -T DepthOfCoverage \
   -R $REFERENCE_FASTA \
   -I $BAM_NAME \

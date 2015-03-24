@@ -98,7 +98,7 @@ mkdir $TMPDIR/tmp
 # the FRAGMENT_FILE telling it to process only the chunk
 # for which the input BAM contains reads.
 echo "`${NOW}`INFO $SCRIPT_CODE creating GATK realignment targets"
-java -Xmx$JAVA_XMX -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
+java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
   -T RealignerTargetCreator \
   -nt $RTC_DATA_THREADS \
   -R $TMPDIR/reference.fa \
@@ -133,7 +133,7 @@ then
 	INTERVAL_ARG="$INTERVAL_ARG -L unmapped"
 fi 
 
-java -Xmx$JAVA_XMX -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
+java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
 	-T IndelRealigner \
 	-R $TMPDIR/reference.fa \
 	-I $TMPDIR/chunk.bam \
@@ -152,7 +152,7 @@ samtools index ${SAMPLE}.${FRAGMENT}.realigned.bam
 
 # run BaseRecalibrator
 echo "`${NOW}`INFO $SCRIPT_CODE generating recalibration report for realigned BAM..."
-java -Xmx$JAVA_XMX -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
+java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
    -T BaseRecalibrator \
    -I ${SAMPLE}.${FRAGMENT}.realigned.bam \
    -R $TMPDIR/reference.fa \

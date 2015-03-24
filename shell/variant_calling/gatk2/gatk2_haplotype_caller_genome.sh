@@ -105,7 +105,7 @@ fi
 # step 13b: haplotype caller
 echo  "`${NOW}`INFO $SCRIPT_CODE running HaplotypeCaller"
 
-java -Xmx$JAVA_XMX -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
+java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
     -T HaplotypeCaller \
     -R $TMPDIR/reference.fa \
     $INPUT_BAM_ARGUMENT \

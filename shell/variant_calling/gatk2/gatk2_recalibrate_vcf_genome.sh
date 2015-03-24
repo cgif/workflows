@@ -132,7 +132,7 @@ done
 grep AUX $SAMPLE_LIST | cut -f1 > $TMPDIR/exclude_samples.txt
 
 echo "`${NOW}`removing variants from auxiliary samples..."
-java -Xmx$JAVA_XMX -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
+java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
   -T SelectVariants \
   -R $REFERENCE_FASTA \
   --variant $TMPDIR/raw_merged.vcf \
@@ -186,7 +186,7 @@ then
 		ANNOTATIONS_SNP="$ANNOTATIONS_SNP -an HaplotypeScore"
 	fi
 
-	java -Xmx$JAVA_XMX -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
+	java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
 		-T VariantRecalibrator \
 		-nt $NT \
 		-R $TMPDIR/reference.fa \
@@ -222,7 +222,7 @@ then
                 ANNOTATIONS_INDEL="$ANNOTATIONS_INDEL -an DP"
         fi
 
-	java -Xmx$JAVA_XMX -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
+	java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
 		-T VariantRecalibrator \
 		-nt $NT \
 		-R $TMPDIR/reference.fa \
@@ -245,7 +245,7 @@ then
 
 	# step 4: recalibratedSNPs.vcf <- ApplyRecalibration(raw.snps.vcf, snp.model)
 	echo "`$NOW`applying SNP recalibration" ## will try for the whole file, if very slow, then will break down
-	java -Xmx$JAVA_XMX -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
+	java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
 		-T ApplyRecalibration \
 		-nt $NT \
 		-R $TMPDIR/reference.fa \
@@ -258,7 +258,7 @@ then
 
 	# step 5: analysisReady.vcf <- ApplyRecalibration(recalibratedSNPs.rawIndels.vcf, indel.model, INDEL)
 	echo "`$NOW`applying INDEL recalibration" ## will try for the whole file, if very slow, then will break down
-	java -Xmx$JAVA_XMX -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
+	java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
 		-T ApplyRecalibration \
 		-nt $NT \
 		-R $TMPDIR/reference.fa \
@@ -274,7 +274,7 @@ then
 	awk '{if ( ($7 == "PASS") || ($1 ~ /^#/) ) print}' $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.vcf > $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.PASS.vcf
 
 	echo "`${NOW}`removing variants from auxiliary samples from SNP recalibrated VCF file..."
-	java -Xmx$JAVA_XMX -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
+	java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
 		-T SelectVariants \
 		-R $REFERENCE_FASTA \
 		--variant $TMPDIR/$SAMPLE.recalibratedSNPs.rawINDELs.vcf \
@@ -289,7 +289,7 @@ then
 	cp $SAMPLE.recalibratedSNPs.rawINDELs.noaux.vcf.gz $ANALYSIS_DIR/$SAMPLE.recalibratedSNPs.rawINDELs.vcf.gz
 
 	echo "`${NOW}`removing variants from auxiliary samples from SNP and INDEL recalibrated VCF file..."
-	java -Xmx$JAVA_XMX -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
+	java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
 		-T SelectVariants \
 		-R $REFERENCE_FASTA \
 		--variant $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.vcf \
@@ -318,7 +318,7 @@ then
 
 
 	echo "`${NOW}`removing variants from auxiliary samples from PASS variants VCF file..."
-	java -Xmx$JAVA_XMX -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
+	java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
 		-T SelectVariants \
 		-R $REFERENCE_FASTA \
 		--variant $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.PASS.vcf \
@@ -362,7 +362,7 @@ echo "`$NOW`running variant evalutation"
 FINAL_VCF_UNCOMPRESSED=`basename $FINAL_VCF .gz`
 gzip -d $FINAL_VCF
 
-java -Xmx$JAVA_XMX -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
+java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
   -T VariantEval \
   -nt $NT \
   -R $TMPDIR/reference.fa \
