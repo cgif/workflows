@@ -127,6 +127,11 @@ fi
 
 #copy clipped files
 echo "`${NOW}`Copy bam files"
+
+if [[ ! -d $RESULTS_DIR ]]; then
+	mkdir -p $RESULTS_DIR
+fi
+
 cp $TMPDIR/complete.bam $RESULTS_DIR/$INPUT_BAM_NAME.bam
 echo "`${NOW}`Done"
 

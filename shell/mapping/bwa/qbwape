@@ -298,6 +298,9 @@ if [ -d $INPUT_PATH ]; then
     mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/bwa/$TODAY
     chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/bwa/$TODAY
 
+    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/bwa/$TODAY/multisample
+    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/bwa/$TODAY/multisample
+
     #create and set permissions for runs project parent directory
     mkdir -p $GROUP_VOL_TGU/runs/$PROJECT
     chmod 770 $GROUP_VOL_TGU/runs/$PROJECT
@@ -309,16 +312,16 @@ if [ -d $INPUT_PATH ]; then
     chmod 770 $GROUP_VOL_TGU/runs/$PROJECT/bwa/$TODAY
 
     #create and set permissions for results project parent directory
-    mkdir -p $GROUP_VOL_TGU/results/$PROJECT
-    chmod 770 $GROUP_VOL_TGU/results/$PROJECT
+    mkdir -p $GROUP_VOL_TGU/rawdata/$PROJECT
+    chmod 770 $GROUP_VOL_TGU/rawdata/$PROJECT
 
-    mkdir -p $GROUP_VOL_TGU/results/$PROJECT/bwa
-    chmod 770 $GROUP_VOL_TGU/results/$PROJECT/bwa
+    mkdir -p $GROUP_VOL_TGU/rawdata/$PROJECT/bam
+    chmod 770 $GROUP_VOL_TGU/rawdata/$PROJECT/bam
 
-    mkdir -p $GROUP_VOL_TGU/results/$PROJECT/bwa/$TODAY
-    chmod 770 $GROUP_VOL_TGU/results/$PROJECT/bwa/$TODAY
+    mkdir -p $GROUP_VOL_TGU/rawdata/$PROJECT/bam/$TODAY
+    chmod 770 $GROUP_VOL_TGU/rawdata/$PROJECT/bam/$TODAY
 
-    SUMMARY_RESULTS=$GROUP_VOL_TGU/results/$PROJECT/bwa/$TODAY
+    SUMMARY_RESULTS=$GROUP_VOL_CGI/analysis/$PROJECT/bwa/$TODAY/multisample
     SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/bwa/$TODAY
     ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
     scp -r ${BASEDIR}/../../resources/images/error.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
@@ -346,8 +349,8 @@ if [ -d $INPUT_PATH ]; then
 			chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/bwa/$TODAY/$SAMPLE
 
  			#create and set permissions for results sample parent directory
-   			mkdir -p $GROUP_VOL_TGU/results/$PROJECT/bwa/$TODAY/$SAMPLE
-    			chmod 770 $GROUP_VOL_TGU/results/$PROJECT/bwa/$TODAY/$SAMPLE
+   			mkdir -p $GROUP_VOL_TGU/rawdata/$PROJECT/bam/$TODAY/$SAMPLE
+    			chmod 770 $GROUP_VOL_TGU/rawdata/$PROJECT/bam/$TODAY/$SAMPLE
 
  			#create and set permissions for runs sample parent directory
    			mkdir -p $GROUP_VOL_TGU/runs/$PROJECT/bwa/$TODAY/$SAMPLE
@@ -356,7 +359,7 @@ if [ -d $INPUT_PATH ]; then
         		#...create output directory
 			PATH_ANALYSIS_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/bwa/$TODAY/$SAMPLE
 			PATH_RUN_DIR=$GROUP_VOL_TGU/runs/$PROJECT/bwa/$TODAY/$SAMPLE 
-			PATH_OUT_DIR=$GROUP_VOL_TGU/results/$PROJECT/bwa/$TODAY/$SAMPLE      
+			PATH_OUT_DIR=$GROUP_VOL_TGU/rawdata/$PROJECT/bam/$TODAY/$SAMPLE      
 	
 			#create, configure and submit job scripts
 			submitJobs $FASTQ_DIR \
