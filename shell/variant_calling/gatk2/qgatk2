@@ -33,20 +33,21 @@ GROUP_VOL_CGI=/groupvol/cgi
 DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
 DEPLOYMENT_BASE_DIR=/www/html/report
 QUEUE=pqcgi
+PROJECT_TGU=/project/tgu
 
 
 #GATK configuration
 
 #resources
-BUNDLE=/groupvol/cgi/resources/GATK_resource_bundle/2.3/b37
+BUNDLE=/groupvol/cgi/resources/GATK_resource_bundle/2.8/b37
 
 INDELS_1000G=$BUNDLE/1000G_phase1.indels.b37.vcf
 INDELS_GOLDSTD=$BUNDLE/Mills_and_1000G_gold_standard.indels.b37.vcf
 HIGH_CONF_SNP_1000G=$BUNDLE/1000G_phase1.snps.high_confidence.b37.vcf
-DBSNP=$BUNDLE/dbsnp_137.b37.vcf
+DBSNP=$BUNDLE/dbsnp_138.b37.vcf
 HAPMAP_SITES=$BUNDLE/hapmap_3.3.b37.sites.vcf
 OMNI_1000G=$BUNDLE/1000G_omni2.5.b37.sites.vcf
-DBSNP_EX_POST_129=$BUNDLE/dbsnp_137.b37.excluding_sites_after_129.vcf
+DBSNP_EX_POST_129=$BUNDLE/dbsnp_138.b37.excluding_sites_after_129.vcf
 
 #downsampling
 WG_EXOME_SEQ_DOWNSAMPLING=250
@@ -1071,6 +1072,10 @@ function submitVariantCallerMultiSampleJobs {
 				sed -i -e "s/#downsamplingThreshold/$DOWNSAMPLING/" $script_path
 				sed -i -e "s/#seqType/$TYPE/" $script_path
 
+				if [[ $TYPE == "TARGETED" ]]; then
+					sed -i -e "s/realigned.recalibrated.reduced.bam/realigned.recalibrated.bam/" $script_path
+				fi
+
 				if [ $variant_caller == "unifiedgenotyper" ]
 				then
 					sed -i -e "s/#dataThreads/$UG_DATATHREADS/" $script_path
@@ -1978,7 +1983,7 @@ then
 			then
 				IN_BAM_SAMPLE=$AUX_SAMPLE_DIR/$SAMPLE.bam
 			else
-		    	IN_BAM_SAMPLE=$GROUP_VOL_CGI/results/$SAMPLE_PROJECT/mergetag/$DATE/$SAMPLE/$SAMPLE.bam
+		    	IN_BAM_SAMPLE=$PROJECT_TGU/results/$SAMPLE_PROJECT/mergetag/$DATE/$SAMPLE/$SAMPLE.bam
 		    fi
 		    					    
 		    ANALYSIS_DIR_SAMPLE=$ANALYSIS_DIR_PROJECT/$TODAY/$SAMPLE

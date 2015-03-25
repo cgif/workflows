@@ -86,7 +86,7 @@ cp $REFRENCE_SEQ_DICT $TMPDIR/reference.dict
 # step 4: run GATK BaseRecalibrator to generate recalibration plots
 # see http://gatkforums.broadinstitute.org/discussion/1539/baserecalibrator-plots
 echo "`${NOW}`generating recalibration report and plot for realigned and recalibrated chunk BAM..."
-java -Xmx$JAVA_XMX -jar $GATK_HOME/GenomeAnalysisTK.jar \
+java -Xmx$JAVA_XMX -XX:+UseSerialGC -jar $GATK_HOME/GenomeAnalysisTK.jar \
    -T BaseRecalibrator \
    -I $TMPDIR/chunk.bam \
    -R $TMPDIR/reference.fa \
