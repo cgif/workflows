@@ -326,6 +326,9 @@ chmod -R 770 $AX3_CGI/analysis/$PROJECT/annovar
 #create a job script for moving results to /project/tgu 
 echo "`$NOW`creating and submitting job script to move results and scripts to /project/tgu..." 
 
+RUN_TGU_DIR=/project/tgu/runs/$PROJECT/annovar/$TODAY/run
+mkdir -p $RUN_TGU_DIR
+
 SCRIPT_PATH=$SCRIPT_DIR/moveResults.sh
 cp $BASEDIR/moveResults.sh $SCRIPT_PATH
 chmod 660 $SCRIPT_PATH
@@ -335,7 +338,7 @@ sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#project/$PROJECT/" $SCRIPT_PATH
 sed -i -e "s/#today/$TODAY/" $SCRIPT_PATH
 
-LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+LOG_OUTPUT_PATH=$RUN_TGU_DIR/moveResults.log
 JOB_ID_MOVE=`qsub -W depend=afterok:$JOB_ID -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
 echo "`$NOW`$JOB_ID_MOVE"
 

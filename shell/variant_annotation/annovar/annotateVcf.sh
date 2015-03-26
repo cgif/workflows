@@ -48,9 +48,9 @@ gzip -f $OUTPUT
 
 echo "`${NOW}`copying annovar annotations to $RESULTS_DIR/$SAMPLE"
 
-#copy summary annotation to results directory
+#move summary annotation to results directory
 mkdir -m 770 -p $RESULTS_DIR/$SAMPLE
-cp $OUTPUT.gz $RESULTS_DIR/$SAMPLE/$OUTPUT_PREFIX.$BUILD.$SAMPLE.multianno.txt.gz
+mv $OUTPUT.gz $RESULTS_DIR/$SAMPLE/$OUTPUT_PREFIX.$BUILD.$SAMPLE.multianno.txt.gz
 chmod 660 $RESULTS_DIR/$SAMPLE/$OUTPUT_PREFIX.$BUILD.$SAMPLE.multianno.txt.gz
 
 #extract exonic variants
