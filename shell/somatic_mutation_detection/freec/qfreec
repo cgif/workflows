@@ -133,7 +133,7 @@ TOTAL_SAMPLE_COUNT=`sort $SAMPLE_LIST | uniq | awk '/^\s*$/ {next;} { print; }' 
 SAMPLE_COUNT=0     
 
 #for each sample (make sure that each sample and date is unique) run MuTect
-sort $SAMPLE_LIST | uniq | while read SAMPLE_NORMAL DATE_NORMAL SAMPLE_TUMOR DATE_TUMOR; do
+sort $SAMPLE_LIST | uniq | while read SAMPLE_NORMAL SAMPLE_TUMOR DATE; do
 	
         if [[ "$SAMPLE_NORMAL" != "" ]] && [[ "$SAMPLE_TUMOR" != "" ]]; then
                
@@ -145,8 +145,8 @@ sort $SAMPLE_LIST | uniq | while read SAMPLE_NORMAL DATE_NORMAL SAMPLE_TUMOR DAT
                 SAMPLE_PAIR=$SAMPLE_NORMAL.vs.$SAMPLE_TUMOR
 		ANALYSIS_DIR_SAMPLE=$ANALYSIS_DIR_PROJECT/$TODAY/$SAMPLE_PAIR
 		RESULTS_DIR_SAMPLE=$RESULTS_DIR_PROJECT/$TODAY/$SAMPLE_PAIR
-		NORMAL_BAM=$GROUP_VOL_CGI/results/$PROJECT/mutect/$DATE_NORMAL/$SAMPLE_NORMAL/recalibration/$SAMPLE_NORMAL.bam
-		TUMOR_BAM=$GROUP_VOL_CGI/results/$PROJECT/mutect/$DATE_TUMOR/$SAMPLE_TUMOR/recalibration/$SAMPLE_TUMOR.bam
+		NORMAL_BAM=$GROUP_VOL_CGI/results/$PROJECT/mutect/$DATE/$SAMPLE_NORMAL/recalibration/$SAMPLE_NORMAL.bam
+		TUMOR_BAM=$GROUP_VOL_CGI/results/$PROJECT/mutect/$DATE/$SAMPLE_TUMOR/recalibration/$SAMPLE_TUMOR.bam
 
 		submitFREEC $NORMAL_BAM \
 			    $TUMOR_BAM \

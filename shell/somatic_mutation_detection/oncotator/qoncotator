@@ -77,7 +77,11 @@ RESULTS_DIR=$GROUP_VOL_CGI/results/$PROJECT/oncotator/$TODAY
 echo -n "" > $ANALYSIS_DIR/run/merge_dependency.tsv
 
 #for each sample run Oncotator
-sort $SAMPLE_LIST | uniq | while read SAMPLE_NAME VCF_FILE_MUTECT VCF_FILE_SID; do
+sort $SAMPLE_LIST | uniq | while read SAMPLE_NORMAL SAMPLE_TUMOR MUTECT_DATE SID_DATE; do
+
+	SAMPLE_NAME=$SAMPLE_NORMAL.vs.$SAMPLE_TUMOR
+	VCF_FILE_MUTECT=$GROUP_VOL_CGI/results/$PROJECT/mutect/$MUTECT_DATE/$SAMPLE_NAME/$SAMPLE_NAME.vcf
+	VCF_FILE_SID=$GROUP_VOL_CGI/results/$PROJECT/SomaticIndelDetector/$SID_DATE/$SAMPLE_NAME/$SAMPLE_NAME.vcf
 	
         if [[ "$SAMPLE_NAME" != "" ]] && [[ -e "$VCF_FILE_MUTECT" ]] && [[ -e "$VCF_FILE_SID" ]]; then
 

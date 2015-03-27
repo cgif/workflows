@@ -234,7 +234,7 @@ TOTAL_SAMPLE_COUNT=`sort $SAMPLE_LIST | uniq | awk '/^\s*$/ {next;} { print; }' 
 SAMPLE_COUNT=0     
 
 #for each sample (make sure that each sample and date is unique) run MuTect
-sort $SAMPLE_LIST | uniq | while read SAMPLE_GERMLINE DATE_GERMLINE SAMPLE_TUMOR DATE_TUMOR; do
+sort $SAMPLE_LIST | uniq | while read SAMPLE_GERMLINE SAMPLE_TUMOR DATE; do
 	
         if [[ "$SAMPLE_GERMLINE" != "" ]] && [[ "$SAMPLE_TUMOR" != "" ]]; then
                
@@ -244,8 +244,8 @@ sort $SAMPLE_LIST | uniq | while read SAMPLE_GERMLINE DATE_GERMLINE SAMPLE_TUMOR
 		echo "`$NOW`"
 		echo "`$NOW`running CREST for sample $SAMPLE_COUNT of $TOTAL_SAMPLE_COUNT: $SAMPLE_GERMLINE & $SAMPLE_TUMOR"
 
-		GERMLINE_BAM=$GROUP_VOL_CGI/results/$PROJECT/mutect/$DATE_GERMLINE/$SAMPLE_GERMLINE/recalibration/$SAMPLE_GERMLINE.bam
-		TUMOR_BAM=$GROUP_VOL_CGI/results/$PROJECT/mutect/$DATE_TUMOR/$SAMPLE_TUMOR/recalibration/$SAMPLE_TUMOR.bam
+		GERMLINE_BAM=$GROUP_VOL_CGI/results/$PROJECT/mutect/$DATE/$SAMPLE_GERMLINE/recalibration/$SAMPLE_GERMLINE.bam
+		TUMOR_BAM=$GROUP_VOL_CGI/results/$PROJECT/mutect/$DATE/$SAMPLE_TUMOR/recalibration/$SAMPLE_TUMOR.bam
 		ANALYSIS_DIR_SAMPLE=$ANALYSIS_DIR_PROJECT/$TODAY/$SAMPLE_TUMOR
 		RESULTS_DIR_SAMPLE=$RESULTS_DIR_PROJECT/$TODAY/$SAMPLE_TUMOR
 
