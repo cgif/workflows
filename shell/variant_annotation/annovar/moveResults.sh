@@ -19,10 +19,10 @@ PROJECT=#project
 TODAY=#today
 
 RESULTS_TGU_DIR=/project/tgu/results/$PROJECT/annovar
-RUN_TGU_DIR=/project/tgu/runs/$PROJECT/annovar/$TODAY
+RUN_TGU_DIR=/project/tgu/runs/$PROJECT/annovar/$TODAY/run
 
 mkdir -p $RESULTS_TGU_DIR
-mkdir -p /project/tgu/runs/$PROJECT/annovar
+#mkdir -p /project/tgu/runs/$PROJECT/annovar
 
 # annovar annotation
 echo "`${NOW}`moving results..."
@@ -31,7 +31,8 @@ chmod -R 770 /project/tgu/results/$PROJECT/annovar
 
 echo "`${NOW}`copying scripts..."
 # we only copy scripts, otherwise log script will go to $HOME
-cp _R $RUN_DIR $RUN_TGU_DIR
+#cp -R $RUN_DIR $RUN_TGU_DIR
+mv $RUN_DIR/* $RUN_TGU_DIR
 chmod -R 770 /project/tgu/runs/$PROJECT/annovar
 
 echo "`${NOW}`done"
