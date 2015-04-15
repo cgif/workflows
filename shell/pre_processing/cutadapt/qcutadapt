@@ -33,13 +33,14 @@ CUTOFF=20
 #COMMAND LINE ARGS
 ##################
 
-USAGE="USAGE: qcutadapt -i <path_to_fastq_directory> -a <3'_adapter_sequence [TruSeq Indexed Adapter]> -g <5'_adapter_sequence [TruSeq Universal Adapter]> -O <min_overlap_between_the_read_and_the_adapter [15]> -q <cutoff_for_trimming_low_quality_ends [20]>"
+USAGE="USAGE: qcutadapt -i <path_to_fastq_directory> -n <project> -a <3'_adapter_sequence [TruSeq Indexed Adapter]> -g <5'_adapter_sequence [TruSeq Universal Adapter]> -O <min_overlap_between_the_read_and_the_adapter [15]> -q <cutoff_for_trimming_low_quality_ends [20]>"
 
 #parse command line args
-while getopts "i:a:g:O:q:h" option; do
+while getopts "i:n:a:g:O:q:h" option; do
     case "$option" in
 
 	i) INPUT_PATH="$OPTARG";;
+        n) PROJECT="$OPTARG";;
         a) ADAPTER3="$OPTARG";;
         g) ADAPTER5="$OPTARG";;
         O) OVERLAP="$OPTARG";;
@@ -51,7 +52,8 @@ esac
 done
 
 #check if required arguments are missing
-if [ -z $INPUT_PATH ] 
+if [ -z $INPUT_PATH ] ||
+	[ -z $PROJECT ]
     then
     echo $USAGE
     exit 1
@@ -124,9 +126,6 @@ function submitJobs {
 
 #if the input path is a directory...
 if [ -d $INPUT_PATH ] ; then
-
-    PROJECT=`dirname $INPUT_PATH`
-    PROJECT=`basename $PROJECT`
 
     #create and set permissions for analysis project parent directory
     mkdir -p $GROUP_VOL_CGI/runs/$PROJECT
