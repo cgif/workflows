@@ -20,13 +20,14 @@ GROUP_VOL_CGI=/project/tgu
 #COMMAND LINE ARGS
 ##################
 
-USAGE="USAGE: qcutadapt_primers -i <path_to_fastq_directory> -f <file containing forward primers, one per line> -r <file containing reverse primers, one per line>"
+USAGE="USAGE: qcutadapt_primers -i <path_to_fastq_directory> -n <project> -f <file containing forward primers, one per line> -r <file containing reverse primers, one per line>"
 
 #parse command line args
-while getopts "i:f:r:h" option; do
+while getopts "i:f:r:n:h" option; do
     case "$option" in
 
 		i) INPUT_PATH="$OPTARG";;
+		n) PROJECT="$OPTARG";;
 		f) FORWARD_PRIMERS="$OPTARG";;
 		r) REVERSE_PRIMERS="$OPTARG";;
         h) echo "$USAGE"; exit 1;;
@@ -36,7 +37,7 @@ esac
 done
 
 #check if required arguments are missing
-if [ -z $INPUT_PATH ]; then
+if [ -z $INPUT_PATH ] || [ -z $PROJECT ]; then
     echo $USAGE
     exit 1
 fi
@@ -116,9 +117,6 @@ function submitJobs {
 
 #if the input path is a directory...
 if [ -d $INPUT_PATH ] ; then
-
-    PROJECT=`dirname $INPUT_PATH`
-    PROJECT=`basename $PROJECT`
 
     #create and set permissions for analysis project parent directory
     mkdir -p $GROUP_VOL_CGI/runs/$PROJECT
