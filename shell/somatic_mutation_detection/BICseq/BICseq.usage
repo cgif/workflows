@@ -1,12 +1,12 @@
 USAGE
 
-	qgatk3	-n <project_name>
+	qBICseq	-n <project_name>
 	      	-s <sample_list_file>
 	       [-l <lambda, default = 4>]
 	       [-b <bin size, default = 100>]
    	       [-m <multiplicity, default = 5>]
 	       [-w <window, default = 100>]
- 	       [-e <single_read, default FALSE>]
+ 	       [-e <single_read, default F>]
 
 	
 DESCRIPTION
@@ -14,7 +14,7 @@ DESCRIPTION
 	-n	project name
 
 	-s	input list of sample pairs (normal/tumor) with dates of mutect directories where realigned, recalibrated bam files are stored
-		in the format sample_normal\tYYYY-MM-DD\tsample_tumor\tYYYY-MM-DD\n
+		in the format sample_normal\tsample_tumor\tYYYY-MM-DD\n
 
 	-l 	the penalty coefficient of the Bayesian Information Criterion (BIC). A larger lambda would give less false positives but would be less sensitive with fewer breakpoints.  
 		Low coverage data (<1X), a smaller lambda=1 or =1.2 can achieve good sensitivity. 
@@ -35,6 +35,7 @@ Large CNVs (e.g., >15 kb) identified by BIC-seq were largely concordant with tho
 Validation on a subset of small CNVs by quantitative PCR showed >80% true positive rates.
 
 Genomic positions having many orders of magnitude more mapped reads than their neighboring positions (SI Appendix, Fig. S2) are filtered out because they are likely to be a result of amplification bias
-uniquely aligned reads
+
+Only uniquely aligned reads (BWA mapping qualities > 0) contribute to coverage calculations 
 
 
