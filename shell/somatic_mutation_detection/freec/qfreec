@@ -27,14 +27,24 @@ FREEC_GRAPH=$BASEDIR/makeGraph.R
 FREEC_SIGN=$BASEDIR/assess_significance.R
 CHROM_LENGTH=$BASEDIR/GRCh37.len
 FREEC_PROFILE=$BASEDIR/FREEC.profile
+REF_FASTA=/project/tgu/resources/reference/fasta/eukaryote/hsapiens/hs37d5/hs37d5.fa
+
+WINDOW=400
+STEP=200
+PLOIDY=2
+BREAK_POINT=0.6
 
 #parse command line args
-while getopts "n:s:h" OPTION; do
+while getopts "n:s:w:t:p:b:h" OPTION; do
 
     case "$OPTION" in
 
 	n) PROJECT="$OPTARG";;
 	s) SAMPLE_LIST="$OPTARG";;
+	w) WINDOW="$OPTARG";;
+	t) STEP="$OPTARG";;
+	p) POLIDY="$OPTARG";;
+	b) BREAK_POINT="$OPTARG";;
 	h) cat $USAGE; exit 0;;
 	[?]) cat $USAGE; exit 1;;
 
@@ -64,6 +74,7 @@ function submitFREEC {
 	local tumor_bam=$2
 	local analysis_dir=$3
 	local results_dir=$4
+	local sex=$5
 	local sample_name=`basename $results_dir`
 
 	#create output directories
@@ -96,6 +107,13 @@ function submitFREEC {
  	sed -i -e "s/#ResultsDir/${results_dir//\//\\/}/" $script_path
  	sed -i -e "s/#TumorBam/${tumor_bam//\//\\/}/" $script_path
  	sed -i -e "s/#NormalBam/${normal_bam//\//\\/}/" $script_path
+ 	sed -i -e "s/#RefFasta/${REF_FASTA//\//\\/}/" $script_path
+ 	sed -i -e "s/#Sex/${sex}/" $script_path
+
+	sed -i -e "s/#Window/${WINDOW}/" $script_path
+	sed -i -e "s/#Step/${STEP}/" $script_path
+        sed -i -e "s/#Ploidy/${PLOIDY}/" $script_path
+	sed -i -e "s/#BreakPoint/${BREAK_POINT}/" $script_path
 
 	echo "`$NOW`$script_path"
 	log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
@@ -133,7 +151,7 @@ TOTAL_SAMPLE_COUNT=`sort $SAMPLE_LIST | uniq | awk '/^\s*$/ {next;} { print; }' 
 SAMPLE_COUNT=0     
 
 #for each sample (make sure that each sample and date is unique) run MuTect
-sort $SAMPLE_LIST | uniq | while read SAMPLE_NORMAL SAMPLE_TUMOR DATE; do
+sort $SAMPLE_LIST | uniq | while read SAMPLE_NORMAL SAMPLE_TUMOR DATE SEX; do
 	
         if [[ "$SAMPLE_NORMAL" != "" ]] && [[ "$SAMPLE_TUMOR" != "" ]]; then
                
@@ -151,7 +169,8 @@ sort $SAMPLE_LIST | uniq | while read SAMPLE_NORMAL SAMPLE_TUMOR DATE; do
 		submitFREEC $NORMAL_BAM \
 			    $TUMOR_BAM \
 		    	    $ANALYSIS_DIR_SAMPLE \
-		    	    $RESULTS_DIR_SAMPLE 
+		    	    $RESULTS_DIR_SAMPLE \
+			    $SEX
 	                   	      		
 	fi
 
