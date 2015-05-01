@@ -17,15 +17,20 @@ QUEUE=pqcgi
 
 #path to text file containing usage information
 USAGE="$BASEDIR/oncotator.usage"
+DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
+DEPLOYMENT_BASE_DIR=/www/html/report
 
-ONCOTATOR_VERSION=1.3.0.0
-PYTHON_VERSION=3.2.2 
+ONCOTATOR_VERSION=1.5.1.0
+PYTHON_VERSION=2.7.3
 SAMTOOLS_VERSION=0.1.18
 TABIX_VERSION=0.2.6
 GATK_VERSION=3.2-2
 JAVA_VERSION=jdk-7u25
+R_VERSION=3.1.2
 
 REFERENCE_FASTA=$GROUP_VOL_CGI/resources/reference/eukaryote/human/hs37d5/hs37d5.fa
+ONCOTATOR_DB=/project/tgu/resources/oncotator/oncotator_v1_ds_Jan262014
+TRANSCRIPT_LIST=/project/tgu/resources/oncotator/tx_exact_uniprot_matches.AKT1_CRLF2_FGFR1.txt
 
 #parse command line args
 while getopts "n:s:h" OPTION; do
@@ -98,11 +103,14 @@ sort $SAMPLE_LIST | uniq | while read SAMPLE_NORMAL SAMPLE_TUMOR MUTECT_DATE SID
 		sed -i -e "s/#pythonVersion/$PYTHON_VERSION/" $SCRIPT_PATH
 		sed -i -e "s/#samtoolsVersion/$SAMTOOLS_VERSION/" $SCRIPT_PATH
 		sed -i -e "s/#tabixVersion/$TABIX_VERSION/" $SCRIPT_PATH
+		sed -i -e "s/#rVersion/$R_VERSION/" $SCRIPT_PATH
 
 		sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $SCRIPT_PATH
 		sed -i -e "s/#pathVCFmutect/${VCF_FILE_MUTECT//\//\\/}/" $SCRIPT_PATH
 		sed -i -e "s/#pathVCFsid/${VCF_FILE_SID//\//\\/}/" $SCRIPT_PATH
 		sed -i -e "s/#analysisDir/${ANALYSIS_DIR//\//\\/}/" $SCRIPT_PATH
+		sed -i -e "s/#oncotatorDB/${ONCOTATOR_DB//\//\\/}/" $SCRIPT_PATH
+		sed -i -e "s/#transcriptList/${TRANSCRIPT_LIST//\//\\/}/" $SCRIPT_PATH
 
 		LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
 		echo "`$NOW`$SCRIPT_PATH"
@@ -143,10 +151,13 @@ sed -i -e "s/#oncotatorVersion/$ONCOTATOR_VERSION/" $SCRIPT_PATH
 sed -i -e "s/#pythonVersion/$PYTHON_VERSION/" $SCRIPT_PATH
 sed -i -e "s/#samtoolsVersion/$SAMTOOLS_VERSION/" $SCRIPT_PATH
 sed -i -e "s/#tabixVersion/$TABIX_VERSION/" $SCRIPT_PATH
+sed -i -e "s/#rVersion/$R_VERSION/" $SCRIPT_PATH
 
 sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#project/${PROJECT}/" $SCRIPT_PATH
+sed -i -e "s/#oncotatorDB/${ONCOTATOR_DB//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#transcriptList/${TRANSCRIPT_LIST//\//\\/}/" $SCRIPT_PATH
 
 MULTISAMPLE_VCF=`echo $MULTISAMPLE_VCF | perl -pe "s/\//forwardSlash/g"`
 sed -i -e "s/#multisampleVCF/${MULTISAMPLE_VCF//\//\\/}/" $SCRIPT_PATH
@@ -156,4 +167,42 @@ LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
 echo "`$NOW`$SCRIPT_PATH"
 
 JOB_ID=`qsub -o $LOG_PATH -W depend=$MERGE_DEPENDENCY $SCRIPT_PATH` 
-echo "`$NOW`job ID: $JOB_ID"                       
+echo "`$NOW`job ID: $JOB_ID" 
+
+echo "`$NOW`"		
+echo "`$NOW`running script to find genes with multipe LOF & nonsyn mutations across all patients"
+ 
+SCRIPT_PATH=$ANALYSIS_DIR/run/MP_$PROJECT.sh
+cp $BASEDIR/filter_multiples.sh $SCRIPT_PATH
+chmod 770 $SCRIPT_PATH    
+
+sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#project/${PROJECT//\//\\/}/" $SCRIPT_PATH
+
+LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+echo "`$NOW`$SCRIPT_PATH"
+
+JOB_ID=`qsub -o $LOG_PATH -W depend=afterany:$JOB_ID $SCRIPT_PATH` 
+echo "`$NOW`job ID: $JOB_ID" 
+
+echo "`$NOW`"		
+echo "`$NOW`running summary script"
+
+SCRIPT_PATH=$ANALYSIS_DIR/run/SM_$PROJECT.sh
+cp $BASEDIR/summary_oncotator.pl $SCRIPT_PATH
+chmod 770 $SCRIPT_PATH    
+
+#create deployment directory for summary
+SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/oncotator/$TODAY
+ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
+
+sed -i -e "s/#analysisDir/${ANALYSIS_DIR//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#deploymentServer/${DEPLOYMENT_SERVER//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SCRIPT_PATH
+
+LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+echo "`$NOW`$SCRIPT_PATH"
+
+JOB_ID=`qsub -M cgi@imperial.ac.uk -m ea -j oe -q $QUEUE -W depend=afterany:$JOB_ID -o $LOG_PATH $SCRIPT_PATH`  
+echo "`$NOW`job ID: $JOB_ID" 
