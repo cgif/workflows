@@ -59,62 +59,6 @@ if [[ ! -e $SAMPLE_LIST ]]; then
 fi
 
 
-#FUNCTIONS
-##########
-
-#creates job scripts
-function submitBreakDancer {
-
-	local normal_bam=$1
-	local tumor_bam=$2
-	local analysis_dir=$3
-	local results_dir=$4
-
-	#create output directories
-       	mkdir -p $analysis_dir
-       	mkdir -p $analysis_dir/run
-       	mkdir -p $results_dir
-
-	chmod 0770 $analysis_dir
-	chmod 0770 $analysis_dir/run
-	chmod 0770 $results_dir
-
-	for bam_file in $normal_bam $tumor_bam; do
-
-		sample_name=`basename $bam_file .bam`
-
-		bam_size=`du $bam_file | cut -f1`
-		bam_size_mb=$(( $bam_size / 1024 ))
-		bam_size_gb=$(( $bam_size_mb / 1024 ))
-		tmpspace_gb=$(( $bam_size_gb * 2 ))
-
-		#run breakDancer job for translocations
-		echo "`$NOW`-------------------------------------------------------------------------------------"	 
-		echo "`$NOW`running BreakDancer for translocations..."
-
-		local script_path=$analysis_dir/run/BD_${sample_name}_translocations.sh
-		cp $BASEDIR/bd.sh $script_path
-		chmod 0770 $script_path	
-
-		echo "`$NOW`$script_path"
-        	log_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
-
-        	#set variables 
-         	sed -i -e "s/#tmpSpace/${tmpspace_gb}/" $script_path
- 		sed -i -e "s/#samtoolsVersion/${SAMTOOLS_VERSION}/" $script_path
- 		sed -i -e "s/#bdVersion/${BD_VERSION}/" $script_path
-
-        	sed -i -e "s/#inputBam/${bam_file//\//\\/}/" $script_path
-        	sed -i -e "s/#resultsFolder/${results_dir//\//\\/}/" $script_path
-
-        	job_id=`qsub -o $log_path $script_path`
-        	echo "`$NOW`JOB_ID: $job_id"
-
-	done
-
-}
-
-
 #########################################################
 #create and set permissions for project parent directory# 
 #########################################################  
@@ -134,43 +78,100 @@ chmod 0770 $ANALYSIS_DIR_PROJECT/$TODAY
 mkdir -p $RESULTS_DIR_PROJECT/$TODAY
 chmod 0770 $RESULTS_DIR_PROJECT/$TODAY
 
-echo "`$NOW`setting up BreakDancer run..."
-echo "`$NOW`list of samples   : $SAMPLE_LIST"
-echo "`$NOW`analysis directory: $ANALYSIS_DIR_PROJECT"
-echo "`$NOW`results directory : $RESULTS_DIR_PROJECT"
+MS_ANALYSIS_DIR=$ANALYSIS_DIR_PROJECT/$TODAY/multisample
+mkdir -p $MS_ANALYSIS_DIR
+chmod 0770 $MS_ANALYSIS_DIR
 
-#get sample count from sample list skipping blank lines
-TOTAL_SAMPLE_COUNT=`sort $SAMPLE_LIST | uniq | awk '/^\s*$/ {next;} { print; }' | wc -l`
-SAMPLE_COUNT=0     
+mkdir -p $MS_ANALYSIS_DIR/run
+chmod 0770 $MS_ANALYSIS_DIR/run
+
+MS_RESULTS_DIR=$RESULTS_DIR_PROJECT/$TODAY/multisample
+mkdir -p $MS_RESULTS_DIR
+chmod 0770 $MS_RESULTS_DIR
+
+echo -n "" > $MS_ANALYSIS_DIR/merge_dependency.tsv   
 
 #for each sample (make sure that each sample and date is unique) run MuTect
 sort $SAMPLE_LIST | uniq | while read SAMPLE_NORMAL SAMPLE_TUMOR DATE; do
 	
         if [[ "$SAMPLE_NORMAL" != "" ]] && [[ "$SAMPLE_TUMOR" != "" ]]; then
-               
-		SAMPLE_COUNT=$(( $SAMPLE_COUNT + 1 ))
 
 		echo "`$NOW`"
 		echo "`$NOW`"
-		echo "`$NOW`running BreakDancer for sample $SAMPLE_COUNT of $TOTAL_SAMPLE_COUNT: $SAMPLE_NORMAL & $SAMPLE_TUMOR"
+		echo "`$NOW`running BreakDancer for samples $SAMPLE_NORMAL & $SAMPLE_TUMOR"
 
                 SAMPLE_PAIR=$SAMPLE_NORMAL.vs.$SAMPLE_TUMOR
+
+	        #create output directories
 		ANALYSIS_DIR_SAMPLE=$ANALYSIS_DIR_PROJECT/$TODAY/$SAMPLE_PAIR
+		mkdir -p $ANALYSIS_DIR_SAMPLE
+		chmod 0770 $ANALYSIS_DIR_SAMPLE
+
+		mkdir -p $ANALYSIS_DIR_SAMPLE/run
+		chmod 0770 $ANALYSIS_DIR_SAMPLE/run
+
 		RESULTS_DIR_SAMPLE=$RESULTS_DIR_PROJECT/$TODAY/$SAMPLE_PAIR
+		mkdir -p $RESULTS_DIR_SAMPLE
+		chmod 0770 $RESULTS_DIR_SAMPLE
+
 		NORMAL_BAM=$GROUP_VOL_CGI/results/$PROJECT/mutect/$DATE/$SAMPLE_NORMAL/recalibration/$SAMPLE_NORMAL.bam
 		TUMOR_BAM=$GROUP_VOL_CGI/results/$PROJECT/mutect/$DATE/$SAMPLE_TUMOR/recalibration/$SAMPLE_TUMOR.bam
 
-		submitBreakDancer 	$NORMAL_BAM \
-			     		$TUMOR_BAM \
-		    	     		$ANALYSIS_DIR_SAMPLE \
-		    	     		$RESULTS_DIR_SAMPLE 
+		for BAM_FILE in $NORMAL_BAM $TUMOR_BAM; do
+
+		    SAMPLE_NAME=`basename $BAM_FILE .bam`
+
+		    BAM_SIZE=`du $BAM_FILE | cut -f1`
+		    BAM_SIZE_MB=$(( $BAM_SIZE / 1024 ))
+		    BAM_SIZE_GB=$(( $BAM_SIZE_MB / 1024 ))
+		    TMPSPACE_GB=$(( $BAM_SIZE_GB * 2 ))
+
+		    #run breakDancer job for translocations
+		    local SCRIPT_PATH=$ANALYSIS_DIR_SAMPLE/run/BD_${SAMPLE_NAME}_translocations.sh
+		    cp $BASEDIR/bd.sh $SCRIPT_PATH
+		    chmod 0770 $SCRIPT_PATH	
+
+        	    #set variables 
+         	    sed -i -e "s/#tmpSpace/${tmpspace_gb}/" $SCRIPT_PATH
+ 		    sed -i -e "s/#samtoolsVersion/${SAMTOOLS_VERSION}/" $SCRIPT_PATH
+ 		    sed -i -e "s/#bdVersion/${BD_VERSION}/" $SCRIPT_PATH
+
+        	    sed -i -e "s/#inputBam/${bam_file//\//\\/}/" $SCRIPT_PATH
+        	    sed -i -e "s/#resultsFolder/${results_dir//\//\\/}/" $SCRIPT_PATH
+
+		    echo "`$NOW`$SCRIPT_PATH"
+        	    LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+        	    JOB_ID=`qsub -o $LOG_PATH $SCRIPT_PATH`
+        	    echo "`$NOW`JOB_ID: $JOB_ID"
+
+		    echo -e "$JOB_ID" >> $MS_ANALYSIS_DIR/merge_dependency.tsv 
+
+		done
 	                   	      		
 	fi
 
 done
 
+echo "`$NOW`"
+echo "`$NOW`"
+echo "`$NOW` select somatic translocations that came up in multiple patients"
 
-  	    
+MERGE_DEPENDENCY=afterok
+for JOB_ID in `cut -f 1 $MS_ANALYSIS_DIR/merge_dependency.tsv`; do
+        MERGE_DEPENDENCY="$MERGE_DEPENDENCY:$JOB_ID"
+done
 
+local SCRIPT_PATH=$MS_ANALYSIS_DIR/run/PP_${PROJECT}.sh
+cp $BASEDIR/postProcessing.pl $SCRIPT_PATH
+chmod 0770 $SCRIPT_PATH
 
+#set variables 
+BD_DIR=$RESULTS_DIR_PROJECT/$TODAY
+sed -i -e "s/#samtoolsVersion/${SAMTOOLS_VERSION}/" $SCRIPT_PATH
+sed -i -e "s/#bdDir/${BD_DIR//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#resultsDir/${MS_RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
+
+echo "`$NOW`$SCRIPT_PATH"
+LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+qsub -l walltime=24:00:00 -l mem=10gb -M cgi@imperial.ac.uk -m ea -j oe -q pqcgi -W depend=$MERGE_DEPENDENCY -o $LOG_PATH $SCRIPT_PATH
 
