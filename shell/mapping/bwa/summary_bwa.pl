@@ -7,17 +7,25 @@ $today = "Today";
 $summary_results = "summaryResults";
 $deployment_server = "deploymentServer";
 $summary_deployment = "summaryDeployment";
+@samples = ();
 
 #collect data from bwa log files
 %sum = (); %fastq = (); %mate = ();
 if ($is_project_dir eq "T"){
 $project_dir_analysis =~ s/^(\S+)\/\S+$/$1/;
 $project_dir_results =~ s/^(\S+)\/\S+$/$1/;
+
 opendir (PROJECT, "$project_dir_analysis"); 
 while (defined($sample = readdir(PROJECT))){
-    next if $sample =~ /^\./;
     $sample_dir = "$project_dir_analysis/$sample/run";
     next unless (-d "$sample_dir");
+    push (@samples,$sample);
+}
+
+
+foreach $sample (sort {$a cmp $b} @samples){
+
+    $sample_dir = "$project_dir_analysis/$sample/run";
 
     if (`grep "does not contain any fastq files" $sample_dir/setup.log`){
         $fastq{$sample} = "FAIL";
@@ -128,7 +136,7 @@ print OUT "<TH><CENTER>Merging BAM";
 print OUT "<TH><CENTER>Total reads";
 print OUT "<TH><CENTER>Mapped reads\n";
 $f1 = 0;
-foreach $sample (sort {$a cmp $b} keys %sum){
+foreach $sample (sort {$a cmp $b} @samples){
     print OUT "<TR><TD>$sample";
     $f1 = 1;
     if ($fastq{$sample} eq "PASS"){
