@@ -413,7 +413,7 @@ TOTAL_SAMPLE_COUNT=`sort $SAMPLE_LIST | uniq | awk '/^\s*$/ {next;} { print; }' 
 SAMPLE_COUNT=0     
 
 #for each sample (make sure that each sample and date is unique) run MuTect
-sort $SAMPLE_LIST | uniq | while read SAMPLE_NORMAL SAMPLE_TUMOR DATE; do
+sort $SAMPLE_LIST | uniq | while read SAMPLE_NORMAL SAMPLE_TUMOR DATE SEX; do
 	
         if [[ "$SAMPLE_NORMAL" != "" ]] && [[ "$SAMPLE_TUMOR" != "" ]]; then
                
