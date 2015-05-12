@@ -31,15 +31,19 @@ for GENE in `cat $TMPDIR/vcf.tmp|grep -v '^#'|grep -E ';variant_classification=(
 	COUNT_PAT=`cat $TMPDIR/gene_mut.tmp|sort|uniq|wc -l`
 		
 	if [ $COUNT_MUT -ge 2 ]; then
+
+		GENE_ID=`cat $TMPDIR/vcf.tmp|grep -v '^#'|grep -E "gene=$GENE\;"|perl -e 'while(<>) {@data=split(/\;/,$_); foreach $key(@data) {print "$1" if $key =~ /.*=(ENSG\d+)/; last if $key =~ /.*=ENSG\d+/;} last;}'`
+
+		BIOTYPE=`cat $TMPDIR/vcf.tmp|grep -v '^#'|grep -E "gene=$GENE\;"|perl -e 'while(<>) {@data=split(/\;/,$_); foreach $key(@data) {print "$1" if $key =~ /^gene_type=(.*)/} last;}'`
 		
-		printf "$GENE\t$COUNT_PAT\t$COUNT_MUT\n" >> $TMPDIR/list.tmp
+		printf "$GENE\t$GENE_ID\t$BIOTYPE\t$COUNT_PAT\t$COUNT_MUT\n" >> $TMPDIR/list.tmp
 
 	fi
 
 done
 
-printf "Gene_name\tPatients\tMutations\n" > $TMPDIR/list_sorted.tmp
-sort -n -r -k 2 $TMPDIR/list.tmp >> $TMPDIR/list_sorted.tmp
+printf "Gene_name\tGene_ID\tGene_type\tPatients\tMutations\n" > $TMPDIR/list_sorted.tmp
+sort -n -r -k 4 $TMPDIR/list.tmp >> $TMPDIR/list_sorted.tmp
 cp $TMPDIR/list_sorted.tmp $RESULTS_DIR/$PROJECT.multiples.xls
 
 

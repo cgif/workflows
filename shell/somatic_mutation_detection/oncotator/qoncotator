@@ -30,7 +30,6 @@ R_VERSION=3.1.2
 
 REFERENCE_FASTA=$GROUP_VOL_CGI/resources/reference/eukaryote/human/hs37d5/hs37d5.fa
 ONCOTATOR_DB=/project/tgu/resources/oncotator/oncotator_v1_ds_Jan262014
-TRANSCRIPT_LIST=/project/tgu/resources/oncotator/tx_exact_uniprot_matches.AKT1_CRLF2_FGFR1.txt
 
 #parse command line args
 while getopts "n:s:h" OPTION; do
@@ -110,7 +109,6 @@ sort $SAMPLE_LIST | uniq | while read SAMPLE_NORMAL SAMPLE_TUMOR MUTECT_DATE SID
 		sed -i -e "s/#pathVCFsid/${VCF_FILE_SID//\//\\/}/" $SCRIPT_PATH
 		sed -i -e "s/#analysisDir/${ANALYSIS_DIR//\//\\/}/" $SCRIPT_PATH
 		sed -i -e "s/#oncotatorDB/${ONCOTATOR_DB//\//\\/}/" $SCRIPT_PATH
-		sed -i -e "s/#transcriptList/${TRANSCRIPT_LIST//\//\\/}/" $SCRIPT_PATH
 
 		LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
 		echo "`$NOW`$SCRIPT_PATH"
@@ -157,7 +155,6 @@ sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#project/${PROJECT}/" $SCRIPT_PATH
 sed -i -e "s/#oncotatorDB/${ONCOTATOR_DB//\//\\/}/" $SCRIPT_PATH
-sed -i -e "s/#transcriptList/${TRANSCRIPT_LIST//\//\\/}/" $SCRIPT_PATH
 
 MULTISAMPLE_VCF=`echo $MULTISAMPLE_VCF | perl -pe "s/\//forwardSlash/g"`
 sed -i -e "s/#multisampleVCF/${MULTISAMPLE_VCF//\//\\/}/" $SCRIPT_PATH
@@ -188,7 +185,7 @@ echo "`$NOW`job ID: $JOB_ID"
 echo "`$NOW`"		
 echo "`$NOW`running summary script"
 
-SCRIPT_PATH=$ANALYSIS_DIR/run/SM_$PROJECT.sh
+SCRIPT_PATH=$ANALYSIS_DIR/run/SM_$PROJECT.pl
 cp $BASEDIR/summary_oncotator.pl $SCRIPT_PATH
 chmod 770 $SCRIPT_PATH    
 
@@ -198,6 +195,7 @@ ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
 
 sed -i -e "s/#analysisDir/${ANALYSIS_DIR//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#project/${PROJECT//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#deploymentServer/${DEPLOYMENT_SERVER//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SCRIPT_PATH
 
