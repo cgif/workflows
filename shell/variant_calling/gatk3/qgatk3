@@ -87,7 +87,7 @@ REFERENCE_DIR=/project/tgu/resources/reference
 REFERENCE_FASTA=$REFERENCE_DIR/fasta/eukaryote/hsapiens/hs37d5/hs37d5.fa
 REFERENCE_DICT=$REFERENCE_DIR/fasta/eukaryote/hsapiens/hs37d5/hs37d5.dict
 REFERENCE_CHUNKS_GENOME=$REFERENCE_DIR/chunk/eukaryote/human/hs37d5/hs37d5.chunks.genome.bed
-REFERENCE_CHUNKS_EXOME=$REFERENCE_DIR/chunk/eukaryote/human/hs37d5/hs37d5.chunks.exome.bed
+REFERENCE_CHUNKS_EXOME=$REFERENCE_DIR/chunk/eukaryote/human/hs37d5/hs37d5.chunks.exome.v2.bed
 REFERENCE_CHUNKS_TARGETED=$REFERENCE_DIR/chunk/eukaryote/human/hs37d5/hs37d5.chunks.targeted.bed
 IS_PROJECT_DIR=F
 TARGET_INTERVALS_BED=""
@@ -554,8 +554,8 @@ function submitRealignmentAndRecalibrationJobs {
 			sed -i -e "s/#picardVersion/$PICARD_VERSION/" $script_path
 			sed -i -e "s/#rVersion/$R_VERSION/" $script_path	
 			sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
-	    	  	sed -i -e "s/#nxtGenUtilsVersion/$NXTGENUTILS_VERSION/" $script_path
-    	  		sed -i -e "s/#tmpSpaceMb/$tmp_space_mb/g" $script_path
+	    	sed -i -e "s/#nxtGenUtilsVersion/$NXTGENUTILS_VERSION/" $script_path
+			sed -i -e "s/#tmpSpaceMb/$tmp_space_mb/g" $script_path
     	  
 			sed -i -e "s/#indels1000G/${INDELS_1000G//\//\\/}/" $script_path	
 			sed -i -e "s/#indelsGoldStd/${INDELS_GOLDSTD//\//\\/}/" $script_path
@@ -583,6 +583,21 @@ function submitRealignmentAndRecalibrationJobs {
 #			else
 				sed -i -e "s/#fragmentFile/${chunk_int//\//\\/}/" $script_path
 #			fi
+
+			## for targeted sequencing base recalibration should be done on targets only
+			## This excludes off-target sequences and sequences that may be poorly mapped, which have a higher error rate. Including them could lead to a skewed model and bad recalibration.
+			## also RealignerTargetCreator only for target regions, for speed
+			## see http://gatkforums.broadinstitute.org/discussion/4133/when-should-i-use-l-to-pass-in-a-list-of-intervals#latest
+
+			if [[ $TARGET_INTERVALS_BED != ""  ]]; then
+				target_int=$ANALYSIS_DIR_MSVC/chunk_${chunk_name}_target_intervals.int
+				sed -i -e "s/#targetFile/${target_int//\//\\/}/" $script_path
+			else
+				sed -i -e "s/#targetFile/${chunk_int//\//\\/}/" $script_path
+			fi
+
+
+
 
 			recalibration_reports="$recalibration_reports $analysis_dir/recalibration/reports/pre/$sample.$chunk.realigned.recal_data.grp"
 
@@ -851,7 +866,17 @@ function submitRealignmentAndRecalibrationJobs {
 			sed -i -e "s/#genomicVCF/${genomic_vcf_file//\//\\/}/" $script_path
 			sed -i -e "s/#HCbamFile/${hc_bam_file//\//\\/}/" $script_path
 			sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $script_path
-			sed -i -e "s/#fragmentFile/${chunk_int//\//\\/}/" $script_path
+
+			# for targeted sequencing, we need to use padded target intervals only,
+			#see http://gatkforums.broadinstitute.org/discussion/4133/when-should-i-use-l-to-pass-in-a-list-of-intervals#latest
+			#also file sizes become unmanagable if HC is used for the whole genome 
+
+			if [[ $TARGET_INTERVALS_BED != "" ]]; then
+				target_int=$ANALYSIS_DIR_MSVC/chunk_${chunk_name}_target_intervals.int
+				sed -i -e "s/#fragmentFile/${target_int//\//\\/}/" $script_path
+			else
+				sed -i -e "s/#fragmentFile/${chunk_int//\//\\/}/" $script_path
+			fi
 		
 			
 			#submit job and save job ID to dependency variable
@@ -1021,6 +1046,11 @@ function submitGenotypeGVCFsJobs {
 
 			local script_path=$run_dir/GGIGFP000000${chunk_formatted}.sh
 			cp $BASEDIR/gatk3_genotypeGVCFs.sh $script_path
+
+			local gg_tmp_space_gb=100
+			if [[ "$TYPE" == "WGS" ]] || [[ "$TYPE" == "EXOME" ]]; then
+				gg_tmp_space_gb=500
+			fi
 				
 		  		
 			sed -i -e "s/#gatkVersion/$GATK_VERSION/" $script_path
@@ -1029,6 +1059,7 @@ function submitGenotypeGVCFsJobs {
 			sed -i -e "s/#rVersion/$R_VERSION/" $script_path
 			sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
 			sed -i -e "s/#dataThreads/$GG_DATATHREADS/" $script_path
+			sed -i -e "s/#tmpSpace/$gg_tmp_space_gb/" $script_path
 
 			sed -i -e "s/#dbSnp/${DBSNP//\//\\/}/" $script_path	
 			sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
@@ -1047,6 +1078,8 @@ function submitGenotypeGVCFsJobs {
 			else
 				sed -i -e "s/#fragmentFile/${chunk_int//\//\\/}/" $script_path
 			fi
+
+
 
 			#submit job and save job ID to dependency variable
 			local log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`

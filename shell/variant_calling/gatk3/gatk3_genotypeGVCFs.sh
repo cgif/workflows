@@ -1,9 +1,9 @@
 #!/bin/bash
 
-## script to run GATK unified genotyper for genome
+## script to run GATK GenotypeGVCFs for genome
 
-#PBS -l walltime=24:00:00
-#PBS -l select=1:ncpus=#dataThreads:mem=16gb
+#PBS -l walltime=72:00:00
+#PBS -l select=1:ncpus=#dataThreads:mem=16gb:tmpspace=#tmpSpacegb
 
 #PBS -M cgi@imperial.ac.uk
 #PBS -m ea
@@ -75,6 +75,13 @@ for SAMPLE_NAME in `ls --color=never $ANALYSIS_DIR_RUN | grep -vE "multisample|a
 	echo "`${NOW}`INFO $SCRIPT_CODE copying $GVCF to temporary space"
 	cp $GVCF $TMPDIR
 	
+	## providing indices makes GenotypGVCFs unmanagably slow.
+	## issue submitted to forum April 23, 2015
+	## do not provide indices until it is resolved
+
+#	echo "`${NOW}`INFO $SCRIPT_CODE copying $GVCF.idx to temporary space"
+#	cp $GVCF.idx $TMPDIR
+	
 	INPUT_GVCF_ARGUMENT="$INPUT_GVCF_ARGUMENT	-V $TMPDIR/$GVCF_NAME"
 
 done;
@@ -83,10 +90,12 @@ if [[ $AUX_LIST != "" ]]; then
 	sort $AUX_LIST | uniq | while read SAMPLE GVCF; do
     		if [[ "$SAMPLE" != "" ]]; then
 
-			GVCF_NAME=`basename $GVCF`
+			GVCF_NAME=`basename $GVCF .gz`
 			echo "`${NOW}`INFO $SCRIPT_CODE copying $GVCF to temporary space"
 			cp $GVCF $TMPDIR
-			cp $GVCF.tbi $TMPDIR
+#			cp $GVCF.tbi $TMPDIR
+#			cp $GVCF.idx $TMPDIR
+			gunzip $TMPDIR/$GVCF_NAME.gz			#temporarily, until better solution is found
 			
 			INPUT_GVCF_ARGUMENT="$INPUT_GVCF_ARGUMENT	-V $TMPDIR/$GVCF_NAME"
 
@@ -104,6 +113,8 @@ cp $REFERENCE_FASTA $TMPDIR/reference.fa
 cp $REFERENCE_FASTA.fai $TMPDIR/reference.fa.fai
 cp $REFRENCE_SEQ_DICT $TMPDIR/reference.dict
 
+echo -e "`${NOW}` size of $TMPDIR"
+du -h $TMPDIR
 
 # make tmp folder for temporary java files
 mkdir $TMPDIR/tmp
@@ -120,9 +131,6 @@ mkdir $TMPDIR/tmp
 # default downsampling to 1000 left 
 
 CUT_OFF=30
-#if [[ "$TYPE" != "TARGETED" ]]; then
-#	CUT_OFF=20
-#fi
 
 ## list all annotations which are required for VSQR in the next step, because by some reason some defaul annotations are not emmited unless specified in the command (QD and FS, for example)
 
@@ -146,8 +154,11 @@ java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME
 	-A StrandOddsRatio \
 	-L $TMPDIR/fragment.intervals
 
+#	--disable_auto_index_creation_and_locking_when_reading_rods \
+
 echo "`${NOW}`INFO $SCRIPT_CODE copying raw VCF file to output directory $ANALYSIS_DIR/genotypeGVCFs..."
 cp $SAMPLE.$FRAGMENT.raw.vcf $ANALYSIS_DIR/genotypeGVCFs/
+cp $SAMPLE.$FRAGMENT.raw.vcf.idx $ANALYSIS_DIR/genotypeGVCFs/
 
 echo "`${NOW}`INFO $SCRIPT_CODE done"
 
@@ -162,5 +173,10 @@ echo -e "`${NOW}`$SCRIPT_CODE\tmultisample\t$FRAGMENT\traw_vcf\t$STATUS" >> $RUN
 if [[ "$STATUS" == "FAILED" ]]; then
 	exit 1;
 fi
+
+ls -al $TMPDIR
+
+echo -e "`${NOW}` size of $TMPDIR"
+du -h $TMPDIR
 
 echo -e "`${NOW}` done"

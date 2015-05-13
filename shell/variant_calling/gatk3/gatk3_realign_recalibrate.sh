@@ -48,11 +48,14 @@ RTC_DATA_THREADS=#rtcDataThreads
 SAMPLE=#sample
 INCLUDES_UNMAPPED=#includesUnmapped
 FRAGMENT_FILE=#fragmentFile
+TARGET_FILE=#targetFile
 PRIMER_COORD_BED=#primerCoordBed
 PRIMER_COORD_OFFSET=#primerCoordOffset
 SUMMARY_SCRIPT_PATH=#summaryScriptPath
 
 cp $FRAGMENT_FILE $TMPDIR/fragment.intervals
+cp $TARGET_FILE $TMPDIR/target.intervals
+
 
 #GATK resources
 INDELS_1000G=#indels1000G
@@ -104,7 +107,7 @@ java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME
   -known $INDELS_1000G_FILENAME \
   -known $INDELS_GOLDSTD_FILENAME \
   -o $TMPDIR/$SAMPLE.$FRAGMENT.RTC.intervals \
-  -L $TMPDIR/fragment.intervals 
+  -L $TMPDIR/target.intervals 
 
 echo "`${NOW}`INFO $SCRIPT_CODE copying realignment targets to $ANALYSIS_DIR/realignment/"
 cp $TMPDIR/$SAMPLE.$FRAGMENT.RTC.intervals $ANALYSIS_DIR/realignment/
@@ -153,7 +156,7 @@ java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME
    -knownSites $INDELS_1000G_FILENAME \
    -knownSites $INDELS_GOLDSTD_FILENAME \
    -o ${SAMPLE}.${FRAGMENT}.realigned.recal_data.grp \
-   -L $TMPDIR/fragment.intervals \
+   -L $TMPDIR/target.intervals \
    -rf BadCigar
 
 echo "`${NOW}`INFO $SCRIPT_CODE copying recalibration report to $ANALYSIS_DIR/recalibration/reports/pre/..."
