@@ -194,7 +194,9 @@ call.cnvs <- function (exon.counts.dafr.file,
     summary$proportion.del[1] <- format(summary$del.count/summary$total.cnvs, digits = 3)
     summary$proportion.dup[1] <- format(summary$dup.count/summary$total.cnvs, digits = 3)
     summary$count.nonConrad[1] <- sum(is.na(all.exons@CNV.calls$Conrad.hg19))
+	summary$proportion.nonConrad[1] <- format(summary$count.nonConrad/summary$total.cnvs, digits = 3)
 	summary$count.nonDGV[1] <- sum(is.na(all.exons@CNV.calls$DGV))
+	summary$proportion.nonDGV[1] <- format(summary$count.nonDGV/summary$total.cnvs, digits = 3)
 
     summary$ref.set[1] <- gsub(", ",",",toString(my.choice$reference.choice))
 

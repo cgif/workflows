@@ -4,14 +4,14 @@
 #PBS -l select=1:ncpus=1:mem=5gb
 
 #PBS -M cgi@imperial.ac.uk
-#PBS -m bea
+#PBS -m ea
 #PBS -j oe
 
 #PBS -q pqcgi
 
 # load modules
 
-module load R/3.1.0
+module load R/3.2.0
 
 NOW="date +%Y-%m-%d%t%T%t"
 
@@ -94,6 +94,8 @@ call.cnvs(exon.counts.dafr.file = exon.counts.dafr.file,
 		analysis.subset = analysis.subset,
 		prefix = prefix,
 		target.bed = target.bed)
+
+sessionInfo()
 
 " > $R_SCRIPT
 

@@ -4,7 +4,7 @@
 # and calling CNV
 
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
-GROUP_VOL_CGI=/groupvol/cgi
+GROUP_VOL_CGI=/project/tgu
 
 # now
 NOW="date +%Y-%m-%d%t%T%t"
@@ -35,7 +35,7 @@ while getopts "i:n:t:e:a:sh" option; do
 	i) BAM_LIST="$OPTARG";;
 	n) PROJECT="$OPTARG";;
 	t) TARGET="$OPTARG";;
-        e) PED_FILE="$OPTARG";;
+	e) PED_FILE="$OPTARG";;
 	a) ANNOTATIONS="$OPTARG";;
 	s) BAM_SUFFIX="$OPTARG";;	
 	h) echo "$USAGE";;
@@ -62,18 +62,18 @@ fi
 # make folders for multisample analysis
 echo "`$NOW`creating directory structure for multisample analysis"
 
-mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/exomeDepth
-chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/exomeDepth
+mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/exomeDepth
+chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/exomeDepth
 
-mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/exomeDepth/$TODAY
-chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/exomeDepth/$TODAY
+mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/exomeDepth/$TODAY
+chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/exomeDepth/$TODAY
 
-mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/exomeDepth/$TODAY/multisample
-chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/exomeDepth/$TODAY/multisample
+mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/exomeDepth/$TODAY/multisample
+chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/exomeDepth/$TODAY/multisample
 
-mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/exomeDepth/$TODAY/multisample/run
-chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/exomeDepth/$TODAY/multisample/run
-MS_SCRIPT_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/exomeDepth/$TODAY/multisample/run
+mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/exomeDepth/$TODAY/multisample/run
+chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/exomeDepth/$TODAY/multisample/run
+MS_SCRIPT_DIR=$GROUP_VOL_CGI/runs/$PROJECT/exomeDepth/$TODAY/multisample/run
 
 mkdir -p $GROUP_VOL_CGI/results/$PROJECT/exomeDepth
 chmod 770 $GROUP_VOL_CGI/results/$PROJECT/exomeDepth
@@ -108,7 +108,7 @@ summary_script_path=$MS_SCRIPT_DIR/summary_exomeDepth.$PROJECT.pl
 cp $BASEDIR/summary_exomeDepth.pl $summary_script_path
 chmod 770 $summary_script_path
 
-ANALYSIS_DIR_PROJECT=$GROUP_VOL_CGI/analysis/$PROJECT/exomeDepth
+ANALYSIS_DIR_PROJECT=$GROUP_VOL_CGI/runs/$PROJECT/exomeDepth
 RESULTS_DIR_PROJECT=$GROUP_VOL_CGI/results/$PROJECT/exomeDepth
 
 sed -i -e "s/projectDirAnalysis/${ANALYSIS_DIR_PROJECT//\//\\/}/" $summary_script_path
@@ -138,6 +138,17 @@ MS_R_SCRIPT=$MS_SCRIPT_DIR/${PROJECT}.getExonCounts.R
 #echo -n "" > $MS_R_SCRIPT
 #chmod 770 $MS_R_SCRIPT
 
+#calculate temporary space requirements
+SIZE=$(for i in `cat $BAM_LIST`; do du $i; done | awk '{ total += $1 }; END { print total }')
+SIZE_GB=`echo $SIZE | perl -e '$in=<>; chomp $in; $size=$in; $size_mb=$size/1024; $size_gb=$size_mb/1024; printf("%.0f",$size_gb);'`
+TMP_SPACE=$(($SIZE_GB+20))
+
+if [[ $TMP_SPACE -gt 900 ]]; then
+	echo "ERROR: temporary space requirements exceed 900gb"
+	echo "exiting"
+	exit 1;
+fi
+
 # create job script
 SCRIPT_PATH=$MS_SCRIPT_DIR/${PROJECT}.getExonCounts.sh
 cp $BASEDIR/getExonCounts.sh $SCRIPT_PATH
@@ -147,6 +158,7 @@ sed -i -e "s/#Rfunctions/${R_FUNCTIONS//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#Rscript/${MS_R_SCRIPT//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#target/${TARGET//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#BamList/${BAM_LIST//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#tmpSpace/$TMP_SPACE/" $SCRIPT_PATH
 sed -i -e "s/#resultsFolder/${MS_RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $SCRIPT_PATH
 
@@ -164,16 +176,16 @@ echo "`$NOW`$EC_JOB_ID"
 
 CC_DEPENDENCIES=afterok
 
-for SAMPLE in `cut -f 2 $PED_FILE | grep -v '#'`
+for SAMPLE in `grep -v '^#' $PED_FILE | cut -f 2`
 do
 
 	# make folders 
 	echo "`$NOW`################################################"
 	echo "`$NOW`creating directory structure for sample $SAMPLE"
 
-	SCRIPT_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/exomeDepth/$TODAY/$SAMPLE/run
+	SCRIPT_DIR=$GROUP_VOL_CGI/runs/$PROJECT/exomeDepth/$TODAY/$SAMPLE/run
 	mkdir -p $SCRIPT_DIR
-	chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/exomeDepth/$TODAY/$SAMPLE
+	chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/exomeDepth/$TODAY/$SAMPLE
 	chmod 770 $SCRIPT_DIR
 
 	RESULTS_DIR=$GROUP_VOL_CGI/results/$PROJECT/exomeDepth/$TODAY/$SAMPLE
