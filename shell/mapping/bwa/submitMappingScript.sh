@@ -53,6 +53,13 @@ MERGE_FILES=""
 
 #for each subset of reads...
 echo "`$NOW`submitting mapping scripts:"
+
+#check that system can see newly copied files, if not, wait for 2 minutes
+if [[ ! -s "$PATH_TMP_DIR/${FASTQ_READ1_NO_EXT}_split/${FASTQ_READ1_NO_EXT}.00" ]]; then
+	echo "`$NOW` waiting for 2 min for newly copied files"
+	sleep 2m
+fi
+
 for FASTQ_READ1_SPLIT in `ls --color=never $PATH_TMP_DIR/${FASTQ_READ1_NO_EXT}_split/*.f*q* | grep -v $PATTERN_READ_2`	
 do
 
