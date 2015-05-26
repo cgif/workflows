@@ -152,8 +152,8 @@ call.cnvs <- function (exon.counts.dafr.file,
     for (i in 1:lines){
         print(annotations$db[i])
         features <- read.table(annotations$path[i], col.names = c("chromosome","start","end","name"))
-        features.GRanges <- GRanges(seqnames = features$chromosome,
-                                    IRanges(start = features$start,end = features$end),
+        features.GRanges <- GenomicRanges::GRanges(seqnames = features$chromosome,
+                                    IRanges::IRanges(start = features$start,end = features$end),
                                     names = features$name)
 
         all.exons <- AnnotateExtra(x = all.exons,

@@ -1992,6 +1992,8 @@ INC_DIR=`date | md5sum | head -c 15`
 ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $DATA_DEPLOYMENT/$INC_DIR" > /dev/null 2>&1
 
 # check that there are no duplicated sample names (duplicated all entry is ok, it will be used only once)
+### TO DO - additional samples names should be taken from gvcf files
+
 
 if [[ $AUX_LIST != "" ]]; then 
 	DUPLICATED_IDS=`cat $SAMPLE_LIST $AUX_LIST | sort | uniq | cut -f1 | sort | uniq -d`
@@ -2017,21 +2019,23 @@ fi
 
 # check that output sample list is a subset of input + additional samples
 
-if [[ $OUTPUT_SAMPLE_LIST != $SAMPLE_LIST ]]; then
-	cut -f1 $SAMPLE_LIST $AUX_LIST | sort | uniq > $ANALYSIS_DIR_PROJECT/$TODAY/temp_in_list.txt
-	cut -f1 $OUTPUT_SAMPLE_LIST | sort | uniq > $ANALYSIS_DIR_PROJECT/$TODAY/temp_out_list.txt
-	SAMPLES_ONLY_OUTPUT=`comm -13 $ANALYSIS_DIR_PROJECT/$TODAY/temp_in_list.txt $ANALYSIS_DIR_PROJECT/$TODAY/temp_out_list.txt`
-	rm $ANALYSIS_DIR_PROJECT/$TODAY/temp_in_list.txt $ANALYSIS_DIR_PROJECT/$TODAY/temp_out_list.txt
+### TO DO - get sample names from additional GVCFs
 
-	if [[ -n $SAMPLES_ONLY_OUTPUT ]]; then
-		echo "ERROR: samples present in output, but not among input or additional samples:
-$SAMPLES_ONLY_OUTPUT
-check sample lists"
-		exit 1
-	else 
-		echo "INFO: output sample ID check OK, all samples present in input"
-	fi
-fi 
+#if [[ $OUTPUT_SAMPLE_LIST != $SAMPLE_LIST ]]; then
+#	cut -f1 $SAMPLE_LIST $AUX_LIST | sort | uniq > $ANALYSIS_DIR_PROJECT/$TODAY/temp_in_list.txt
+#	cut -f1 $OUTPUT_SAMPLE_LIST | sort | uniq > $ANALYSIS_DIR_PROJECT/$TODAY/temp_out_list.txt
+#	SAMPLES_ONLY_OUTPUT=`comm -13 $ANALYSIS_DIR_PROJECT/$TODAY/temp_in_list.txt $ANALYSIS_DIR_PROJECT/$TODAY/temp_out_list.txt`
+#	rm $ANALYSIS_DIR_PROJECT/$TODAY/temp_in_list.txt $ANALYSIS_DIR_PROJECT/$TODAY/temp_out_list.txt
+
+#	if [[ -n $SAMPLES_ONLY_OUTPUT ]]; then
+#		echo "ERROR: samples present in output, but not among input or additional samples:
+#$SAMPLES_ONLY_OUTPUT
+#check sample lists"
+#		exit 1
+#	else 
+#		echo "INFO: output sample ID check OK, all samples present in input"
+#	fi
+#fi 
 
 
 

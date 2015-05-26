@@ -93,9 +93,10 @@ if [[ $AUX_LIST != "" ]]; then
 			GVCF_NAME=`basename $GVCF .gz`
 			echo "`${NOW}`INFO $SCRIPT_CODE copying $GVCF to temporary space"
 			cp $GVCF $TMPDIR
-#			cp $GVCF.tbi $TMPDIR
 #			cp $GVCF.idx $TMPDIR
-			gunzip $TMPDIR/$GVCF_NAME.gz			#temporarily, until better solution is found
+			if [[ "$GVCF" == "*.gz" ]]; then
+				gunzip $TMPDIR/$GVCF_NAME.gz
+			fi
 			
 			INPUT_GVCF_ARGUMENT="$INPUT_GVCF_ARGUMENT	-V $TMPDIR/$GVCF_NAME"
 
