@@ -1,0 +1,497 @@
+#!/bin/bash
+
+# sets up directory structure and scripts to combine genomic VCF files 
+# of multiple individuals and submits jobs to queue
+# pools should be up to 200 samples
+
+
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+
+GATK_VERSION=3.3
+JAVA_VERSION=jdk-7u25
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+#get the directory this script resides in
+GROUP_VOL_CGI=/groupvol/cgi
+PROJECT_TGU=/project/tgu
+QUEUE=pqcgi
+
+#GATK configuration
+
+#GVCF splitting
+GVCF_SPLIT_MAX_THREADS=16
+
+#path to text file containing usage information
+#USAGE="$BASEDIR/combineGVCF.usage"
+
+# default values for input arguments
+REFERENCE_DIR=/project/tgu/resources/reference
+REFERENCE_FASTA=$REFERENCE_DIR/fasta/eukaryote/hsapiens/hs37d5/hs37d5.fa
+REFERENCE_CHUNKS=$REFERENCE_DIR/chunk/eukaryote/human/hs37d5/hs37d5.chunks.combine.exome.full.chromosomes.v3.bed
+
+USAGE="USAGE: qcombineGVCFs -s <GVCFs list> -p <output prefix> -n <project (for output and run folders)> -c <reference chunks, default /project/tgu/resources/reference/chunk/eukaryote/human/hs37d5/hs37d5.chunks.combine.exome.full.chromosomes.v3.bed> -r <reference fasta, default /project/tgu/resources/reference/fasta/eukaryote/hsapiens/hs37d5/hs37d5.fa>"
+
+#parse command line args
+while getopts "n:r:s:p:c:h" OPTION;
+do
+
+    case "$OPTION" in
+	n) PROJECT="$OPTARG";;
+	s) GVCF_LIST="$OPTARG";;
+	r) REFERENCE_FASTA="$OPTARG";;
+	p) OUTPUT_PREFIX="$OPTARG";;
+	c) REFERENCE_CHUNKS="$OPTARG";;
+	h) cat $USAGE; exit 0;;
+	[?]) cat $USAGE; exit 1;;
+
+esac
+done
+
+
+
+#check if all required arguments are present...
+if [[ -z $PROJECT ]] || \
+   [[ -z $GVCF_LIST ]]
+then
+	#...if not print usage and exit
+	echo $USAGE
+	exit 1
+fi
+
+#check if gvcfs list file exists
+if [[ ! -e $GVCF_LIST ]]; then
+	echo "`$NOW`ERROR: sample list file does not exist: $GVCF_LIST"
+	exit 1
+fi
+
+#check if reference fasta exists
+if [[ ! -e $REFERENCE_FASTA ]]; then
+	echo "`$NOW`ERROR: reference sequence file does not exist: $REFERENCE_FASTA"
+	exit 1
+fi
+
+#check if reference dictionary exists
+REFERENCE_DICT=`echo $REFERENCE_FASTA | perl -pe 's/\.fa/\.dict/'`
+if [[ ! -e $REFERENCE_DICT ]]; then
+	echo "`$NOW`ERROR: reference dictionary file does not exist: $REFERENCE_DICT"
+	exit 1
+fi
+
+#check if chunks file exists
+if [[ ! -e $REFERENCE_CHUNKS ]]; then
+	echo "`$NOW`ERROR: reference chunks file does not exist: $REFERENCE_CHUNKS"
+	exit 1
+fi
+
+# check for duplicated IDs in gvcf list
+
+DUPLICATED_IDS=`cat $GVCF_LIST | sort | uniq | cut -f1 | sort | uniq -d`
+if [[ -n $DUPLICATED_IDS ]]; then
+	echo "ERROR: duplicated sample IDs:
+	$DUPLICATED_IDS
+	check sample lists"
+	exit 1
+else 
+	echo "INFO: sample ID check OK, no duplicates found"
+fi
+
+RESULTS_DIR=$PROJECT_TGU/results/$PROJECT/combinedGVCF/$TODAY/multisample
+ANALYSIS_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/combinedGVCF/$TODAY
+RUN_DIR=$PROJECT_TGU/runs/$PROJECT/combinedGVCF/$TODAY
+OUT_GVCF=$RESULTS_DIR/$OUTPUT_PREFIX.combined.genomic.vcf
+ANALYSIS_DIR_MSVC=$ANALYSIS_DIR/multisample
+RUN_DIR_MSVC=$RUN_DIR/multisample
+
+echo "`$NOW`INFO: creating results and runs folders"
+mkdir -p $RESULTS_DIR
+mkdir -p $RUN_DIR
+mkdir -p $ANALYSIS_DIR_MSVC
+mkdir -p $RUN_DIR_MSVC
+chmod -R 770 $PROJECT_TGU/results/$PROJECT/combinedGVCF
+chmod -R 770 $PROJECT_TGU/runs/$PROJECT/combinedGVCF/
+chmod -R 770 $GROUP_VOL_CGI/analysis/$PROJECT/combinedGVCF
+chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT
+
+SETUP_LOG=$ANALYSIS_DIR_MSVC/setup.log
+
+#redirect stdout and stderr to terminal and log file
+exec > >(tee $SETUP_LOG)
+exec 2>&1
+
+#check that GVCFs exist
+
+sort $GVCF_LIST | uniq | while read SAMPLE GVCF; do
+    if [[ "$SAMPLE" != "" ]]; then
+		if [[ ! -e $GVCF ]]; then
+        	echo "`$NOW`ERROR: input genomic vcf for $SAMPLE does not exist: $GVCF"
+			echo "check $AUX_LIST file"
+			echo "$GVCF" >> $RUN_DIR/missing_files.txt
+		fi    
+	fi
+done;
+
+
+if [[ -e $RUN_DIR/missing_files.txt ]]; then
+	echo "Some gvcf files are missing"
+	echo "the list is in $RUN_DIR/missing_files.txt"
+	echo "exiting"
+	exit 1
+else 
+	echo "gvcf input file check complete: all files are present"
+fi
+
+GVCF_SIZE_FILE=$ANALYSIS_DIR_MSVC/gvcf_size.txt
+echo -n "" > $GVCF_SIZE_FILE
+
+
+#get chunk count
+TOTAL_CHUNK_COUNT=0
+
+for CHUNK_NAME in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`; do
+	if [[ $CHUNK_NAME != ""  ]]; then
+		TOTAL_CHUNK_COUNT=$(( $TOTAL_CHUNK_COUNT + 1 ))
+	fi
+done;
+
+echo "total chunk count $TOTAL_CHUNK_COUNT"
+
+
+#FUNCTIONS
+####################################################
+
+#creates job scripts
+function submitSplitGVCFJobs {
+
+	#get args
+	local input_gvcf=$1
+	local analysis_dir=$2
+	local run_dir=$3
+	run_dir=$run_dir/run
+   
+	local input_gvcf_name=`basename $input_gvcf .genomic.vcf`
+	local sample=$input_gvcf_name
+
+	#create directory structure for samples
+	mkdir -p $analysis_dir
+	mkdir -p $run_dir
+
+	mkdir -p $analysis_dir/chunks
+
+
+	######### script 1: indel realignment and base call score recalibration
+
+	local recalibration_reports=""
+	local dependency_realign_recal=afterok
+
+	echo "`$NOW`====================================================================================="
+	echo "`$NOW`Split GVCF"
+	echo "`$NOW`====================================================================================="
+ 
+ 	
+	echo "`$NOW`splitting GVCF files..."
+	local chunk_bed_name=`basename $REFERENCE_CHUNKS .bed`
+
+	#get chunk count
+	local chunk_ids=(`cut -f5 $REFERENCE_CHUNKS | uniq | awk '/^\s*$/ {next;} {print}'`)
+	local chunk_count=`cut -f5 $REFERENCE_CHUNKS | uniq | awk '/^\s*$/ {next;} {print}' | wc -l`
+	
+	#calculate number of jobs required
+	local job_count=`perl -e "use POSIX qw(ceil); print ceil($chunk_count/$GVCF_SPLIT_MAX_THREADS);"`
+
+	echo "`$NOW`splitting input GVCF $input_gvcf_name into $chunk_count chunks" 
+	echo "`$NOW`max. $GVCF_SPLIT_MAX_THREADS chunks per job" 
+	echo "`$NOW`$job_count jobs required"
+
+	#store bam size info to calculate required tmp space for each job 
+	local gvcf_size=`du $input_gvcf | cut -f 1`
+	echo -e "$input_gvcf_name\t$gvcf_size\t$chunk_count" >> $GVCF_SIZE_FILE
+
+	#for each subset of chunks...
+	local subset_count=0
+	for (( c=0; c<$chunk_count; c=c+$GVCF_SPLIT_MAX_THREADS )); do
+	
+		local from=$c
+		local to=$(($c+$GVCF_SPLIT_MAX_THREADS-1))
+
+		if [ $to -ge $chunk_count ]; then
+			to=$(($chunk_count-1)) 
+		fi
+
+		subset_count=$(($subset_count+1))
+		local subset_bed=$run_dir/$chunk_bed_name.subset_${subset_count}.bed
+
+		echo "`$NOW`processing chunk subset $subset_count of $job_count..."
+
+		#initialise subset GVCF
+		echo -n "" > $subset_bed
+
+		#...create subset BED file
+		local subset_threads=0
+		for (( i=$from; i<=$to; i=i+1 )); do
+
+			local chunk_id=${chunk_ids[$i]}
+			cat $REFERENCE_CHUNKS | awk "{ if (\$5==$chunk_id) { print; } } " >> $subset_bed
+	
+			subset_threads=$(($subset_threads+1))
+		
+		done
+
+		local memory=$(($subset_threads*4+2))
+	
+		#calculate temp space
+		local file_size_gb=`du $input_gvcf | perl -e '$in=<>; $in; @tokens=split(/\t/, $in); $size=$tokens[0]; $size_mb=$size/1024; $size_gb=$size_mb/1024; printf("%.0f",$size_gb);'`
+		#echo $file_size_gb
+		local tmpspace=$(($file_size_gb*4))
+
+		local subset_count_formatted=`printf "%.3d\n" $subset_count`
+	
+		#...create and configuring job script
+		script_path=$run_dir/SV${input_gvcf_name}${subset_count_formatted}.sh
+		cp $BASEDIR/splitGVCF.sh $script_path
+
+		local output_dir=$analysis_dir/chunks
+
+		sed -i -e "s/#gatkVersion/$GATK_VERSION/" $script_path
+		sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
+		sed -i -e "s/#inputGVCF/${input_gvcf//\//\\/}/" $script_path
+		sed -i -e "s/#sample/$sample/" $script_path
+		sed -i -e "s/#chunkBed/${subset_bed//\//\\/}/" $script_path
+		sed -i -e "s/#runDir/${run_dir//\//\\/}/" $script_path
+		sed -i -e "s/#outputDir/${output_dir//\//\\/}/" $script_path
+		sed -i -e "s/#subset/subset_${subset_count}/" $script_path
+		sed -i -e "s/#memory/$memory/" $script_path
+		sed -i -e "s/#tmpSpace/$tmpspace/" $script_path
+		sed -i -e "s/#threads/$subset_threads/" $script_path
+		sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+
+		#submit job and save job ID to dependency variable
+		echo "`$NOW`submitting job script $script_path..."
+		
+   		log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+		local job_id=`qsub -o $log_output_path $script_path` 
+		
+		echo "`$NOW`job ID: $job_id"
+
+#		SPLIT_GVCFS_DEPENDENCY=$SPLIT_GVCFS_DEPENDENCY:$job_id
+
+		#add sample to SplitGVCFs dependency file
+		echo -e "$sample\t$job_id" >> $SPLIT_GVCFS_DEPENDENCY
+
+	done;
+
+}
+
+
+##########################
+
+function submitCombineGVCFsJobs {
+
+	local analysis_dir=$1
+	local results_dir=$2
+	local run_dir=$3
+	run_dir=$run_dir/run
+
+	#create output directories
+#	mkdir -p $analysis_dir/chunks
+
+	mkdir -p $run_dir
+
+	echo "`$NOW`"	
+	echo "`$NOW`"
+	echo "`$NOW`====================================================================================="
+	echo "`$NOW`set up CombineGVCFs..."
+	echo "`$NOW`====================================================================================="
+
+	local chunk_count=0
+
+	for chunk_name in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`; do	
+	
+		if [[ $chunk_name != ""  ]]; then 
+
+			chunk_count=$(( $chunk_count + 1 ))	
+			echo "`$NOW`-------------------------------------------------------------------------------------"	 
+			echo "`$NOW`chunk $chunk_count of $TOTAL_CHUNK_COUNT..."
+
+			chunk="chunk_$chunk_name"
+
+			#get SplitGVCFs job IDs for CombineGVCFs job
+			# dependencies
+			local dependency_split_gvcfs=afterok
+#			local job_id_column=$(( $chunk_count + 1 ))
+#			for job_id_record in `cut -f$job_id_column $SPLIT_GVCFS_DEPENDENCY`; do
+
+			for job_id_record in `cut -f2 $SPLIT_GVCFS_DEPENDENCY`; do
+
+#			echo "checking status of the job $job_id_record"
+				#check if job is still in the queue (either running or queuing)
+				#select jobs that are
+				#'Q'ueued
+				#'R'unning
+				#'H'eld
+				#'S'uspended
+				#'W'aiting
+				local alive=`qselect -s QRHSW | grep $job_id_record`
+				if [[ $alive != "" ]]; then
+					dependency_split_gvcfs="$dependency_split_gvcfs:$job_id_record"
+				fi			
+
+			done;
+
+
+			local size_all_gvcfs_gb=`awk '{ sum+=$2} END {print sum}' $GVCF_SIZE_FILE | perl -e '$in=<>; $in; @tokens=split(/\t/, $in); $size=$tokens[0]; $size_mb=$size/1024; $size_gb=$size_mb/1024; printf("%.0f",$size_gb);'`
+
+			## We don't know how file sizes scale with large number of samples,
+			## therefor this may need to be modified
+			local tmp_space_gb=$(($size_all_gvcfs_gb/$TOTAL_CHUNK_COUNT*10))	
+
+			if [[ $tmp_space_gb -gt 900 ]]; then
+#			echo "ERROR: temporary space requirements for making multisample chunks exceed 900gb: $tmp_space_gb required"
+#			echo "exiting"
+#			exit 1;
+			echo "`$NOW`WARNING: temporary space requirements for making multisample chunks may exceed 900gb, and set to 900gb"
+			echo "`$NOW` up to $tmp_space_gb may be required"
+			tmp_space_gb=900
+			fi
+		
+
+			########## script 2: run combine individual gVCF chunks into multisample gVCF shunks
+
+			echo "`$NOW`creating and submitting job script to run CombineGVCFs..."
+
+			local chunk_formatted=`printf "%.3d\n" $chunk_name`
+
+			local script_path=$run_dir/CG${OUTPUT_PREFIX}${chunk_formatted}.sh
+			cp $BASEDIR/gatk3_combineGVCFs.sh $script_path
+				
+
+			sed -i -e "s/#tmpSpace/$tmp_space_gb/" $script_path		  		
+			sed -i -e "s/#gatkVersion/$GATK_VERSION/" $script_path
+			sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
+
+			sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+			sed -i -e "s/#analysisDir/${analysis_dir//\//\\/}/" $script_path
+			sed -i -e "s/#fragmentName/$chunk/" $script_path
+			sed -i -e "s/#prefixName/$OUTPUT_PREFIX/" $script_path
+
+
+			#submit job and save job ID to dependency variable
+			local log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+    		
+			#submit job and save job ID to dependency variable
+			echo "`$NOW`$script_path"
+			local job_id=`qsub -o $log_output_path -W depend=$dependency_split_gvcfs $script_path`
+			echo "`$NOW`job ID: $job_id"
+
+			DEPENDENCY_COMBINE_GVCF="$DEPENDENCY_COMBINE_GVCF:$job_id"
+
+			CHUNK_COMBINED_GVCF_FILES="$CHUNK_COMBINED_GVCF_FILES $analysis_dir/$OUTPUT_PREFIX.$chunk.genomic.vcf"
+
+
+			echo "`$NOW`-------------------------------------------------------------------------------------"
+
+		fi
+	done;
+
+
+	######### script 3: merge chunk combined GVCFs files
+
+	echo "`$NOW`====================================================================================="
+	echo "`$NOW`Merge multisample chunk GVCFs"
+	echo "`$NOW`====================================================================================="
+
+
+	# create a script for merging chunk combined VCF files
+
+
+	script_path=$run_dir/MG${OUTPUT_PREFIX}.sh
+	cp $BASEDIR/gatk3_merge_combined_gvcfs.sh $script_path
+
+	local size_all_full_gvcfs_gb=`awk '{ sum+=$2} END {print sum}' $GVCF_SIZE_FILE | perl -e '$in=<>; $in; @tokens=split(/\t/, $in); $size=$tokens[0]; $size_mb=$size/1024; $size_gb=$size_mb/1024; printf("%.0f",$size_gb);'`
+	local tmp_space_merge_gb=$(($size_all_full_gvcfs_gb*4))	
+
+	#since it is unclear how it combined gVCF scales, set temporary space either to triple size of all input gvcfs
+	#or 900gb (max allowed), whicheved is smaller.
+
+	if [[ $tmp_space_merge_gb -gt 900 ]]; then
+	echo "`$NOW`WARNING: temporary space requirements for concatenating multisamle GVCFs may exceed 900gb, and set to 900gb"
+	echo "`$NOW` up to $tmp_space_merge_gb may be required"
+	tmp_space_merge_gb=900
+	fi
+
+
+
+	sed -i -e "s/#tmpSpace/$tmp_space_merge_gb/" $script_path
+
+	sed -i -e "s/#gatkVersion/$GATK_VERSION/" $script_path
+	sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
+
+	sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+	sed -i -e "s/#prefixName/$OUTPUT_PREFIX/" $script_path 
+
+	sed -i -e "s/#inputDirGVCF/${analysis_dir//\//\\/}/" $script_path
+	sed -i -e "s/#resultsDir/${results_dir//\//\\/}/" $script_path
+
+	#we have to use the roundabout Perl way here as there seems to be 
+    #a limit to the string length for either sed or the bash substitution 	
+	CHUNK_COMBINED_GVCF_FILES=`echo $CHUNK_COMBINED_GVCF_FILES | perl -pe "s/\//forwardSlash/g"`
+	perl -i -pe "s/#chunkGVCFs/$CHUNK_COMBINED_GVCF_FILES/" $script_path
+	perl -i -pe "s/forwardSlash/\//g" $script_path
+
+	log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+	echo "`$NOW`$script_path"
+
+
+	job_id=`qsub -o $log_output_path -W depend=$DEPENDENCY_COMBINE_GVCF $script_path`
+	echo "`$NOW`job ID: $job_id"
+
+	#change permissions on all directories/files created
+	chmod -R 770 $analysis_dir
+	chmod -R 770 $results_dir
+}
+
+####################################################
+
+DEPENDENCY_COMBINE_GVCF=afterok
+CHUNK_COMBINED_GVCF_FILES=""
+#SPLIT_GVCFS_DEPENDENCY=afterok
+
+#initialise file to store SplitGVCFs dependencies
+SPLIT_GVCFS_DEPENDENCY=$ANALYSIS_DIR_MSVC/split_gvcfs_dependencies.tsv
+echo -n "" > $SPLIT_GVCFS_DEPENDENCY
+
+#now we can submit jobs for each sample (make sure that all entries are unique)...
+#get sample count from sample list skipping blank lines
+TOTAL_SAMPLE_COUNT=`sort $GVCF_LIST | uniq | awk '/^\s*$/ {next;} { print; }' | wc -l`
+SAMPLE_COUNT=0
+ 
+echo "total sample count $TOTAL_SAMPLE_COUNT"
+
+sort $GVCF_LIST | uniq | while read SAMPLE GVCF; do
+    if [[ "$SAMPLE" != "" ]]; then
+	    SAMPLE_COUNT=$(( $SAMPLE_COUNT + 1 ))
+	    echo "`$NOW`"
+	    echo "`$NOW`"
+	    echo "`$NOW`processing sample $SAMPLE_COUNT of $TOTAL_SAMPLE_COUNT: $SAMPLE"
+
+	    ANALYSIS_DIR_SAMPLE=$ANALYSIS_DIR/$SAMPLE
+	    RUN_DIR_SAMPLE=$RUN_DIR/$SAMPLE
+
+	    submitSplitGVCFJobs $GVCF \
+						$ANALYSIS_DIR_SAMPLE \
+						$RUN_DIR_SAMPLE
+	fi
+done;
+
+#submit CombineGVCFs
+submitCombineGVCFsJobs $ANALYSIS_DIR_MSVC \
+						$RESULTS_DIR \
+						$RUN_DIR_MSVC
+		                          
+
+
+
