@@ -11,6 +11,8 @@ USAGE
                                 default for HS metrics /groupvol/cgi/analysis/ngs_tools/reference/target/SureSelect_All_Exon_50M_hg19.tab.intList>]
                             [-t <path_to_target_interval_list_file for HS/TP metrics, 
                                 default for HS metrics /groupvol/cgi/analysis/ngs_tools/reference/target/SureSelect_All_Exon_50M_hg19.tab.intList>]
+							[-l <path to interval list for non-overlapping amplicon intervals>, can only be used for amplicon sequencing,
+								default "none"]
                             [-p <path_to_ribosomal_rna_interval_list_file for RS metrics,
                                 default /groupvol/cgi/analysis/ngs_tools/reference/ribosomal_rna/hs37d5.ribosomal_rna.intList>]
                             [-a <path_to_anotation_flat_file for RS metrics,
