@@ -153,35 +153,37 @@ if [ -d $INPUT_PATH ]; then
 		FASTQC=fastqc
 	fi
 
+	SEQ_RUN_DATE=`basename $INPUT_PATH`
+
     #create and set permissions for analysis project parent directory
-    mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC
-    chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC
-    PROJECT_ANALYSIS_DIR=$GROUP_VOL_CGI/runs/$PROJECT/$FASTQC
+    mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE
+    chmod -R 770 $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC
+    PROJECT_ANALYSIS_DIR=$GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE
 
     #create and set permissions for results project parent directory
-    mkdir -p $GROUP_VOL_CGI/results/$PROJECT/$FASTQC
-    chmod 770 $GROUP_VOL_CGI/results/$PROJECT/$FASTQC
-    PROJECT_RESULT_DIR=$GROUP_VOL_CGI/results/$PROJECT/$FASTQC
+    mkdir -p $GROUP_VOL_CGI/results/$PROJECT/$FASTQC/$SEQ_RUN_DATE
+    chmod -R 770 $GROUP_VOL_CGI/results/$PROJECT/$FASTQC
+    PROJECT_RESULT_DIR=$GROUP_VOL_CGI/results/$PROJECT/$FASTQC/$SEQ_RUN_DATE
 
     #create and set permissions for multisample analysis directory
-    mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/multisample
-    chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/multisample
+    mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/multisample
+    chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/multisample
 
-    mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/multisample/run
-    chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/multisample/run
-    MS_ANALYSIS_DIR=$GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/multisample
+    mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/multisample/run
+    chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/multisample/run
+    MS_ANALYSIS_DIR=$GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/multisample
 
     #create and set permissions for multisample results directory
-    mkdir -p $GROUP_VOL_CGI/results/$PROJECT/$FASTQC/multisample
-    chmod 770 $GROUP_VOL_CGI/results/$PROJECT/$FASTQC/multisample
-    MS_RESULT_DIR=$GROUP_VOL_CGI/results/$PROJECT/$FASTQC/multisample
+    mkdir -p $GROUP_VOL_CGI/results/$PROJECT/$FASTQC/$SEQ_RUN_DATE/multisample
+    chmod 770 $GROUP_VOL_CGI/results/$PROJECT/$FASTQC/$SEQ_RUN_DATE/multisample
+    MS_RESULT_DIR=$GROUP_VOL_CGI/results/$PROJECT/$FASTQC/$SEQ_RUN_DATE/multisample
 
     JOB_ID_LIST=$MS_ANALYSIS_DIR/job_id_list.txt
     echo -n "" > $JOB_ID_LIST
     chmod 660 $JOB_ID_LIST
 
     #create summary directory on deployment server
-    SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/$FASTQC
+    SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/$FASTQC/$SEQ_RUN_DATE
     ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
     scp -r ${BASEDIR}/../../resources/images/error.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
     scp -r ${BASEDIR}/../../resources/images/tick.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
@@ -204,22 +206,22 @@ if [ -d $INPUT_PATH ]; then
 			echo "`$NOW`processing directory $SAMPLE..."
 
         	#...create output directory
-			mkdir -p $GROUP_VOL_CGI/results/$PROJECT/$FASTQC/$SAMPLE
-			chmod 770 $GROUP_VOL_CGI/results/$PROJECT/$FASTQC/$SAMPLE
-			OUT_RESULTS=$GROUP_VOL_CGI/results/$PROJECT/$FASTQC/$SAMPLE
+			mkdir -p $GROUP_VOL_CGI/results/$PROJECT/$FASTQC/$SEQ_RUN_DATE/$SAMPLE
+			chmod 770 $GROUP_VOL_CGI/results/$PROJECT/$FASTQC/$SEQ_RUN_DATE/$SAMPLE
+			OUT_RESULTS=$GROUP_VOL_CGI/results/$PROJECT/$FASTQC/$SEQ_RUN_DATE/$SAMPLE
 
-			mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SAMPLE
-			chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SAMPLE
+			mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/$SAMPLE
+			chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/$SAMPLE
 
-			mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SAMPLE/run
-			chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SAMPLE/run
-			OUT_SCRIPTS=$GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SAMPLE/run
+			mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/$SAMPLE/run
+			chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/$SAMPLE/run
+			OUT_SCRIPTS=$GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/$SAMPLE/run
 
 			echo "`$NOW`input directory: $FASTQ_DIR"
 			echo "`$NOW`QC report output directory: $OUT_RESULTS" 
 			echo "`$NOW`script and log output directory: $OUT_SCRIPTS"
 
-			DEPLOYMENT_PATH=$DEPLOYMENT_BASE_DIR/project/$PROJECT/$FASTQC/$SAMPLE
+			DEPLOYMENT_PATH=$DEPLOYMENT_BASE_DIR/project/$PROJECT/$FASTQC/$SEQ_RUN_DATE/$SAMPLE
 			
 			#create, configure and submit job scripts
 	       	submitJob $FASTQ_DIR $PATTERN_READ_1 $PATTERN_READ_2 $OUT_RESULTS $OUT_SCRIPTS $DEPLOYMENT_SERVER $DEPLOYMENT_PATH $SUMMARY_DEPLOYMENT $JOB_ID_LIST

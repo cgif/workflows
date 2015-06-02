@@ -1,17 +1,17 @@
 #!/bin/bash
 
 #PBS -l walltime=72:00:00
-#PBS -l select=1:ncpus=1:mem=10gb
+#PBS -l select=1:ncpus=1:mem=20gb:tmpspace=#tmpSpacegb
 
 #PBS -M cgi@imperial.ac.uk
-#PBS -m bea
+#PBS -m ea
 #PBS -j oe
 
 #PBS -q pqcgi
 
 # load modules
 
-module load R/3.1.0
+module load R/3.2.0
 
 NOW="date +%Y-%m-%d%t%T%t"
 
@@ -53,6 +53,8 @@ exon.counts.file <- '$TMPDIR/exon.counts.Rdata'
 get.exon.counts(target.bed = target.bed,
                 bam.files = bam.files,
 		exon.counts.file = exon.counts.file)
+
+sessionInfo()
 	
 " > $R_SCRIPT
 

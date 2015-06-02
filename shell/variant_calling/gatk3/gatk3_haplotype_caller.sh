@@ -56,6 +56,10 @@ cp $REFRENCE_SEQ_DICT $TMPDIR/reference.dict
 
 cp $FRAGMENT_FILE $TMPDIR/fragment.intervals
 
+# for targeted sequencing, we need to use padded target intervals only,
+#see gatkforums.broadinstitute.org/discussion/4133/when-should-i-use-l-to-pass-in-a-list-of-intervals#latest
+#also file sizes become unmanagable if HC is used for the whole genome 
+
 INTERVAL_ARG="-L $TMPDIR/fragment.intervals"
 
 
@@ -84,6 +88,7 @@ samtools index $TMPDIR/HC.bam
 
 echo "`${NOW}`INFO $SCRIPT_CODE copying gVCF to output directory $ANALYSIS_DIR..."
 cp $TMPDIR/HCgenomic.vcf $GENOMIC_VCF
+cp $TMPDIR/HCgenomic.vcf.idx $GENOMIC_VCF.idx
 cp $TMPDIR/HC.bam $HC_BAM_FILE
 cp $TMPDIR/HC.bam.bai ${HC_BAM_FILE}.bai
 
@@ -106,6 +111,8 @@ echo -e "`${NOW}`$SCRIPT_CODE\t$SAMPLE\t$FRAGMENT\thc_bam\t$STATUS" >> $RUN_LOG
 
 #run summary script
 perl $SUMMARY_SCRIPT_PATH
+
+ls -al $TMPDIR
 
 echo "`${NOW}`INFO $SCRIPT_CODE done"
 

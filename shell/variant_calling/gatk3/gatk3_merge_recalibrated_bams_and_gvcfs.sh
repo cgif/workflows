@@ -78,8 +78,9 @@ if [ $IN_GVCF_COUNT -ge 2 ]; then
 		GVCF_BASENAME=`basename $GVCF`
 		echo "`${NOW}`INFO $SCRIPT_CODE $GVCF_BASENAME"
 		cp $INPUT_DIR_GVCF/$GVCF_BASENAME $TMPDIR
-#		TMP_IN_GVCF="$TMP_IN_GVCF -V $TMPDIR/$GVCF_BASENAME"	#this line if GATK is used for merging
-		TMP_IN_GVCF="$TMP_IN_GVCF $TMPDIR/$GVCF_BASENAME"
+		cp $INPUT_DIR_GVCF/$GVCF_BASENAME.idx $TMPDIR
+		TMP_IN_GVCF="$TMP_IN_GVCF -V $TMPDIR/$GVCF_BASENAME"	#this line if GATK is used for merging
+#		TMP_IN_GVCF="$TMP_IN_GVCF $TMPDIR/$GVCF_BASENAME"		#this is if using simple concatenation (but then idx file is not made)
 
 		# get number of variants in the input GVCF file
 		VARIANT_COUNT=`grep -v '#' $TMPDIR/$GVCF_BASENAME | wc -l`
@@ -91,15 +92,17 @@ if [ $IN_GVCF_COUNT -ge 2 ]; then
 	echo "`${NOW}`INFO $SCRIPT_CODE merging GVCF files..."
 	# use simple concatenation instead of GATK, as GATK is incredibly slow for larger files
 	# we can use simple concatenation, because the positions never overlap
+	# disable, because we need vcf.idx files for GenotypeGVCFs, tabix indices cause problems
+	# http://gatkforums.broadinstitute.org/discussion/5349/genotypegvcfs-warn-track-variant-doesnt-have-a-sequence-dictionary-built-in
 	
 	# get header
-	CHUNK_1_GVCF=$(echo $TMP_IN_GVCF | cut -f1 -d" " )
-	awk '{if ( $1 ~ /^#/ ) print}' $CHUNK_1_GVCF > $TMPDIR/merged.genomic.vcf
+#	CHUNK_1_GVCF=$(echo $TMP_IN_GVCF | cut -f1 -d" " )
+#	awk '{if ( $1 ~ /^#/ ) print}' $CHUNK_1_GVCF > $TMPDIR/merged.genomic.vcf
 
 	# now concatenate files without headers
-	for FILE in $TMP_IN_GVCF; do
-    	awk '{if ( $1 !~ /^#/ ) print}' $FILE >> $TMPDIR/merged.genomic.vcf
-	done
+#	for FILE in $TMP_IN_GVCF; do
+#    	awk '{if ( $1 !~ /^#/ ) print}' $FILE >> $TMPDIR/merged.genomic.vcf
+#	done
 
 
 	### below is old version where GATK is used for merging
@@ -113,6 +116,13 @@ if [ $IN_GVCF_COUNT -ge 2 ]; then
 #		--genotypemergeoption UNSORTED \
 #		-o $TMPDIR/merged.genomic.vcf
 
+	java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -cp $GATK_HOME/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants \
+		-R $TMPDIR/reference.fa \
+		$TMP_IN_GVCF \
+		--assumeSorted \
+		-out $TMPDIR/merged.genomic.vcf
+
+
 	# get number of reads in the output GVCF file
 	VARIANT_COUNT_OUTPUT=`grep -v '#' $TMPDIR/merged.genomic.vcf | wc -l`
 
@@ -125,16 +135,18 @@ if [ $IN_GVCF_COUNT -ge 2 ]; then
  	echo "`${NOW}`INFO $SCRIPT_CODE input  GVCFs read count: $VARIANT_COUNT_INPUT"
 	echo "`${NOW}`INFO $SCRIPT_CODE output GVCF read count: $VARIANT_COUNT_OUTPUT"
 
-	echo "`$NOW`INFO $SCRIPT_CODE compressing GVCF file..."
-	$TABIX_HOME/bgzip $TMPDIR/merged.genomic.vcf
+#	echo "`$NOW`INFO $SCRIPT_CODE compressing GVCF file..."			#need unzipped indexed files for GenotypeGVCFs (tabix and bgzip causes problems)
+#	$TABIX_HOME/bgzip $TMPDIR/merged.genomic.vcf
 
-	echo "`$NOW`INFO $SCRIPT_CODE indexing GVCF file..."
-	$TABIX_HOME/tabix -p vcf $TMPDIR/merged.genomic.vcf.gz
+#	echo "`$NOW`INFO $SCRIPT_CODE indexing GVCF file..."
+#	$TABIX_HOME/tabix -p vcf $TMPDIR/merged.genomic.vcf.gz
 	
 	if [[ $VARIANT_COUNT_INPUT -eq $VARIANT_COUNT_OUTPUT ]]; then
-		echo "`${NOW}`INFO $SCRIPT_CODE copying merged GVCF to $OUT_GVCF.gz ..."
-		cp $TMPDIR/merged.genomic.vcf.gz $OUT_GVCF.gz
-		cp $TMPDIR/merged.genomic.vcf.gz.tbi $OUT_GVCF.gz.tbi
+		echo "`${NOW}`INFO $SCRIPT_CODE copying merged GVCF to $OUT_GVCF ..."
+#		cp $TMPDIR/merged.genomic.vcf.gz $OUT_GVCF.gz
+#		cp $TMPDIR/merged.genomic.vcf.gz.tbi $OUT_GVCF.gz.tbi
+		cp $TMPDIR/merged.genomic.vcf $OUT_GVCF							
+		cp $TMPDIR/merged.genomic.vcf.idx $OUT_GVCF.idx
 		chmod 660 $OUT_GVCF*
 
 	else
@@ -142,7 +154,8 @@ if [ $IN_GVCF_COUNT -ge 2 ]; then
 	fi
 
 	## loging 
-	if [[ -s $OUT_GVCF.gz ]]; then 
+#	if [[ -s $OUT_GVCF.gz ]]; then
+	if [[ -s $OUT_GVCF ]]; then  
 		STATUS=OK
 
 		echo -e "$SAMPLE\t$OUT_GVCF.gz\t$PROJECT\t$CAPTURE" >> $GVCF_LIST
@@ -166,15 +179,17 @@ if [ $IN_GVCF_COUNT -eq 1 ]; then
 	echo "`${NOW}`INFO $SCRIPT_CODE only one input GVCF file. Nothing to merge."
 	GVCF_BASENAME=`basename $IN_GVCFS`
 	mv $INPUT_DIR_GVCF/$GVCF_BASENAME $OUT_GVCF
+	mv $INPUT_DIR_GVCF/$GVCF_BASENAME.idx $OUT_GVCF.idx
 
-	echo "`$NOW`INFO $SCRIPT_CODE compressing GVCF file..."
-	$TABIX_HOME/bgzip $OUT_GVCF
+#	echo "`$NOW`INFO $SCRIPT_CODE compressing GVCF file..."
+#	$TABIX_HOME/bgzip $OUT_GVCF
 
-	echo "`$NOW`INFO $SCRIPT_CODE indexing GVCF file..."
-	$TABIX_HOME/tabix -p vcf $OUT_GVCF.gz
+#	echo "`$NOW`INFO $SCRIPT_CODE indexing GVCF file..."
+#	$TABIX_HOME/tabix -p vcf $OUT_GVCF.gz
 
 	#logging
-	if [[ ! -s $OUT_GVCF.gz ]]; then
+#	if [[ ! -s $OUT_GVCF.gz ]]; then
+	if [[ ! -s $OUT_GVCF ]]; then
 		STATUS=FAILED
 	else 
 		STATUS=OK
@@ -343,8 +358,8 @@ for IN_BAM in "$RECAL_IN_BAM" "$HC_IN_BAM"; do
 			chmod 660 $OUT_BAM.bai
 
 			echo "`${NOW}`INFO $SCRIPT_CODE deleting intermediate BAM files..."
-			rm $IN_BAM
-			rm $IN_BAM.bai
+#			rm $IN_BAM
+#			rm $IN_BAM.bai
 
 			#...if no, keep input BAM files for re-run
 		else

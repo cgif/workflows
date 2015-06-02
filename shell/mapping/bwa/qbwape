@@ -139,13 +139,13 @@ function submitJobs {
 
 	#for each fastq file (fastq files have to be gzipped and 
 	#have to have a fq.gz or fastq.gz extension
-	for FASTQ_READ1 in `ls --color=never $PATH_READS_DIRECTORY/*.f*q* | grep $PATTERN_READ_1`
+	for FASTQ_READ1 in `ls --color=never $PATH_READS_DIRECTORY/*.f*q*.gz | grep $PATTERN_READ_1`
 	do 
 		FASTQ_READ1=`basename $FASTQ_READ1`
 
 		#find read2 mate file
 		FASTQ_READ2=""
-		for FASTQ in `ls --color=never $PATH_READS_DIRECTORY/*.f*q* | grep $PATTERN_READ_2`
+		for FASTQ in `ls --color=never $PATH_READS_DIRECTORY/*.f*q*.gz | grep $PATTERN_READ_2`
 		do	
 
 		    FASTQ=`basename $FASTQ`

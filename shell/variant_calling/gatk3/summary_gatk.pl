@@ -107,7 +107,8 @@ foreach my $sample (@sample){
 
 	my $merge_bam_gvcf_log = "$project_dir_scripts/$date/$sample/run/MB${sample}000.log";
 	if (-s $merge_bam_gvcf_log){
-	    my $merged_gvcf = "$project_dir_results/$date/$sample/haplotypecaller/$sample".".genomic.vcf.gz";
+#	    my $merged_gvcf = "$project_dir_results/$date/$sample/haplotypecaller/$sample".".genomic.vcf.gz";
+		my $merged_gvcf = "$project_dir_results/$date/$sample/haplotypecaller/$sample".".genomic.vcf";
 	    if (-s $merged_gvcf){
 		$sum{$sample}{'merged_gvcf'} = "PASS";
 	    }else{
