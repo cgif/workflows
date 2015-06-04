@@ -10,7 +10,9 @@ NOW="date +%Y-%m-%d%t%T%t"
 TODAY=`date +%Y-%m-%d`
 
 #path to text file containing usage information
-USAGE="$BASEDIR/freec.usage"
+USAGE="USAGE: qfreec -s <sample_list> -n <project_name>"
+DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
+DEPLOYMENT_BASE_DIR=/www/html/report
 
 #get the directory this script resides in
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
@@ -21,6 +23,7 @@ QUEUE=pqcgi
 SAMTOOLS_VERSION=1.1
 R_VERSION=3.1.0
 FREEC_VERSION=7.2
+BEDTOOLS_VERSION=2.13.3
 
 #FREEC control files
 FREEC_GRAPH=$BASEDIR/makeGraph.R
@@ -28,6 +31,7 @@ FREEC_SIGN=$BASEDIR/assess_significance.R
 CHROM_LENGTH=$BASEDIR/GRCh37.len
 FREEC_PROFILE=$BASEDIR/FREEC.profile
 REF_FASTA=/project/tgu/resources/reference/fasta/eukaryote/hsapiens/hs37d5/hs37d5.fa
+EXON_BED=/groupvol/cgi/resources/annotations/eukaryote/human/GRCh37/GRCh37.74.exon.bed
 
 WINDOW=400
 STEP=200
@@ -35,12 +39,13 @@ PLOIDY=2
 BREAK_POINT=0.6
 
 #parse command line args
-while getopts "n:s:w:t:p:b:h" OPTION; do
+while getopts "n:s:e:w:t:p:b:h" OPTION; do
 
     case "$OPTION" in
 
 	n) PROJECT="$OPTARG";;
 	s) SAMPLE_LIST="$OPTARG";;
+	e) EXON_BED="$OPTARG";;
 	w) WINDOW="$OPTARG";;
 	t) STEP="$OPTARG";;
 	p) POLIDY="$OPTARG";;
@@ -64,63 +69,6 @@ if [[ ! -e $SAMPLE_LIST ]]; then
         exit 1
 fi
 
-#########################################################
-#creates job scripts#####################################
-#########################################################
-
-function submitFREEC {
-
-	local normal_bam=$1
-	local tumor_bam=$2
-	local analysis_dir=$3
-	local results_dir=$4
-	local sex=$5
-	local sample_name=`basename $results_dir`
-
-	#create output directories
-       	mkdir -p $analysis_dir
-       	mkdir -p $analysis_dir/run
-       	mkdir -p $results_dir
-
-	normal_bam_size=`du $normal_bam | cut -f1`
-	tumor_bam_size=`du $tumor_bam | cut -f1`
-	tmpspace_kb=$(( $normal_bam_size + $tumor_bam_size ))
-	tmpspace_mb=$(( $tmpspace_kb / 1024 ))
-	tmpspace_gb=$(( $tmpspace_mb / 1024 ))
-	tmpspace_gb=$(( $tmpspace_gb * 2 ))
-
-	echo "`$NOW`creating and submitting FREEC script..."
-	local script_path=$analysis_dir/run/FREEC_$sample_name.sh
-	cp $BASEDIR/freec.sh $script_path
-	chmod 770 $script_path
-
- 	sed -i -e "s/#tmpSpace/${tmpspace_gb}/" $script_path
- 	sed -i -e "s/#Rversion/${R_VERSION}/" $script_path
- 	sed -i -e "s/#SamtoolsVersion/${SAMTOOLS_VERSION}/" $script_path
- 	sed -i -e "s/#freecVersion/${FREEC_VERSION}/" $script_path
-
- 	sed -i -e "s/#ChrLenFile/${CHROM_LENGTH//\//\\/}/" $script_path
- 	sed -i -e "s/#freecProfile/${FREEC_PROFILE//\//\\/}/" $script_path
- 	sed -i -e "s/#freecGraph/${FREEC_GRAPH//\//\\/}/" $script_path
- 	sed -i -e "s/#freecSign/${FREEC_SIGN//\//\\/}/" $script_path
-
- 	sed -i -e "s/#ResultsDir/${results_dir//\//\\/}/" $script_path
- 	sed -i -e "s/#TumorBam/${tumor_bam//\//\\/}/" $script_path
- 	sed -i -e "s/#NormalBam/${normal_bam//\//\\/}/" $script_path
- 	sed -i -e "s/#RefFasta/${REF_FASTA//\//\\/}/" $script_path
- 	sed -i -e "s/#Sex/${sex}/" $script_path
-
-	sed -i -e "s/#Window/${WINDOW}/" $script_path
-	sed -i -e "s/#Step/${STEP}/" $script_path
-        sed -i -e "s/#Ploidy/${PLOIDY}/" $script_path
-	sed -i -e "s/#BreakPoint/${BREAK_POINT}/" $script_path
-
-	echo "`$NOW`$script_path"
-	log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
-	job_id=`qsub -o $log_output_path $script_path`
-	echo "`$NOW`$job_id"
-
-}
 
 #########################################################
 #create and set permissions for project parent directory# 
@@ -141,37 +89,129 @@ chmod 770 $ANALYSIS_DIR_PROJECT/$TODAY
 mkdir -p $RESULTS_DIR_PROJECT/$TODAY
 chmod 770 $RESULTS_DIR_PROJECT/$TODAY
 
-echo "`$NOW`setting up FREEC run..."
-echo "`$NOW`list of samples   : $SAMPLE_LIST"
-echo "`$NOW`analysis directory: $ANALYSIS_DIR_PROJECT"
-echo "`$NOW`results directory : $RESULTS_DIR_PROJECT"
+MS_ANALYSIS_DIR=$ANALYSIS_DIR_PROJECT/$TODAY/multisample
+mkdir -p $MS_ANALYSIS_DIR
+chmod 0770 $MS_ANALYSIS_DIR
 
-#get sample count from sample list skipping blank lines
-TOTAL_SAMPLE_COUNT=`sort $SAMPLE_LIST | uniq | awk '/^\s*$/ {next;} { print; }' | wc -l`
-SAMPLE_COUNT=0     
+mkdir -p $MS_ANALYSIS_DIR/run
+chmod 0770 $MS_ANALYSIS_DIR/run
+
+MS_RESULTS_DIR=$RESULTS_DIR_PROJECT/$TODAY/multisample
+mkdir -p $MS_RESULTS_DIR
+chmod 0770 $MS_RESULTS_DIR
+
+#create deployment directory for summary
+SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/FREEC/$TODAY
+ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
+
+echo -n "" > $MS_ANALYSIS_DIR/merge_dependency.tsv     
 
 #for each sample (make sure that each sample and date is unique) run MuTect
 sort $SAMPLE_LIST | uniq | while read SAMPLE_NORMAL SAMPLE_TUMOR DATE SEX; do
 	
         if [[ "$SAMPLE_NORMAL" != "" ]] && [[ "$SAMPLE_TUMOR" != "" ]]; then
-               
-		SAMPLE_COUNT=$(( $SAMPLE_COUNT + 1 ))
 
 		echo "`$NOW`"
-		echo "`$NOW`running FREEC for sample $SAMPLE_COUNT of $TOTAL_SAMPLE_COUNT: $SAMPLE_NORMAL & $SAMPLE_TUMOR"
+		echo "`$NOW`running FREEC for samples $SAMPLE_NORMAL & $SAMPLE_TUMOR"
 
                 SAMPLE_PAIR=$SAMPLE_NORMAL.vs.$SAMPLE_TUMOR
+
 		ANALYSIS_DIR_SAMPLE=$ANALYSIS_DIR_PROJECT/$TODAY/$SAMPLE_PAIR
+		mkdir -p $ANALYSIS_DIR_SAMPLE
+		chmod 0770 $ANALYSIS_DIR_SAMPLE
+
+		mkdir -p $ANALYSIS_DIR_SAMPLE/run
+		chmod 0770 $ANALYSIS_DIR_SAMPLE/run
+
 		RESULTS_DIR_SAMPLE=$RESULTS_DIR_PROJECT/$TODAY/$SAMPLE_PAIR
+		mkdir -p $RESULTS_DIR_SAMPLE
+		chmod 0770 $RESULTS_DIR_SAMPLE
+
 		NORMAL_BAM=$GROUP_VOL_CGI/results/$PROJECT/mutect/$DATE/$SAMPLE_NORMAL/recalibration/$SAMPLE_NORMAL.bam
 		TUMOR_BAM=$GROUP_VOL_CGI/results/$PROJECT/mutect/$DATE/$SAMPLE_TUMOR/recalibration/$SAMPLE_TUMOR.bam
 
-		submitFREEC $NORMAL_BAM \
-			    $TUMOR_BAM \
-		    	    $ANALYSIS_DIR_SAMPLE \
-		    	    $RESULTS_DIR_SAMPLE \
-			    $SEX
-	                   	      		
+		NORMAL_BAM_SIZE=`du $NORMAL_BAM | cut -f1`
+		TUMOR_BAM_SIZE=`du $TUMOR_BAM | cut -f1`
+		TMPSPACE_KB=$(( $NORMAL_BAM_SIZE + $TUMOR_BAM_SIZE ))
+		TMPSPACE_MB=$(( $TMPSPACE_KB / 1024 ))
+		TMPSPACE_GB=$(( $TMPSPACE_MB / 1024 ))
+		TMPSPACE=$(( $TMPSPACE_GB * 2 ))
+
+		echo "`$NOW`creating and submitting FREEC script..."
+		SCRIPT_PATH=$ANALYSIS_DIR_SAMPLE/run/FREEC_${SAMPLE_NORMAL}.sh
+		cp $BASEDIR/freec.sh $SCRIPT_PATH
+		chmod 770 $SCRIPT_PATH
+
+ 		sed -i -e "s/#tmpSpace/${TMPSPACE}/" $SCRIPT_PATH
+ 		sed -i -e "s/#Rversion/${R_VERSION}/" $SCRIPT_PATH
+ 		sed -i -e "s/#SamtoolsVersion/${SAMTOOLS_VERSION}/" $SCRIPT_PATH
+ 		sed -i -e "s/#freecVersion/${FREEC_VERSION}/" $SCRIPT_PATH
+
+ 		sed -i -e "s/#ChrLenFile/${CHROM_LENGTH//\//\\/}/" $SCRIPT_PATH
+ 		sed -i -e "s/#freecProfile/${FREEC_PROFILE//\//\\/}/" $SCRIPT_PATH
+ 		sed -i -e "s/#freecGraph/${FREEC_GRAPH//\//\\/}/" $SCRIPT_PATH
+ 		sed -i -e "s/#freecSign/${FREEC_SIGN//\//\\/}/" $SCRIPT_PATH
+
+ 		sed -i -e "s/#ResultsDir/${RESULTS_DIR_SAMPLE//\//\\/}/" $SCRIPT_PATH
+ 		sed -i -e "s/#TumorBam/${TUMOR_BAM//\//\\/}/" $SCRIPT_PATH
+ 		sed -i -e "s/#NormalBam/${NORMAL_BAM//\//\\/}/" $SCRIPT_PATH
+ 		sed -i -e "s/#RefFasta/${REF_FASTA//\//\\/}/" $SCRIPT_PATH
+ 		sed -i -e "s/#Sex/${SEX}/" $SCRIPT_PATH
+
+		sed -i -e "s/#Window/${WINDOW}/" $SCRIPT_PATH
+		sed -i -e "s/#Step/${STEP}/" $SCRIPT_PATH
+        	sed -i -e "s/#Ploidy/${PLOIDY}/" $SCRIPT_PATH
+		sed -i -e "s/#BreakPoint/${BREAK_POINT}/" $SCRIPT_PATH
+
+		echo "`$NOW`$SCRIPT_PATH"
+		LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+		JOB_ID=`qsub -o $LOG_PATH $SCRIPT_PATH`
+		echo "`$NOW`$JOB_ID"
+		echo -e "$JOB_ID" >> $MS_ANALYSIS_DIR/merge_dependency.tsv 
+
 	fi
 
 done
+
+echo "`$NOW`"
+echo "`$NOW`"
+echo "`$NOW`make list of genes that overlap with CNVs in at least 2 samples"
+
+MERGE_DEPENDENCY=afterok
+for JOB_ID in `cut -f 1 $MS_ANALYSIS_DIR/merge_dependency.tsv`; do
+        MERGE_DEPENDENCY="$MERGE_DEPENDENCY:$JOB_ID"
+done
+
+SCRIPT_PATH=$MS_ANALYSIS_DIR/run/ANNOTATE_${PROJECT}.sh
+cp $BASEDIR/freecAnnotate.sh $SCRIPT_PATH
+chmod 0770 $SCRIPT_PATH
+
+#set variables 
+sed -i -e "s/#bedtoolsVersion/${BEDTOOLS_VERSION}/" $SCRIPT_PATH
+sed -i -e "s/#resultsDir/${RESULTS_DIR_PROJECT//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#exonBed/${EXON_BED//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#project/${PROJECT//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#deploymentServer/${DEPLOYMENT_SERVER//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SCRIPT_PATH
+
+echo "`$NOW`$SCRIPT_PATH"
+LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+JOB_ID=`qsub -W depend=$MERGE_DEPENDENCY -o $LOG_PATH $SCRIPT_PATH`
+echo "`$NOW`$JOB_ID"
+
+SCRIPT_PATH=$MS_ANALYSIS_DIR/run/RANDOM_${PROJECT}.pl
+cp $BASEDIR/freecRandom.sh $SCRIPT_PATH
+chmod 0770 $SCRIPT_PATH
+
+#set variables 
+sed -i -e "s/#resultsDir/${RESULTS_DIR_PROJECT//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#exonBed/${EXON_BED//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#chrLenFile/${CHROM_LENGTH//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#deploymentServer/${DEPLOYMENT_SERVER//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SCRIPT_PATH
+
+echo "`$NOW`$SCRIPT_PATH"
+LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+JOB_ID=`qsub -l walltime=24:00:00 -l mem=10gb -M cgi@imperial.ac.uk -m ea -j oe -q pqcgi -W depend=afterok:$JOB_ID -o $LOG_PATH $SCRIPT_PATH`
+echo "`$NOW`$JOB_ID"
+

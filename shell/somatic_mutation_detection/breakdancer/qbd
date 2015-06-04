@@ -13,13 +13,18 @@ NOW="date +%Y-%m-%d%t%T%t"
 TODAY=`date +%Y-%m-%d`
 
 USAGE="USAGE: qbd -s <sample_list> -n <project_name>"
+DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
+DEPLOYMENT_BASE_DIR=/www/html/report
 
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 GROUP_VOL_CGI=/groupvol/cgi
 
 SAMTOOLS_VERSION=0.1.19
+BEDTOOLS_VERSION=2.13.3
 BD_VERSION=1.2
 module load samtools/$SAMTOOLS_VERSION
+
+GENES_BED=/groupvol/cgi/resources/annotations/eukaryote/human/GRCh37/GRCh37.74.gene.bed
 
 #COMMAND LINE ARGS
 ##################
@@ -29,6 +34,7 @@ while getopts "s:n:h" option; do
 	
 		n) PROJECT="$OPTARG";;
 		s) SAMPLE_LIST="$OPTARG";;
+	        b) GENES_BED="$OPTARG";;
 		h) echo "$USAGE";;
 		[?]) echo "$USAGE";;
 
@@ -89,11 +95,15 @@ MS_RESULTS_DIR=$RESULTS_DIR_PROJECT/$TODAY/multisample
 mkdir -p $MS_RESULTS_DIR
 chmod 0770 $MS_RESULTS_DIR
 
+#create deployment directory for summary
+SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/breakDancer/$TODAY
+ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
+
 echo -n "" > $MS_ANALYSIS_DIR/merge_dependency.tsv   
 
 #for each sample (make sure that each sample and date is unique) run MuTect
-sort $SAMPLE_LIST | uniq | while read SAMPLE_NORMAL SAMPLE_TUMOR DATE; do
-	
+sort $SAMPLE_LIST | uniq | while read SAMPLE_NORMAL SAMPLE_TUMOR DATE SEX; do
+
         if [[ "$SAMPLE_NORMAL" != "" ]] && [[ "$SAMPLE_TUMOR" != "" ]]; then
 
 		echo "`$NOW`"
@@ -127,23 +137,22 @@ sort $SAMPLE_LIST | uniq | while read SAMPLE_NORMAL SAMPLE_TUMOR DATE; do
 		    TMPSPACE_GB=$(( $BAM_SIZE_GB * 2 ))
 
 		    #run breakDancer job for translocations
-		    local SCRIPT_PATH=$ANALYSIS_DIR_SAMPLE/run/BD_${SAMPLE_NAME}_translocations.sh
+		    SCRIPT_PATH=$ANALYSIS_DIR_SAMPLE/run/BD_${SAMPLE_NAME}_translocations.sh
 		    cp $BASEDIR/bd.sh $SCRIPT_PATH
 		    chmod 0770 $SCRIPT_PATH	
 
         	    #set variables 
-         	    sed -i -e "s/#tmpSpace/${tmpspace_gb}/" $SCRIPT_PATH
+         	    sed -i -e "s/#tmpSpace/${TMPSPACE_GB}/" $SCRIPT_PATH
  		    sed -i -e "s/#samtoolsVersion/${SAMTOOLS_VERSION}/" $SCRIPT_PATH
  		    sed -i -e "s/#bdVersion/${BD_VERSION}/" $SCRIPT_PATH
 
-        	    sed -i -e "s/#inputBam/${bam_file//\//\\/}/" $SCRIPT_PATH
-        	    sed -i -e "s/#resultsFolder/${results_dir//\//\\/}/" $SCRIPT_PATH
+        	    sed -i -e "s/#inputBam/${BAM_FILE//\//\\/}/" $SCRIPT_PATH
+        	    sed -i -e "s/#resultsFolder/${RESULTS_DIR_SAMPLE//\//\\/}/" $SCRIPT_PATH
 
 		    echo "`$NOW`$SCRIPT_PATH"
         	    LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
-        	    JOB_ID=`qsub -o $LOG_PATH $SCRIPT_PATH`
+        	    JOB_ID=`qsub -q pqcgi -o $LOG_PATH $SCRIPT_PATH`
         	    echo "`$NOW`JOB_ID: $JOB_ID"
-
 		    echo -e "$JOB_ID" >> $MS_ANALYSIS_DIR/merge_dependency.tsv 
 
 		done
@@ -154,24 +163,28 @@ done
 
 echo "`$NOW`"
 echo "`$NOW`"
-echo "`$NOW` select somatic translocations that came up in multiple patients"
+echo "`$NOW`select somatic translocations that came up in multiple patients"
 
 MERGE_DEPENDENCY=afterok
 for JOB_ID in `cut -f 1 $MS_ANALYSIS_DIR/merge_dependency.tsv`; do
         MERGE_DEPENDENCY="$MERGE_DEPENDENCY:$JOB_ID"
 done
 
-local SCRIPT_PATH=$MS_ANALYSIS_DIR/run/PP_${PROJECT}.sh
-cp $BASEDIR/postProcessing.pl $SCRIPT_PATH
+SCRIPT_PATH=$MS_ANALYSIS_DIR/run/PP_${PROJECT}.pl
+cp $BASEDIR/filter_mult.pl $SCRIPT_PATH
 chmod 0770 $SCRIPT_PATH
 
 #set variables 
 BD_DIR=$RESULTS_DIR_PROJECT/$TODAY
-sed -i -e "s/#samtoolsVersion/${SAMTOOLS_VERSION}/" $SCRIPT_PATH
+sed -i -e "s/#bedtoolsVersion/${BEDTOOLS_VERSION}/" $SCRIPT_PATH
 sed -i -e "s/#bdDir/${BD_DIR//\//\\/}/" $SCRIPT_PATH
-sed -i -e "s/#resultsDir/${MS_RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#genesBed/${GENES_BED//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#project/${PROJECT//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#deploymentServer/${DEPLOYMENT_SERVER//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SCRIPT_PATH
 
 echo "`$NOW`$SCRIPT_PATH"
 LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
-qsub -l walltime=24:00:00 -l mem=10gb -M cgi@imperial.ac.uk -m ea -j oe -q pqcgi -W depend=$MERGE_DEPENDENCY -o $LOG_PATH $SCRIPT_PATH
+JOB_ID=`qsub -l walltime=24:00:00 -l mem=10gb -M cgi@imperial.ac.uk -m ea -j oe -q pqcgi -W depend=$MERGE_DEPENDENCY -o $LOG_PATH $SCRIPT_PATH`
+echo "`$NOW`JOB_ID: $JOB_ID"
 
