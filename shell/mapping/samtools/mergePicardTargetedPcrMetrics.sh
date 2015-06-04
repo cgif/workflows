@@ -170,6 +170,8 @@ do
 		
 done	
 
+perl -i -pe 's/X(.*?)\.(\d*?)\.(\d*?)/$1:$2-$3/' $OUTPUT_FILE
+
 #plot coverage across samples and amplicons
 echo "`${NOW}`generating coverage plots..."
 
