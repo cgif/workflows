@@ -149,10 +149,14 @@ then
 	echo "`${NOW}`using target coordinates: $PATH_TARGET_INTERVALS"
      elif [[ "$METRIC" == "TP" ]]
      then
-	if [[ ! -f $PATH_BAIT_AMPLICON_INTERVALS ]] || [[ ! -f $PATH_TARGET_INTERVALS ]] || [[ ! -f $PATH_NON_OVERLAPPING_INTERVALS ]]
+	if [[ ! -f $PATH_BAIT_AMPLICON_INTERVALS ]] || [[ ! -f $PATH_TARGET_INTERVALS ]]
         then
-	    echo "`${NOW}`bait coordinates file or target coordinates file or non-overlapping intervals file is missing"
+	    echo "`${NOW}`bait coordinates file or target coordinates file is missing"
 	    exit 1
+	if [[ ! -f $PATH_NON_OVERLAPPING_INTERVALS ]] && [[ "$PATH_NON_OVERLAPPING_INTERVALS" != "none" ]]
+		then
+		echo "`${NOW}`non-overlapping intervals file is missing and is not set to none"
+		exit 1
 	fi
 	echo "`${NOW}`generating Targeted PCR metrics from merged file"
         echo "`${NOW}`using amplicon coordinates: $PATH_BAIT_AMPLICON_INTERVALS"
