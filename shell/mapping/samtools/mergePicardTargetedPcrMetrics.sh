@@ -176,6 +176,58 @@ perl -i -pe 's/X(.*?)\.(\d*?)\.(\d*?)/$1:$2-$3/' $OUTPUT_FILE
 echo "`${NOW}`generating coverage plots..."
 
 R --vanilla < $RUN_DIR/plot_amplicon_summary_metrics.R
+
+# if we have non-overlapping region statistics, merge gatk coverage as well
+
+if [[ "$NON_OVERLAPPING" == TRUE ]]; then
+
+	echo "`${NOW}` merging interval coverage from GATK DepthOfCoverage..."
+	METRIC=sample_interval_summary
+
+	HEADER_FILE=`ls $MERGETAG_PROJECT_DIRECTORY/$MERGETAG_DATE/*/*.bam.non_overlapping.perAmpliconCoverage.$METRIC | head -n 1`
+	OUTPUT_FILE=$OUTPUT_DIR/$PROJECT_NAME.$MERGETAG_DATE.non_overlapping.$METRIC
+
+	#print header
+	cut -f1 $HEADER_FILE | perl -e 'while(<>){ s/Target/Sample/; if(!eof){s/\n/\t/}; print;  }' > $OUTPUT_FILE
+
+	for SAMPLE in `ls $MERGETAG_PROJECT_DIRECTORY/$MERGETAG_DATE`
+	do
+
+		if [[ "$SAMPLE" != "multisample" ]]
+		then
+
+			METRIC_FILE=$MERGETAG_PROJECT_DIRECTORY/$MERGETAG_DATE/$SAMPLE/$SAMPLE.bam.non_overlapping.perAmpliconCoverage.$METRIC
+			if [[ -f "$METRIC_FILE" ]]
+			then
+				cut -f3 $METRIC_FILE | perl -e "while(<>){ 
+												if(/average_coverage/){
+													print \"$SAMPLE\t\"; 
+												} else {
+													s/\n//; 
+													printf(\"%.0f\", \$_); 
+													if(!eof){ 
+														print \"\t\"; 
+													} else { 
+														print \"\n\"; 
+													} 
+												}
+											}" >> $OUTPUT_FILE
+			else
+				echo "Warning: $METRIC_FILE for $SAMPLE does not exist"
+			fi
+		fi
+	done	
+
+	perl -i -pe 's/X(.*?)\.(\d*?)\.(\d*?)/$1:$2-$3/' $OUTPUT_FILE
+
+	#plot coverage across samples and non_overlapping amplicon regions
+	echo "`${NOW}`generating coverage plots for non-overlapping regions..."
+
+	R --vanilla < $RUN_DIR/plot_amplicon_summary_metrics.non_overlapping.R
+
+fi
+
+
 	
 echo "`${NOW}`done"
 

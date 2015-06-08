@@ -311,6 +311,19 @@ if ($collect_metric =~ /TP/){
                                         "<A HREF = '$url/metrics/$metrics_name.png'> [Plot]</A>".
 					"</FONT><BR>";
     }
+	$metrics_name = "$project.$date.non_overlapping.sample_interval_summary";
+    $metrics_file = "$metrics_path/$metrics_name";
+    $html_file = "$html_path/$metrics_name.php";
+	$png_file = "$metrics_path/$metrics_name.png";
+    if (-s $metrics_file){
+        system("scp -r $metrics_file $deployment_server:$summary_deployment/metrics/$metrics_name");
+	system("scp -r $html_file $deployment_server:$summary_deployment/metrics/$metrics_name.php");
+	system("scp -r $png_file $deployment_server:$summary_deployment/metrics/$metrics_name.png");
+        print OUT "<P><FONT SIZE = '+1'><A HREF = '$url/metrics/$metrics_name.php'>Target coverage non-overlapping amplicon regions (GATK)</A>".
+                                        "<A HREF = '$url/metrics/$metrics_name'> [TSV]</A>".
+                                        "<A HREF = '$url/metrics/$metrics_name.png'> [Plot]</A>".
+					"</FONT><BR>";
+    }
 }
 
 if ($collect_metric =~ /HS/){

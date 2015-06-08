@@ -467,6 +467,19 @@ then
  	sed -i -e "s/#resultsDir/${OUTPUT_DIR//\//\\/}/" $R_SCRIPT_PATH	
  	sed -i -e "s/#sampleIntervalSummary/$SAMPLE_INTERVAL_SUMMARY/" $R_SCRIPT_PATH
 
+	# plot non-overlapping regions coverage if using non-overlapping regions
+	if [[ "$PATH_NON_OVERLAPPING_INTERVALS" != "none" ]]; then
+
+		SAMPLE_INTERVAL_SUMMARY=$PROJECT.$TODAY.non_overlapping.sample_interval_summary
+		R_SCRIPT_PATH=$SCRIPT_DIR/plot_amplicon_summary_metrics.non_overlapping.R
+
+		cp $BASEDIR/plot_amplicon_summary_metrics.R $R_SCRIPT_PATH
+	
+ 		sed -i -e "s/#resultsDir/${OUTPUT_DIR//\//\\/}/" $R_SCRIPT_PATH	
+ 		sed -i -e "s/#sampleIntervalSummary/$SAMPLE_INTERVAL_SUMMARY/" $R_SCRIPT_PATH
+
+	fi
+
 	
 	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
 	echo -n "" > $LOG_OUTPUT_PATH
@@ -478,30 +491,39 @@ then
 	METRIC_MERGING_DEPENDECIES="$METRIC_MERGING_DEPENDECIES:$JOB_ID"
 
 	OUTPUT_FILE=$PROJECT.$TODAY.targetedPcrMetrics
-        HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
-        cp $BASEDIR/../../helper/tsvToHtmlTable.php $HTML_PATH
-        sed -i -e "s/#header/Targeted PCR Metrics/" $HTML_PATH
-        sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
+	HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
+	cp $BASEDIR/../../helper/tsvToHtmlTable.php $HTML_PATH
+	sed -i -e "s/#header/Targeted PCR Metrics/" $HTML_PATH
+	sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
 	cat $BASEDIR/picardTargetPcrMetricsColumnDescriptions.txt >> $HTML_PATH
 
 	OUTPUT_FILE=$PROJECT.$TODAY.perTargetCoverage
-        HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
-        cp $BASEDIR/../../helper/tsvToHtmlTable.php $HTML_PATH
-        sed -i -e "s/#header/Target coverage Picard/" $HTML_PATH
-        sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
+	HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
+	cp $BASEDIR/../../helper/tsvToHtmlTable.php $HTML_PATH
+	sed -i -e "s/#header/Target coverage Picard/" $HTML_PATH
+	sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
 
-	OUTPUT_FILE=$PROJECT.$TODAY.non_overlapping.perTargetCoverage
+	if [[ "$PATH_NON_OVERLAPPING_INTERVALS" != "none" ]]; then
+		OUTPUT_FILE=$PROJECT.$TODAY.non_overlapping.perTargetCoverage
         HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
         cp $BASEDIR/../../helper/tsvToHtmlTable.php $HTML_PATH
         sed -i -e "s/#header/Target coverage non-overlapping amplicon regions Picard/" $HTML_PATH
         sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
+	fi
 
 	OUTPUT_FILE=$PROJECT.$TODAY.sample_interval_summary
+	HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
+	cp $BASEDIR/../../helper/tsvToHtmlTable.php $HTML_PATH
+	sed -i -e "s/#header/Target coverage from GATK DepthOfCoverage/" $HTML_PATH
+	sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
+
+	if [[ "$PATH_NON_OVERLAPPING_INTERVALS" != "none" ]]; then
+		OUTPUT_FILE=$PROJECT.$TODAY.non_overlapping.sample_interval_summary
         HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
         cp $BASEDIR/../../helper/tsvToHtmlTable.php $HTML_PATH
-        sed -i -e "s/#header/Target coverage from GATK DepthOfCoverage/" $HTML_PATH
+        sed -i -e "s/#header/Target coverage non-overlapping amplicon regions from GATK DepthOfCoverage/" $HTML_PATH
         sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
-
+	fi
 
 
 elif [ "$METRIC" == "HS" ]
