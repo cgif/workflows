@@ -142,8 +142,7 @@ for chunk_name in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`; do
 
 done
 
-
-#wait for samtools view to finish
+#wait to finish
 echo "`${NOW}`INFO waiting for chunk extraction to finish..."
 #wait $PROCESS_IDS
 checkStatus
