@@ -3,7 +3,6 @@
 $is_project_dir = "T";
 $project_dir_analysis = "projectDirAnalysis";
 $project_dir_results = "projectDirResults";
-$today = "Today";
 $summary_results = "summaryResults";
 $deployment_server = "deploymentServer";
 $summary_deployment = "summaryDeployment";

@@ -51,10 +51,6 @@ MULT_READS=multReads
  
 PATH_ALN_BAM=$PATH_OUTPUT_DIR/$OUTPUT_PREFIX.unsorted.bam
 
-#temporary file paths
-TMP_PATH_READS_FASTQ1_SUBSET=$TMPDIR/tmp_reads1_subset.fq
-TMP_PATH_READS_FASTQ2_SUBSET=$TMPDIR/tmp_reads2_subset.fq
-
 TMP_PATH_REFERENCE_FASTA_NO_EXT=$TMPDIR/tmp_reference.fa
 
 TMP_PATH_ALN_BAM_PREFIX=$TMPDIR/tmp_aln.unsorted
@@ -67,10 +63,18 @@ do
   cp ${PATH_REFERENCE_FASTA_NO_EXT}.${POSTFIX} ${TMP_PATH_REFERENCE_FASTA_NO_EXT}.${POSTFIX}
 done;
 
-#copy read data
+#copy read data to temporary file paths
+#paired templorary fastq file is kept empty if data is single-ended
 echo "`${NOW}`copying reads to temporary scratch space..."
+TMP_PATH_READS_FASTQ1_SUBSET=$TMPDIR/tmp_reads1_subset.fq
 cp $PATH_READS_FASTQ1_NO_EXT $TMP_PATH_READS_FASTQ1_SUBSET
-cp $PATH_READS_FASTQ2_NO_EXT $TMP_PATH_READS_FASTQ2_SUBSET
+
+if [ -s $PATH_READS_FASTQ2_NO_EXT ]; then
+	TMP_PATH_READS_FASTQ2_SUBSET=$TMPDIR/tmp_reads2_subset.fq
+	cp $PATH_READS_FASTQ2_NO_EXT $TMP_PATH_READS_FASTQ2_SUBSET
+else
+	TMP_PATH_READS_FASTQ2_SUBSET=""
+fi
 
 #count input reads
 echo -n "`${NOW}`counting reads (read1 + read2) in input files: "
@@ -78,7 +82,12 @@ INPUT_LINE_COUNT=`wc -l $TMP_PATH_READS_FASTQ1_SUBSET | cut -f1 -d ' '`
 #devide line number by 2 (not by 4 because we want the total
 #number of reads (read1+read2) not the total number of read
 #pairs
-INPUT_READ_COUNT=$(($INPUT_LINE_COUNT/2))
+#devide by 2 if data is single-ended
+if [ -s $PATH_READS_FASTQ2_NO_EXT ]; then
+	INPUT_READ_COUNT=$(($INPUT_LINE_COUNT/2))
+else
+	INPUT_READ_COUNT=$(($INPUT_LINE_COUNT/4))
+fi
 echo $INPUT_READ_COUNT
 
 
@@ -144,8 +153,10 @@ then
 	echo "`${NOW}`deleting temporary fastq files of read subset..."
 	echo "`${NOW}`$PATH_READS_FASTQ1_NO_EXT"	
 	rm $PATH_READS_FASTQ1_NO_EXT
-	echo "`${NOW}`$PATH_READS_FASTQ2_NO_EXT"
-        rm $PATH_READS_FASTQ2_NO_EXT
+	if [ -s $PATH_READS_FASTQ2_NO_EXT ]; then
+		echo "`${NOW}`$PATH_READS_FASTQ2_NO_EXT"
+        	rm $PATH_READS_FASTQ2_NO_EXT
+	fi
 
 else
 
