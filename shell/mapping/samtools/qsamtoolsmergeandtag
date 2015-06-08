@@ -134,45 +134,36 @@ echo "`${NOW}`using read group info: $PATH_READ_GROUP_INFO"
 #echo "`${NOW}`using header         : $PATH_HEADER"
 
 
-if [[ "$METRIC" != "NONE" ]]
-then
-
-     if [[ "$METRIC" == "HS" ]]
-     then
-	if [[ ! -f $PATH_BAIT_AMPLICON_INTERVALS ]] || [[ ! -f $PATH_TARGET_INTERVALS ]]
-	then
-	    echo "`${NOW}`bait coordinates file or target coordinates file is missing"
-	    exit 1
-	fi
-	echo "`${NOW}`generating Hybrid Sequencing metrics from merged file"
+if [[ "$METRIC" != "NONE" ]]; then
+	if [[ "$METRIC" == "HS" ]]; then
+		if [[ ! -f $PATH_BAIT_AMPLICON_INTERVALS ]] || [[ ! -f $PATH_TARGET_INTERVALS ]]; then
+	    	echo "`${NOW}`bait coordinates file or target coordinates file is missing"
+	    	exit 1
+		fi
+		echo "`${NOW}`generating Hybrid Sequencing metrics from merged file"
         echo "`${NOW}`using bait coordinates  : $PATH_BAIT_AMPLICON_INTERVALS"
-	echo "`${NOW}`using target coordinates: $PATH_TARGET_INTERVALS"
-     elif [[ "$METRIC" == "TP" ]]
-     then
-	if [[ ! -f $PATH_BAIT_AMPLICON_INTERVALS ]] || [[ ! -f $PATH_TARGET_INTERVALS ]]
-        then
-	    echo "`${NOW}`bait coordinates file or target coordinates file is missing"
-	    exit 1
-	if [[ ! -f $PATH_NON_OVERLAPPING_INTERVALS ]] && [[ "$PATH_NON_OVERLAPPING_INTERVALS" != "none" ]]
-		then
-		echo "`${NOW}`non-overlapping intervals file is missing and is not set to none"
+		echo "`${NOW}`using target coordinates: $PATH_TARGET_INTERVALS"
+	elif [[ "$METRIC" == "TP" ]]; then
+		if [[ ! -f $PATH_BAIT_AMPLICON_INTERVALS ]] || [[ ! -f $PATH_TARGET_INTERVALS ]]; then
+			echo "`${NOW}`bait coordinates file or target coordinates file is missing"
 		exit 1
-	fi
-	echo "`${NOW}`generating Targeted PCR metrics from merged file"
-        echo "`${NOW}`using amplicon coordinates: $PATH_BAIT_AMPLICON_INTERVALS"
-	echo "`${NOW}`using target coordinates  : $PATH_TARGET_INTERVALS"
-     elif [[ "$METRIC" == "RS" ]]
-     then
-	if [[ ! -f $PATH_RIBOSOMAL_RNA_INTERVALS ]] || [[ ! -f $PATH_ANNOTATION_REFFLAT ]]
-        then
-	    echo "`${NOW}`ribosomal RNA coordinates file or annotation refFlat file is missing"
-	    exit 1
-	fi
+		fi
+		if [[ ! -f $PATH_NON_OVERLAPPING_INTERVALS ]] && [[ "$PATH_NON_OVERLAPPING_INTERVALS" != "none" ]]; then
+			echo "`${NOW}`non-overlapping intervals file is missing and is not set to none"
+			exit 1
+		fi
+		echo "`${NOW}`generating Targeted PCR metrics from merged file"
+		echo "`${NOW}`using amplicon coordinates: $PATH_BAIT_AMPLICON_INTERVALS"
+		echo "`${NOW}`using target coordinates  : $PATH_TARGET_INTERVALS"
+	elif [[ "$METRIC" == "RS" ]]; then
+		if [[ ! -f $PATH_RIBOSOMAL_RNA_INTERVALS ]] || [[ ! -f $PATH_ANNOTATION_REFFLAT ]]; then
+			echo "`${NOW}`ribosomal RNA coordinates file or annotation refFlat file is missing"
+			exit 1
+		fi
 	echo "`${NOW}`generating RNA-seq metrics from merged file"
-        echo "`${NOW}`using ribosomal RNA coordinates: $PATH_RIBOSOMAL_RNA_INTERVALS"
-        echo "`${NOW}`using annotation refFlat file: $PATH_ANNOTATION_REFFLAT"
-     fi
-
+		echo "`${NOW}`using ribosomal RNA coordinates: $PATH_RIBOSOMAL_RNA_INTERVALS"
+		echo "`${NOW}`using annotation refFlat file: $PATH_ANNOTATION_REFFLAT"
+	fi
 fi
 
 #parse project name from input directory
