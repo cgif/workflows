@@ -496,6 +496,29 @@ then
 		chmod 660 $OUT_BAM.perAmpliconCoverage.$EXT
 	done;
 
+	# if using non-overlapping intervals file, calculate gatk coverage for non-overlapping regions
+ 
+	if [[ "$PATH_NON_OVERLAPPING_INTERVALS" != "none" ]]; then
+
+		echo "`${NOW}`collecting GATK amplicon coverage metrics..."	
+		java -XX:+UseSerialGC -Xmx$JAVA_XMX -jar $GATK_HOME/GenomeAnalysisTK.jar \
+			-R tmp_reference.fa \
+   			-T DepthOfCoverage \
+   			--countType COUNT_FRAGMENTS \
+   			--omitDepthOutputAtEachBase \
+   			-o $TMP_PATH_OUT_BAM.non_overlapping.depthOfCoverage \
+   			-I $TMP_PATH_OUT_BAM.sorted.dupmark.clean.bam \
+			-rf BadCigar \
+   			-L $TMPDIR/tmp_amplicon.non_overlapping.intervals
+
+		for EXT in sample_cumulative_coverage_counts sample_cumulative_coverage_proportions sample_interval_statistics sample_interval_summary sample_statistics sample_summary
+		do
+			cp $TMP_PATH_OUT_BAM.non_overlapping.depthOfCoverage.$EXT $OUT_BAM.non_overlapping.perAmpliconCoverage.$EXT
+			chmod 660 $OUT_BAM.non_overlapping.perAmpliconCoverage.$EXT
+		done;
+
+	fi
+
 
 	echo "`${NOW}`-------------------------------------------------------------------------------------------------------"
 

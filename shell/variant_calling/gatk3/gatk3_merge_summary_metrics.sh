@@ -145,19 +145,25 @@ echo "`${NOW}`INFO $SCRIPT_CODE done"
 
 if [ -s "$OUTPUT_FILE_TMP" ]; then
 
-	#transpose interval summary
-	echo "`${NOW}`INFO $SCRIPT_CODE transposing interval_summary table..."
+	if [[ "$TYPE" != "TARGETED" ]]; then
 
-	#configure script
-	sed -i -e "s/#inputTable/${OUTPUT_FILE_TMP//\//\\/}/" $TMPDIR/transposeTable.R
+		#transpose interval summary
+		echo "`${NOW}`INFO $SCRIPT_CODE transposing interval_summary table..."
 
-	#execute script
-	R --vanilla < $TMPDIR/transposeTable.R
+		#configure script
+		sed -i -e "s/#inputTable/${OUTPUT_FILE_TMP//\//\\/}/" $TMPDIR/transposeTable.R
 
-	#reformat chromosome coordinates
-	perl -i -pe 's/X(.?)\.(\d*?)\.(\d*?)/$1:$2-$3/' $OUTPUT_FILE_TMP.tr
+		#execute script
+		R --vanilla < $TMPDIR/transposeTable.R
 
-	mv $OUTPUT_FILE_TMP.tr $OUTPUT_FILE_TMP
+		#reformat chromosome coordinates
+		perl -i -pe 's/X(.*?)\.(\d*?)\.(\d*?)/$1:$2-$3/' $OUTPUT_FILE_TMP.tr
+
+		mv $OUTPUT_FILE_TMP.tr $OUTPUT_FILE_TMP
+
+	else
+		perl -i -pe 's/X(.*?)\.(\d*?)\.(\d*?)/$1:$2-$3/' $OUTPUT_FILE_TMP
+	fi
 
 	cp $OUTPUT_FILE_TMP $OUTPUT_FILE
 
@@ -171,9 +177,6 @@ then
 fi
 
 echo -e "`${NOW}`$SCRIPT_CODE\t$SAMPLE\tall\t${METRIC}_metrics_merged\t$STATUS" >> $RUN_LOG
-
-
-echo "`${NOW}`INFO $SCRIPT_CODE done"
 
 
 #generate XLSX from TSV
