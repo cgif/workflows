@@ -24,7 +24,7 @@ echo "`$NOW`merging AlignmentSummaryMetrics files..."
 #get first file to extract header from
 HEADER_FILE=`ls $MERGETAG_PROJECT_DIRECTORY/$MERGETAG_DATE/*/*alignment_summary_metrics | head -n 1`
 
-for CATEGORY in FIRST_OF_PAIR SECOND_OF_PAIR PAIR
+for CATEGORY in FIRST_OF_PAIR SECOND_OF_PAIR PAIR UNPAIRED
 do
 
 	#create outputfile
@@ -47,7 +47,7 @@ do
 		if [[ -e "$METRICS_FILE" ]]		
 		then		
 	
-			for CATEGORY in FIRST_OF_PAIR SECOND_OF_PAIR PAIR
+			for CATEGORY in FIRST_OF_PAIR SECOND_OF_PAIR PAIR UNPAIRED
 			do
 
 				OUTPUT_FILE=$OUTPUT_DIR/$PROJECT_NAME.$MERGETAG_DATE.alignment_summary_metrics.$CATEGORY

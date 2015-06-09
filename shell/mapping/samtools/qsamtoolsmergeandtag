@@ -28,6 +28,7 @@ NOW="date +%Y-%m-%d%t%T%t"
 
 #today
 TODAY=`date +%Y-%m-%d`
+TODAY=2015-06-08
 
 QUEUE=pqcgi
 
@@ -487,6 +488,7 @@ then
 
 	echo "`${NOW}`submitting job script to merge targeted PCR metrics: $SCRIPT_PATH "
 	JOB_ID=`qsub -W depend=$METRIC_MERGING_DEPENDECIES -q $QUEUE -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+
 	echo "`$NOW`job ID: $JOB_ID"
 	METRIC_MERGING_DEPENDECIES="$METRIC_MERGING_DEPENDECIES:$JOB_ID"
 
@@ -616,7 +618,7 @@ then
 	METRIC_MERGING_DEPENDECIES="$METRIC_MERGING_DEPENDECIES:$JOB_ID"
 
         #create php script that translate tsv file into html
-	for CATEGORY in FIRST_OF_PAIR SECOND_OF_PAIR PAIR
+	for CATEGORY in FIRST_OF_PAIR SECOND_OF_PAIR PAIR UNPAIRED
 	do
 
 	    OUTPUT_FILE=$PROJECT.$TODAY.alignment_summary_metrics.$CATEGORY

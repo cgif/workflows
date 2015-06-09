@@ -254,11 +254,13 @@ if ($metric_level =~ /S/){
 
 if ($metric_level =~ /S/){
     print OUT "<HR><TABLE><TR><TD><FONT SIZE = '+1'>Alignment summary metrics";
-    foreach $category (qw(FIRST_OF_PAIR SECOND_OF_PAIR PAIR)){
+    foreach $category (qw(FIRST_OF_PAIR SECOND_OF_PAIR PAIR UNPAIRED)){
 	$metrics_name = "$project.$date.alignment_summary_metrics.$category";
 	$metrics_file = "$metrics_path/$metrics_name";
 	$html_file = "$html_path/$metrics_name.php";
-	if (-s $metrics_file){
+        $lines = `wc -l $metrics_file|cut -f 1 -d ' '`;
+	chomp($lines);
+	if ($lines > 1){
 	    system("scp -r $metrics_file $deployment_server:$summary_deployment/metrics/$metrics_name");
 	    system("scp -r $html_file $deployment_server:$summary_deployment/metrics/$metrics_name.php");
 	    print OUT "<TR><TD><TD><A HREF = '$url/metrics/$metrics_name.php'>$category</A>";
