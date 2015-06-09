@@ -28,7 +28,6 @@ NOW="date +%Y-%m-%d%t%T%t"
 
 #today
 TODAY=`date +%Y-%m-%d`
-TODAY=2015-06-08
 
 QUEUE=pqcgi
 
