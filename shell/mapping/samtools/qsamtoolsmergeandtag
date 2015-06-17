@@ -394,36 +394,40 @@ do
 	
 	METRIC_MERGING_DEPENDECIES="$METRIC_MERGING_DEPENDECIES:$JOB_ID"
 
+	if [[ "$METRIC" != "TP" ]]
+	then
 
-        #print progress summary for submitted jobs
-        #if job is completed and log file is created in the run directory
-        #script examines whether the output files are in place and not empty
+        	#print progress summary for submitted jobs
+        	#if job is completed and log file is created in the run directory
+        	#script examines whether the output files are in place and not empty
  
-        SCRIPT_PATH=$PATH_RUN_DIR/summary_mergeandtag.$SAMPLE.pl
-        cp $BASEDIR/summary_mergeandtag.pl $SCRIPT_PATH
-	chmod 770 $SCRIPT_PATH
+        	SCRIPT_PATH=$PATH_RUN_DIR/summary_mergeandtag.$SAMPLE.pl
+        	cp $BASEDIR/summary_mergeandtag.pl $SCRIPT_PATH
+		chmod 770 $SCRIPT_PATH
 
-        sed -i -e "s/projectDirAnalysis/${PATH_RUN_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
-        sed -i -e "s/projectDirResults/${PATH_OUT_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
-        sed -i -e "s/Today/$TODAY/" $SCRIPT_PATH
-	sed -i -e "s/Project/$PROJECT/" $SCRIPT_PATH
-        sed -i -e "s/deploymentServer/$DEPLOYMENT_SERVER/" $SCRIPT_PATH
-        sed -i -e "s/summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SCRIPT_PATH
-        sed -i -e "s/summaryResults/${SUMMARY_RESULTS//\//\\/}/" $SCRIPT_PATH
-        sed -i -e "s/sampleList/${PATH_READ_GROUP_INFO//\//\\/}/" $SCRIPT_PATH
-        sed -i -e "s/markDuplicates/$MARK_DUPLICATES/" $SCRIPT_PATH
-	sed -i -e "s/metricLevel/$METRIC_LEVEL/" $SCRIPT_PATH
-	sed -i -e "s/collectMetric/$METRIC/" $SCRIPT_PATH
+        	sed -i -e "s/projectDirAnalysis/${PATH_RUN_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
+        	sed -i -e "s/projectDirResults/${PATH_OUT_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
+        	sed -i -e "s/Today/$TODAY/" $SCRIPT_PATH
+		sed -i -e "s/Project/$PROJECT/" $SCRIPT_PATH
+        	sed -i -e "s/deploymentServer/$DEPLOYMENT_SERVER/" $SCRIPT_PATH
+        	sed -i -e "s/summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SCRIPT_PATH
+        	sed -i -e "s/summaryResults/${SUMMARY_RESULTS//\//\\/}/" $SCRIPT_PATH
+        	sed -i -e "s/sampleList/${PATH_READ_GROUP_INFO//\//\\/}/" $SCRIPT_PATH
+        	sed -i -e "s/markDuplicates/$MARK_DUPLICATES/" $SCRIPT_PATH
+		sed -i -e "s/metricLevel/$METRIC_LEVEL/" $SCRIPT_PATH
+		sed -i -e "s/collectMetric/$METRIC/" $SCRIPT_PATH
 
-        LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.pl/\.log/g'`
-	echo -n "" > $LOG_OUTPUT_PATH
-	chmod 660 $LOG_OUTPUT_PATH
+        	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.pl/\.log/g'`
+		echo -n "" > $LOG_OUTPUT_PATH
+		chmod 660 $LOG_OUTPUT_PATH
 
-	echo "`${NOW}`submitting summary script $SCRIPT_PATH "
-        SUM_JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH -j oe -W depend=afterany:$JOB_ID -M cgi@imperial.ac.uk $SCRIPT_PATH` 
-	echo "`$NOW`job ID: $SUM_JOB_ID"
+		echo "`${NOW}`submitting summary script $SCRIPT_PATH "
+        	SUM_JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH -j oe -W depend=afterany:$JOB_ID -M cgi@imperial.ac.uk $SCRIPT_PATH` 
+		echo "`$NOW`job ID: $SUM_JOB_ID"
 
-	METRIC_MERGING_DEPENDECIES="$METRIC_MERGING_DEPENDECIES:$SUM_JOB_ID"
+		METRIC_MERGING_DEPENDECIES="$METRIC_MERGING_DEPENDECIES:$SUM_JOB_ID"
+
+	fi
 
 done;
 
