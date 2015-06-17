@@ -178,6 +178,7 @@ foreach $sample (sort {$a cmp $b} keys %data){
 	    }
 	    $f1 = 0;
 	    $f2 = 0;
+	    print OUT "/n";
         }
     }
 }
