@@ -3,7 +3,7 @@
 ## script to run GATK unified genotyper for genome
 
 #PBS -l walltime=48:00:00
-#PBS -l select=1:ncpus=#dataThreads:mem=16gb
+#PBS -l select=1:ncpus=#dataThreads:mem=25gb
 
 #PBS -M cgi@imperial.ac.uk
 #PBS -m ea
