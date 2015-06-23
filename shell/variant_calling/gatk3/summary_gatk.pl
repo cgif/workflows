@@ -39,7 +39,7 @@ while (<CHUNKS>){
     $total_chunks = $chunk if $chunk > $total_chunks;
 }
 
-#collect lisr of sample names
+#collect list of sample names
 my @sample_all = ();
 
 open (LIST, "$sample_list");
@@ -167,7 +167,7 @@ if (-s $recalibrate_vcf_log){
     }
 }
 
-#collecct metrics from variant calling report
+#collect metrics from variant calling report
 my %report = ();
 my $eval_report = "$project_dir_results/$date/multisample/genotypeGVCFs/recalibration/$project"."_multisample.varianteval.dbSNP129.report";
 if (-s $eval_report){
@@ -431,7 +431,7 @@ if (defined $sum{'multisample'}{'raw_vcf'}){
 }
 
 
-#deploy summary metrics and print links to the summary page
+#deploy summary metrics and print links on summary page
 ############################################################
 
 #horizontal line
