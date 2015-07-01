@@ -1,5 +1,8 @@
 #!/usr/bin/perl -w
 
+use strict;
+use warnings;
+
 #This script generates on-line summary that reflects jobs progress. 
 #Once job is finished and non-empty log file is present in the run directory, 
 #its content is tested for the presence of error messages from gatk. 
@@ -7,31 +10,35 @@
 #(ii) expected output file is not empty then green tick appears in the summary table.
 #If at least one of these conditions is not satisfied then red cross appears in the summary table.
 
-$project_dir_analysis = "#projectDirAnalysis";
-$project_dir_results = "#projectDirResults";
-$date = "#today";
-$summary_results = "#summaryResults";
-$deployment_server = "#deploymentServer";
-$summary_deployment = "#summaryDeployment";
-$sample_list = "#sampleList";
-$ref_chunks = "#refChunks";
-$ref_intervals = "#refIntervals";
-$type = "#type";
-$summary_link = $1 if  $summary_deployment =~ /\/www\/html\/(.*)/;
+my $project_dir_analysis = "#projectDirAnalysis";
+my $project_dir_results = "#projectDirResults";
+my $date = "#today";
+my $summary_results = "#summaryResults";
+my $deployment_server = "#deploymentServer";
+my $summary_deployment = "#summaryDeployment";
+my $sample_list = "#sampleList";
+my $ref_chunks = "#refChunks";
+my $ref_intervals = "#refIntervals";
+my $type = "#type";
+my $summary_link = $1 if  $summary_deployment =~ /\/www\/html\/(.*)/;
 
-%sum = ();
+my %sum = ();
 
+#count number of chunks
 open (CHUNKS, "$ref_chunks");
-$total_chunks = 0;
+my $total_chunks = 0;
+my $chunk = 0;
 while (<CHUNKS>){
     chomp();
     $chunk = $1 if /^\S+\t\S+\t\S+\t\S+\t(\S+)/;
     $total_chunks = $chunk if $chunk > $total_chunks;
 }
 
+#count number of intervals
 if ($type eq "TARGETED" && $ref_intervals ne "null"){
     open (INTERVALS, "$ref_intervals");
-    $total_intervals = 0;
+    my $total_intervals = 0;
+    my $interval = 0;
     while (<INTERVALS>){
         chomp();
         $interval = $1 if /^\S+\t\S+\t\S+\t\S+\t(\S+)/;
@@ -39,31 +46,34 @@ if ($type eq "TARGETED" && $ref_intervals ne "null"){
     }
 }
 
-@sample = (); @list = ();
+#collect list of sample names
+my @sample = (); my @list = ();
 open (LIST, "$sample_list");
 while (<LIST>){    
+    next unless /\S/; 
     @list = split(/\t/, $_);
     push(@sample, $list[0]);
-    push(@sample, $list[2]);
+    push(@sample, $list[1]);
 }
 
-$i = 0;
-foreach $sample_norm (@sample){
+#collect status of SID jobs per sample per chunk
+my $i = 0;
+foreach my $sample_norm (@sample){
     $i ++;
     next if $i % 2 != 1;
-    $sample_tumor = "$sample[$i]";
-    $sample_pair = "$sample_norm.vs.$sample_tumor";
+    my $sample_tumor = "$sample[$i]";
+    my $sample_pair = "$sample_norm.vs.$sample_tumor";
 
-    foreach $chunk (1..$total_chunks){
-	$chunk_formatted=`printf "%.3d\n" $chunk`;
+    foreach my $chunk (1..$total_chunks){
+	my $chunk_formatted=`printf "%.3d\n" $chunk`;
 	chomp($chunk_formatted);
-	$indels_log = "$project_dir_analysis/$date/$sample_pair/run/SI_$sample_pair"."_$chunk_formatted.log";
+	my $indels_log = "$project_dir_analysis/$date/$sample_pair/run/SI_$sample_pair"."_$chunk_formatted.log";
 
 	$chunk = "chunk_$chunk";
 	if (-s $indels_log){
-	    $indels_grep = "";
+	    my $indels_grep = "";
 	    $indels_grep = `grep -vP '^WARN' $indels_log|grep ERROR`;
-	    $indels_file = "$project_dir_analysis/$date/$sample_pair/SomaticIndelDetector/$sample_pair.$chunk.vcf";
+	    my $indels_file = "$project_dir_analysis/$date/$sample_pair/SomaticIndelDetector/$sample_pair.$chunk.vcf";
 	    if (-s $indels_file && $indels_grep eq ""){
 		$sum{$sample_pair}{$chunk}{'indels_chunk'} = "PASS";
 	    }else{
@@ -71,11 +81,11 @@ foreach $sample_norm (@sample){
 	    }
 	}
     }
-    $merge_log = "$project_dir_analysis/$date/$sample_pair/run/MI_$sample_pair"."_000.log";
+    my $merge_log = "$project_dir_analysis/$date/$sample_pair/run/MI_$sample_pair"."_000.log";
     if (-s $merge_log){
-	$merge_grep = "";
+	my $merge_grep = "";
 	$merge_grep = `grep ERROR $merge_log`;
-	$merge_file = "$project_dir_results/$date/$sample_pair/$sample_pair.vcf";
+	my $merge_file = "$project_dir_results/$date/$sample_pair/$sample_pair.vcf";
 	if (-s $merge_file && $merge_grep eq ""){
 	    $sum{$sample_pair}{'merge_indels'} = "PASS";
 	}else{
@@ -95,21 +105,21 @@ print OUT "<TH><CENTER>Chunk";
 print OUT "<TH><CENTER>SomaticIndelDetector";
 
 $i = 0;
-foreach $sample_norm (@sample){
+foreach my $sample_norm (@sample){
     $i++;
     next if $i % 2 != 1;
-    $sample_tumor = "$sample[$i]";
-    $sample_pair = "$sample_norm.vs.$sample_tumor";
-    foreach $chunk (1..$total_chunks){
+    my $sample_tumor = "$sample[$i]";
+    my $sample_pair = "$sample_norm.vs.$sample_tumor";
+    foreach my $chunk (1..$total_chunks){
 	if ($chunk == 1){
 	    print OUT "<TR><TD>$sample_pair<TD><CENTER>$chunk\n";
 	}else{
 	    print OUT "<TR><TD> <TD><CENTER>$chunk\n";
 	}
 
-	$chunk_formatted=`printf "%.3d\n" $chunk`;
+	my $chunk_formatted=`printf "%.3d\n" $chunk`;
 	chomp($chunk_formatted);
-	$indels_log = "$project_dir_analysis/$date/$sample_pair/run/SI_$sample_pair"."_$chunk_formatted.log";
+	my $indels_log = "$project_dir_analysis/$date/$sample_pair/run/SI_$sample_pair"."_$chunk_formatted.log";
 
         $chunk = "chunk_$chunk";
 	if (-s $indels_log){
@@ -119,18 +129,18 @@ foreach $sample_norm (@sample){
     }
     print OUT "<TR><TD> <TD><CENTER>merged";
 
-    $merge_log = "$project_dir_analysis/$date/$sample_pair/run/MI_$sample_pair"."_000.log";
+    my $merge_log = "$project_dir_analysis/$date/$sample_pair/run/MI_$sample_pair"."_000.log";
     if (-s $merge_log){
 	if ($sum{$sample_pair}{'merge_indels'} eq "PASS"){
-	    $merge_file = "$project_dir_results/$date/$sample_pair/$sample_pair.stats.somatic";
-	    $merge_file_easy = "$project_dir_results/$date/$sample_pair/$sample_pair.stats.somatic.easy";
+	    my $merge_file = "$project_dir_results/$date/$sample_pair/$sample_pair.stats.somatic";
+	    my $merge_file_easy = "$project_dir_results/$date/$sample_pair/$sample_pair.stats.somatic.easy";
 
 	    open (EASY,">$merge_file_easy");
 	    print EASY "\tCONTIG\tSTART_POS\tEND_POS\tALT_ALLELE\t";
-	    $title = `head -n 1 $merge_file`;
+	    my $title = `head -n 1 $merge_file`;
 	    chomp($title);
-	    @title = split(/\t/, $title);
-	    foreach $column (@title){
+	    my @title = split(/\t/, $title);
+	    foreach my $column (@title){
 	        if ($column =~ /(.*):(.*)/){
 		    print EASY "$1\t";
 		}
@@ -141,8 +151,8 @@ foreach $sample_norm (@sample){
 	    while(<STATS>){
 		chomp;
 		print EASY "\t";
-		@data = split(/\t/, $_);
-		foreach $data (@data){
+		my @data = split(/\t/, $_);
+		foreach my $data (@data){
 		    if ($data =~ /(.*):(.*)/){
 			print EASY "$2\t";
 		    }else {
@@ -152,8 +162,8 @@ foreach $sample_norm (@sample){
 		print EASY "\n";
 	    }
 
-	    $php_file = "$project_dir_results/$date/$sample_pair/$sample_pair.stats.somatic.php";
-            $indels_deployment = "$summary_deployment/stats";
+	    my $php_file = "$project_dir_results/$date/$sample_pair/$sample_pair.stats.somatic.php";
+            my $indels_deployment = "$summary_deployment/stats";
             system("ssh $deployment_server mkdir -p -m 775 $indels_deployment > /dev/null 2>&1");
             system("scp -r $merge_file.easy $deployment_server:$indels_deployment/$sample_pair.stats.somatic > /dev/null 2>&1");
             system("scp -r $php_file $deployment_server:$indels_deployment/$sample_pair.stats.somatic.php > /dev/null 2>&1");
@@ -164,10 +174,13 @@ foreach $sample_norm (@sample){
     }
 } 
 
+print OUT "</TABLE>\n";
+
+#deploy summary
 system("scp -r $summary_results/index.html $deployment_server:$summary_deployment/index.html > /dev/null 2>&1");
 system("ssh $deployment_server chmod -R 775 $summary_deployment/* > /dev/null 2>&1");
 
-print OUT "</TABLE>\n";
+
 
 
 

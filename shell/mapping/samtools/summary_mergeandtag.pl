@@ -1,22 +1,29 @@
 #!/usr/bin/perl -w
 
-$project_dir_analysis = "projectDirAnalysis";
-$project_dir_results = "projectDirResults";
-$date = "Today";
-$project = "Project";
-$deployment_server = "deploymentServer";
-$summary_results = "summaryResults";
-$summary_deployment = "summaryDeployment";
-$sample_list = "sampleList";
-$mark_duplicates = "markDuplicates";
-$metric_level="metricLevel";
-$collect_metric="collectMetric";
-$url = "http://$deployment_server/$1" if $summary_deployment =~ /html\/(.*)/;
-$multisample = "multisample_no";
+use strict;
+use warnings;
+
+my $project_dir_analysis = "projectDirAnalysis";
+my $project_dir_results = "projectDirResults";
+my $date = "Today";
+my $project = "Project";
+my $deployment_server = "deploymentServer";
+my $summary_results = "summaryResults";
+my $summary_deployment = "summaryDeployment";
+my $sample_list = "sampleList";
+my $mark_duplicates = "markDuplicates";
+my $metric_level="metricLevel";
+my $collect_metric="collectMetric";
+my $url = "http://$deployment_server/$1" if $summary_deployment =~ /html\/(.*)/;
+my $multisample = "multisample_no";
+
+
+#create deployment directory for pdf files
 system("ssh $deployment_server mkdir $summary_deployment/pdf > /dev/null 2>&1");
 
-%data = ();
-$head = -1;
+#collect list of all samples, libraries and read groups
+my %data = ();
+my $head = -1;
 open (LIST, "$sample_list");
 while (<LIST>){
     $head++;
@@ -25,9 +32,15 @@ while (<LIST>){
     $data{$2}{$3}{$1}++;
 }
 
-foreach $sample (keys %data){
-    foreach $lib (keys %{$data{$sample}}){
-	foreach $rg (keys %{$data{$sample}{$lib}}){
+#collect data
+my ($log, $dupmark, $merge_sample_bam, $flagstat);
+my %sum = ();
+
+#for each sample
+foreach my $sample (keys %data){
+    #check if reads were clipped and the number of reads before and after clipping is the same at read group level
+    foreach my $lib (keys %{$data{$sample}}){
+	foreach my $rg (keys %{$data{$sample}{$lib}}){
 	    $log = "$project_dir_analysis/$date/$sample/ClipReads.$sample.$rg.log";
 	    if (-s $log){
 		$sum{$sample}{$lib}{$rg}{'clip_reads'} = "PASS";
@@ -36,9 +49,10 @@ foreach $sample (keys %data){
 	}
     }
 
+    #check if duplicates are marked at library level
     $log = "$project_dir_analysis/$date/$sample/samtoolsMergeAndTag.$sample.log";
     if (-s $log){
-        foreach $library (keys %{$data{$sample}}){
+        foreach my $library (keys %{$data{$sample}}){
             if ("$mark_duplicates" eq "TRUE" ){
 	        $dupmark = "$project_dir_results/$date/$sample/$sample"."_$library.dupmark.stats";
 	        if (-s $dupmark){
@@ -49,6 +63,7 @@ foreach $sample (keys %data){
             }
         }
 
+	#check if bam files are merged at sample level and the number of reads is the same before and after merging
 	$merge_sample_bam = "$project_dir_results/$date/$sample/$sample.bam";
 	if (-s $merge_sample_bam){
             $sum{$sample}{'0'}{'0'}{'merge_sample'} = "PASS";
@@ -58,6 +73,7 @@ foreach $sample (keys %data){
 
         $sum{$sample}{'0'}{'0'}{'merge_sample'} = "FAIL" if `grep 'Number of reads before and after merging is not the same' $log`;
 
+	#collect alignment statistics from the flagstat file
 	$flagstat="$project_dir_results/$date/$sample/$sample".".bam.flagstat";
 	if (-s $flagstat){
 
@@ -87,8 +103,10 @@ foreach $sample (keys %data){
 	}
 
     }
+
 }
 
+#print summary
 open (OUT, ">$summary_results/index.html");
 print OUT "<HTML>";
 print OUT "<HEAD><META HTTP-EQUIV='refresh' CONTENT='60'></HEAD>";
@@ -102,19 +120,27 @@ print OUT "<TH>Sample<BR>metrics" if $metric_level =~ /S/;
 print OUT "<TH>Library<BR>metrics" if $metric_level =~ /L/;
 print OUT "<TH>Read group<BR>metrics" if $metric_level =~ /RG/;
 
-foreach $sample (sort {$a cmp $b} keys %data){
+my $f1 = 0;
+my $f2 = 0;
+my ($source, $destination);
+
+#for each sample, library, read group
+foreach my $sample (sort {$a cmp $b} keys %data){
     print OUT "<TR><TD>$sample";
     $log = "$project_dir_analysis/$date/$sample/samtoolsMergeAndTag.$sample.log";
     next unless (-s $log);
-    $f1 = 1;
-    foreach $library (sort {$a cmp $b} keys %{$data{$sample}}){
+    $f1 = 1; #f1 is flagging for the first read group for each sample
+
+    foreach my $library (sort {$a cmp $b} keys %{$data{$sample}}){
 	print OUT "<TR><TD><TD>" unless $f1;
 	print OUT "<TD>$library";
-	$f2 = 1;
-	foreach $read (sort {$a cmp $b} keys %{$data{$sample}{$library}}){
+	$f2 = 1; #f2 is flagging for the first read group for each library
+
+	foreach my $read (sort {$a cmp $b} keys %{$data{$sample}{$library}}){
 	    print OUT "<TR><TD><TD>" unless $f2;
 	    print OUT "<TD>$read";
 
+	    #print results of reads clipping
 	    if ("$sum{$sample}{$library}{$read}{'clip_reads'}" eq "PASS"){
 		print OUT "<TD><CENTER><IMG SRC=tick.png ALT=PASS>";
 	    }elsif ("$sum{$sample}{$library}{$read}{'clip_reads'}" eq "FAIL"){
@@ -123,6 +149,7 @@ foreach $sample (sort {$a cmp $b} keys %data){
 		print OUT "<TD>";
 	    }
 
+	    #print results of duplicates marking
 	    if ("$mark_duplicates" eq "TRUE"){
 		if ($f2){
 		    print OUT "<TD><CENTER><IMG SRC=tick.png ALT=PASS>" if $sum{$sample}{$library}{'0'}{'remove_dupl'} eq "PASS";
@@ -132,6 +159,7 @@ foreach $sample (sort {$a cmp $b} keys %data){
 		}
 	    }
 
+	    #print results of merging bam files and alignment statistics
 	    if ($f1){
 		print OUT "<TD><CENTER><IMG SRC=tick.png ALT=PASS>" if $sum{$sample}{'0'}{'0'}{'merge_sample'} eq "PASS";
 		print OUT "<TD><CENTER><IMG SRC=error.png ALT=FAIL>" if $sum{$sample}{'0'}{'0'}{'merge_sample'} eq "FAIL";
@@ -143,10 +171,11 @@ foreach $sample (sort {$a cmp $b} keys %data){
 		print OUT "<TD><TD><TD><TD><TD>";
 	    }
 
+	    #add links to plots
 	    if ($metric_level =~ /S/){
 		print OUT "<TD>";
 		if ($f1){
-		    foreach $ext (qw (gcBias insert_size_histogram quality_by_cycle quality_distribution)){
+		    foreach my $ext (qw (gcBias insert_size_histogram quality_by_cycle quality_distribution)){
 			$source = "$project_dir_results/$date/$sample/$sample".".$ext".".pdf";
 			$destination = "$sample".".$ext".".pdf";
 			system("scp -r $source $deployment_server:$summary_deployment/pdf/$destination > /dev/null 2>&1");
@@ -158,7 +187,7 @@ foreach $sample (sort {$a cmp $b} keys %data){
 	    if ($metric_level =~ /L/){
 		print OUT "<TD>";
 		if ($f2){
-		    foreach $ext (qw (gcBias insert_size_histogram)){
+		    foreach my $ext (qw (gcBias insert_size_histogram)){
 			$source = "$project_dir_results/$date/$sample/$sample"."_$library".".$ext".".pdf";
 			$destination = "$sample"."_$library".".$ext".".pdf";
 			system("scp -r $source $deployment_server:$summary_deployment/pdf/$destination > /dev/null 2>&1");
@@ -169,7 +198,7 @@ foreach $sample (sort {$a cmp $b} keys %data){
 
             if ($metric_level =~ /RG/){
 		print OUT "<TD>";
-		foreach $ext (qw (quality_by_cycle quality_distribution)){
+		foreach my $ext (qw (quality_by_cycle quality_distribution)){
 		    $source = "$project_dir_results/$date/$sample/$sample"."_$read".".$ext".".pdf";
 		    $destination = "$sample"."_$read".".$ext".".pdf";
 		    system("scp -r $source $deployment_server:$summary_deployment/pdf/$destination > /dev/null 2>&1");
@@ -178,29 +207,31 @@ foreach $sample (sort {$a cmp $b} keys %data){
 	    }
 	    $f1 = 0;
 	    $f2 = 0;
+	    print OUT "\n";
         }
     }
 }
 
 print OUT "</TABLE>";
 
-#deploying metrics
+#deploying metrics once mergeandtag run is completed
 if ("$multisample" eq "multisample_yes"){
 
 system("ssh $deployment_server mkdir $summary_deployment/metrics > /dev/null 2>&1");
-$metrics_path = "$project_dir_results/$date/multisample";
-$html_path = "$project_dir_analysis/$date/multisample";
+my $metrics_path = "$project_dir_results/$date/multisample";
+my $html_path = "$project_dir_analysis/$date/multisample";
 
-#created merged pdf with metrics at different level
+#create merged pdf with metrics at different levels, deploy them to the Web server and print links on the summary page
+my ($metrics_name, $metrics_file, $read_groups, $cur_file, $libraries, $samples, $html_file, $lines, $png_file, $chart_name, $chart_file);
 if ($metric_level =~ /RG/){
     print OUT "<HR><TABLE><TR><TD><FONT SIZE = '+1'>Read Group metrics";
-    foreach $category (qw(quality_by_cycle quality_distribution)){
+    foreach my $category (qw(quality_by_cycle quality_distribution)){
 	$metrics_name = "$project.$date.$category.read_group.pdf";
 	$metrics_file = "$metrics_path/$category.read_group.pdf";
 	$read_groups = "";
-	foreach $sample (sort {$a cmp $b} keys %data){
-	    foreach $library (sort {$a cmp $b} keys %{$data{$sample}}){
-		foreach $read (sort {$a cmp $b} keys %{$data{$sample}{$library}}){
+	foreach my $sample (sort {$a cmp $b} keys %data){
+	    foreach my $library (sort {$a cmp $b} keys %{$data{$sample}}){
+		foreach my $read (sort {$a cmp $b} keys %{$data{$sample}{$library}}){
 		    $cur_file = "$project_dir_results/$date/$sample/$sample"."_"."$read.$category.pdf";
 		    $read_groups .= "$cur_file " if (-s $cur_file);
 		}
@@ -216,12 +247,12 @@ if ($metric_level =~ /RG/){
 
 if ($metric_level =~ /L/){
     print OUT "<HR><TABLE><TR><TD><FONT SIZE = '+1'>Library metrics";
-    foreach $category (qw(gcBias insert_size_histogram)){
+    foreach my $category (qw(gcBias insert_size_histogram)){
 	$metrics_name = "$project.$date.$category.library.pdf";
 	$metrics_file = "$metrics_path/$category.library.pdf";
 	$libraries = "";
-	foreach $sample (sort {$a cmp $b} keys %data){
-	    foreach $library (sort {$a cmp $b} keys %{$data{$sample}}){
+	foreach my $sample (sort {$a cmp $b} keys %data){
+	    foreach my $library (sort {$a cmp $b} keys %{$data{$sample}}){
 		$cur_file = "$project_dir_results/$date/$sample/$sample"."_"."$library.$category.pdf";
 		$libraries .= "$cur_file " if (-s $cur_file);
 	    }
@@ -236,11 +267,11 @@ if ($metric_level =~ /L/){
 
 if ($metric_level =~ /S/){
     print OUT "<HR><TABLE><TR><TD><FONT SIZE = '+1'>Sample metrics";
-    foreach $category (qw(quality_by_cycle quality_distribution gcBias insert_size_histogram)){
+    foreach my $category (qw(quality_by_cycle quality_distribution gcBias insert_size_histogram)){
 	$metrics_name = "$project.$date.$category.sample.pdf";
 	$metrics_file = "$metrics_path/$category.sample.pdf";
 	$samples = "";
-	foreach $sample (sort {$a cmp $b} keys %data){
+	foreach my $sample (sort {$a cmp $b} keys %data){
 	    $cur_file = "$project_dir_results/$date/$sample/$sample.$category.pdf";
 	    $samples .= "$cur_file " if (-s $cur_file);
 	}
@@ -254,11 +285,13 @@ if ($metric_level =~ /S/){
 
 if ($metric_level =~ /S/){
     print OUT "<HR><TABLE><TR><TD><FONT SIZE = '+1'>Alignment summary metrics";
-    foreach $category (qw(FIRST_OF_PAIR SECOND_OF_PAIR PAIR)){
+    foreach my $category (qw(FIRST_OF_PAIR SECOND_OF_PAIR PAIR UNPAIRED)){
 	$metrics_name = "$project.$date.alignment_summary_metrics.$category";
 	$metrics_file = "$metrics_path/$metrics_name";
 	$html_file = "$html_path/$metrics_name.php";
-	if (-s $metrics_file){
+        $lines = `wc -l $metrics_file|cut -f 1 -d ' '`;
+	chomp($lines);
+	if ($lines > 1){
 	    system("scp -r $metrics_file $deployment_server:$summary_deployment/metrics/$metrics_name");
 	    system("scp -r $html_file $deployment_server:$summary_deployment/metrics/$metrics_name.php");
 	    print OUT "<TR><TD><TD><A HREF = '$url/metrics/$metrics_name.php'>$category</A>";
@@ -267,6 +300,7 @@ if ($metric_level =~ /S/){
     print OUT "</FONT></TABLE><BR>";
 }
 
+#deploy files with summary metrics for different types of analysis to the Web server and print links on the summary page
 if ($collect_metric =~ /TP/){
     $metrics_name = "$project.$date.targetedPcrMetrics";
     $metrics_file = "$metrics_path/$metrics_name";
@@ -301,7 +335,7 @@ if ($collect_metric =~ /TP/){
     $metrics_name = "$project.$date.sample_interval_summary";
     $metrics_file = "$metrics_path/$metrics_name";
     $html_file = "$html_path/$metrics_name.php";
-	$png_file = "$metrics_path/$metrics_name.png";
+    $png_file = "$metrics_path/$metrics_name.png";
     if (-s $metrics_file){
         system("scp -r $metrics_file $deployment_server:$summary_deployment/metrics/$metrics_name");
 	system("scp -r $html_file $deployment_server:$summary_deployment/metrics/$metrics_name.php");
@@ -311,10 +345,10 @@ if ($collect_metric =~ /TP/){
                                         "<A HREF = '$url/metrics/$metrics_name.png'> [Plot]</A>".
 					"</FONT><BR>";
     }
-	$metrics_name = "$project.$date.non_overlapping.sample_interval_summary";
+    $metrics_name = "$project.$date.non_overlapping.sample_interval_summary";
     $metrics_file = "$metrics_path/$metrics_name";
     $html_file = "$html_path/$metrics_name.php";
-	$png_file = "$metrics_path/$metrics_name.png";
+    $png_file = "$metrics_path/$metrics_name.png";
     if (-s $metrics_file){
         system("scp -r $metrics_file $deployment_server:$summary_deployment/metrics/$metrics_name");
 	system("scp -r $html_file $deployment_server:$summary_deployment/metrics/$metrics_name.php");
@@ -365,6 +399,7 @@ if ($collect_metric =~ /RS/){
 
 print OUT "</BODY></HTML>";
 
+#deploy metrics and plots
 system("scp -r $summary_results/index.html $deployment_server:$summary_deployment/index.html > /dev/null 2>&1");
 system("ssh $deployment_server chmod 0664 $summary_deployment/* > /dev/null 2>&1");
 system("ssh $deployment_server chmod 0664 $summary_deployment/pdf/* > /dev/null 2>&1");
