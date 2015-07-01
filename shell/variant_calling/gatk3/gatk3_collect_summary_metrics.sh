@@ -147,8 +147,7 @@ java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR -jar $GATK_HOME/Gen
   $COVERAGE_ARG \
   -omitBaseOutput \
   --countType COUNT_FRAGMENTS \
-  -mbq 20 \
-  -mmq 20 \
+  -mbq 10 \
   -rf BadCigar \
   $INTERVAL_ARG
 
