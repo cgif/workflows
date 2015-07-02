@@ -24,7 +24,7 @@ coverage.n <- as.matrix(coverage[sample.order,])
 coverage.n.melt <- melt.array(coverage.n, varnames = names(dimnames(coverage)))
 
 #categorise coverage values
-coverage.n.melt.categorised <- cut(coverage.n.melt[,3],breaks = c(0,100,500,1000,5000,Inf),right = FALSE)
+coverage.n.melt.categorised <- cut(coverage.n.melt[,3],breaks = c(0,10,100,500,1000,5000,Inf),right = FALSE)
 coverage.m.melt <- cbind(coverage.n.melt, coverage.n.melt.categorised)
 colnames(coverage.m.melt) <- c("sample", "amplicon", "coverage.nominal", "coverage")
 

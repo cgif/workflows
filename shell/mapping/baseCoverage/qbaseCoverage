@@ -1,0 +1,133 @@
+#!/bin/bash
+
+#
+# sets up directory structure and generates, configures and submits 
+# scripts to run baseCoverage algorithm for removing adapters and low quality ends 
+#
+
+#CONFIGURATION
+##############
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+PROJECT_TGU=/project/tgu
+
+PATH_REFERENCE_FASTA=$PROJECT_TGU/resources/reference/fasta/eukaryote/hsapiens/hs37d5/hs37d5.fa
+
+#COMMAND LINE ARGS
+##################
+
+USAGE="USAGE: qbaseCoverage -i <path_to_mergetag_directory> -n <project> -r <reference fasta>>"
+
+#parse command line args
+while getopts "i:n:r:h" option; do
+    case "$option" in
+
+	i) INPUT_PATH="$OPTARG";;
+	n) PROJECT="$OPTARG";;
+	r) PATH_REFERENCE_FASTA="$OPTARG";;
+	h) echo "$USAGE"; exit 1;;
+	[?]) echo "$USAGE"; exit 1;;
+
+esac
+done
+
+#check if required arguments are missing
+if [ -z $INPUT_PATH ] ||
+	[ -z $PROJECT ]
+    then
+    echo $USAGE
+    exit 1
+fi
+
+#FUNCTIONS
+##########
+
+#creates job scripts
+function submitJobs {
+
+	local input_bam=$1
+	local results_dir=$2
+	local sample=$3
+	local run_dir=$4 
+
+	run_dir=$run_dir/run       
+
+	mkdir -p $run_dir
+	chmod 770 $run_dir
+
+	mkdir -p $results_dir
+	chmod 770 $results_dir
+
+	echo "`$NOW`setting up the job script for sample $sample"
+
+	script_path=$run_dir/BC$sample.sh
+	cp $BASEDIR/genomeBaseCoverage.sh $script_path
+	chmod 770 $script_path
+
+	#set variables
+	sed -i -e "s/#pathReferenceFasta/${PATH_REFERENCE_FASTA//\//\\/}/" $script_path
+	sed -i -e "s/#inputBam/${input_bam//\//\\/}/" $script_path
+	sed -i -e "s/#resultsDir/${results_dir//\//\\/}/" $script_path
+	sed -i -e "s/#sampleName/$sample/" $script_path
+
+	#submit job 
+	log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
+	job_id=`qsub -o $log_output_path $script_path`
+	echo "`$NOW`Job ID:$job_id"
+}
+
+#create and set permissions for analysis project parent directory
+
+mkdir -p $PROJECT_TGU/runs/$PROJECT/baseCoverage
+chmod 770 $PROJECT_TGU/runs/$PROJECT/baseCoverage
+
+PROJECT_RUN_DIR=$PROJECT_TGU/runs/$PROJECT/baseCoverage/$TODAY
+mkdir -p $PROJECT_RUN_DIR
+chmod 770 $PROJECT_RUN_DIR
+
+#create and set permissions for results project parent directory
+
+mkdir -p $PROJECT_TGU/results/$PROJECT/baseCoverage
+chmod 770 $PROJECT_TGU/results/$PROJECT/baseCoverage
+
+PROJECT_RESULTS_DIR=$PROJECT_TGU/results/$PROJECT/baseCoverage/$TODAY
+mkdir -p $PROJECT_RESULTS_DIR
+chmod 770 $PROJECT_RESULTS_DIR
+
+#for each sample directory...
+for SAMPLE in `ls --color=never -I "multisample" $INPUT_PATH`; do
+
+	RESULTS_DIR=$PROJECT_RESULTS_DIR/$SAMPLE
+	RUN_DIR=$PROJECT_RUN_DIR/$SAMPLE
+	INPUT_BAM=$INPUT_PATH/$SAMPLE/$SAMPLE.bam
+
+	#create and set permissions for scripts sample parent directory
+	SAMPLE_RUN_DIR=$PROJECT_RUN_DIR/$SAMPLE
+	mkdir -p $SAMPLE_RUN_DIR
+	chmod 770 $SAMPLE_RUN_DIR
+
+	#create and set permissions for results sample parent directory
+	SAMPLE_RESULTS_DIR=$PROJECT_RESULTS_DIR/$SAMPLE
+	mkdir -p $SAMPLE_RESULTS_DIR
+	chmod 770 $SAMPLE_RESULTS_DIR
+
+	#create, configure and submit job scripts
+	submitJobs $INPUT_BAM \
+				$SAMPLE_RESULTS_DIR \
+				$SAMPLE \
+				$SAMPLE_RUN_DIR
+
+done
+
+
+
+
+
+
+

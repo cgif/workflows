@@ -18,6 +18,8 @@ module load tabix/#tabixVersion
 
 module load gatk/#gatkVersion
 module load java/#javaVersion
+module load R/#rVersion
+
 JAVA_XMX=4G
 NT=2
 
@@ -27,6 +29,7 @@ RESULTS_DIR=#resultsDir
 SAMPLE_NAME=`basename $INPUT_VCF_SID .vcf`
 REFERENCE_FASTA=#referenceFasta
 REFRENCE_SEQ_DICT=`echo $REFERENCE_FASTA | perl -pe 's/\.fa/\.dict/'`
+ONCOTATOR_DB=#oncotatorDB
 
 #copy reference to $TMP
 cp $REFERENCE_FASTA $TMPDIR/reference.fa
@@ -34,7 +37,7 @@ cp $REFERENCE_FASTA.fai $TMPDIR/reference.fa.fai
 cp $REFRENCE_SEQ_DICT $TMPDIR/reference.dict
 
 mkdir $TMPDIR/oncotator_db
-cp -R /groupvol/cgi/resources/annotations/oncotator_v1_ds_Sept172014/* $TMPDIR/oncotator_db
+cp -R $ONCOTATOR_DB/* $TMPDIR/oncotator_db
 ls -l $TMPDIR/oncotator_db
 
 # make tmp folder for temporary java files

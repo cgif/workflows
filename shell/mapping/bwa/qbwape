@@ -35,6 +35,7 @@ PATH_REFERENCE_FASTA=$GROUP_VOL_CGI/resources/reference/eukaryote/human/hs37d5/b
 MULT_READS=F
 PATTERN_READ_1='_R1_'
 PATTERN_READ_2='_R2_'
+SINGLE_READS="F"
 
 SPLITFASTQ_WALLTIME_HOURS=72
 SPLITFASTQ_THREADS=4
@@ -45,7 +46,7 @@ SPLITFASTQ_THREADS=4
 
 #TODO: have to do conversion for Illumina 1.3 formated files with Michael's perl script
  
-while getopts "i:n:r:t:p:f:hm:c" option; do
+while getopts "i:n:r:t:p:c:f:s:hm" option; do
     case "$option" in
 	
 	i) INPUT_PATH="$OPTARG";;
@@ -56,6 +57,7 @@ while getopts "i:n:r:t:p:f:hm:c" option; do
 	f) echo "-f option is not supported by the current version of bwa";;
 	m) MULT_READS=T;;
 	c) CRAM="T";;
+	s) SINGLE_READS="T";;
 	h) cat "$USAGE"; exit 0;;
 	[?]) cat "$USAGE"; exit 1;;
 
@@ -139,13 +141,13 @@ function submitJobs {
 
 	#for each fastq file (fastq files have to be gzipped and 
 	#have to have a fq.gz or fastq.gz extension
-	for FASTQ_READ1 in `ls --color=never $PATH_READS_DIRECTORY/*.f*q* | grep $PATTERN_READ_1`
+	for FASTQ_READ1 in `ls --color=never $PATH_READS_DIRECTORY/*.f*q*.gz | grep $PATTERN_READ_1`
 	do 
 		FASTQ_READ1=`basename $FASTQ_READ1`
 
 		#find read2 mate file
 		FASTQ_READ2=""
-		for FASTQ in `ls --color=never $PATH_READS_DIRECTORY/*.f*q* | grep $PATTERN_READ_2`
+		for FASTQ in `ls --color=never $PATH_READS_DIRECTORY/*.f*q*.gz | grep $PATTERN_READ_2`
 		do	
 
 		    FASTQ=`basename $FASTQ`
@@ -165,7 +167,7 @@ function submitJobs {
 		PATH_READS_FASTQ_READ2=$PATH_READS_DIRECTORY/$FASTQ_READ2_NO_EXT
              
 	         #check if mate file found
-		if [ -z $FASTQ_READ2 ]
+		if [ -z $FASTQ_READ2 ] && [[ "$SINGLE_READS" == "F" ]]
 		then
 			cat "No mate file found for $FASTQ_READ1. Skipped." >> $SETUP_LOG
 			continue    		
@@ -198,42 +200,43 @@ function submitJobs {
 		#submit splitting jobs
 		for FASTQ in $PATH_READS_DIRECTORY/$FASTQ_READ1 $PATH_READS_DIRECTORY/$FASTQ_READ2
 		do
-		
-			FASTQ_NAME=`basename $FASTQ .gz`
+			if [ -f $FASTQ ]; then
+
+				FASTQ_NAME=`basename $FASTQ .gz`
 			
-			#calculate required temp space
-			FILE_SIZE_KB=`du $FASTQ | cut -f1`
+				#calculate required temp space
+				FILE_SIZE_KB=`du $FASTQ | cut -f1`
 
-			if [[ "$FILE_SIZE_KB" -ne "0" ]]
-			then
-				FILE_SIZE_MB=$(( $FILE_SIZE_KB / 1024 ))
-				TMP_SPACE_MB=$(( $FILE_SIZE_MB * 2 ))
+				if [[ "$FILE_SIZE_KB" -ne "0" ]]
+				then
+					FILE_SIZE_MB=$(( $FILE_SIZE_KB / 1024 ))
+					TMP_SPACE_MB=$(( $FILE_SIZE_MB * 2 ))
+				fi
+
+				SCRIPT_PATH=$PATH_SCRIPTS_DIR/splitFastq.$FASTQ_NAME.sh
+				cp $BASEDIR/splitFastq.sh $SCRIPT_PATH
+				chmod 770 $SCRIPT_PATH
+
+				sed -i -e "s/#walltimeHours/$SPLITFASTQ_WALLTIME_HOURS/" $SCRIPT_PATH  
+				sed -i -e "s/#threads/$SPLITFASTQ_THREADS/" $SCRIPT_PATH
+				sed -i -e "s/#tmpSpace/$TMP_SPACE_MB/" $SCRIPT_PATH
+				sed -i -e "s/#inputFastq/${FASTQ//\//\\/}/" $SCRIPT_PATH
+				sed -i -e "s/#outputDir/${SPLITFASTQ_OUTPUT_DIR//\//\\/}/" $SCRIPT_PATH
+				sed -i -e "s/#readsPerChunk/$READS_PER_RUN/" $SCRIPT_PATH
+
+				LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+
+				echo "`$NOW`submitting fastq splitting job:" >> $SETUP_LOG
+				echo "`$NOW`splitFastq.$FASTQ_NAME.sh" >> $SETUP_LOG
+				echo -n "`$NOW`" >> $SETUP_LOG
+
+				#echo qsub -q $QUEUE -o $LOG_PATH $SCRIPT_PATH
+				JOB_ID=`qsub -o $LOG_PATH $SCRIPT_PATH` 
+				echo $JOB_ID  >> $SETUP_LOG
+
+				SPLIT_DEPENDENCIES="$SPLIT_DEPENDENCIES:$JOB_ID"
 			fi
-
-			SCRIPT_PATH=$PATH_SCRIPTS_DIR/splitFastq.$FASTQ_NAME.sh
-			cp $BASEDIR/splitFastq.sh $SCRIPT_PATH
-			chmod 770 $SCRIPT_PATH
-
-			sed -i -e "s/#walltimeHours/$SPLITFASTQ_WALLTIME_HOURS/" $SCRIPT_PATH  
-			sed -i -e "s/#threads/$SPLITFASTQ_THREADS/" $SCRIPT_PATH
-			sed -i -e "s/#tmpSpace/$TMP_SPACE_MB/" $SCRIPT_PATH
-			sed -i -e "s/#inputFastq/${FASTQ//\//\\/}/" $SCRIPT_PATH
-			sed -i -e "s/#outputDir/${SPLITFASTQ_OUTPUT_DIR//\//\\/}/" $SCRIPT_PATH
-			sed -i -e "s/#readsPerChunk/$READS_PER_RUN/" $SCRIPT_PATH
-
-			LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
-
-			echo "`$NOW`submitting fastq splitting job:" >> $SETUP_LOG
-			echo "`$NOW`splitFastq.$FASTQ_NAME.sh" >> $SETUP_LOG
-			echo -n "`$NOW`" >> $SETUP_LOG
-
-			#echo qsub -q $QUEUE -o $LOG_PATH $SCRIPT_PATH
-			JOB_ID=`qsub -o $LOG_PATH $SCRIPT_PATH` 
-			echo $JOB_ID  >> $SETUP_LOG
-
-			SPLIT_DEPENDENCIES="$SPLIT_DEPENDENCIES:$JOB_ID"
-
-		done;
+		done
 
 		OUTPUT_PREFIX=$FASTQ_READ1_NO_EXT.vs.$REFERENCE_FASTA_NAME
 

@@ -41,6 +41,9 @@ echo "`${NOW}`copying read $FASTQ_NAME to temporary scratch space..."
 cp $PATH_READS_FASTQ $TMPDIR/$FASTQ_NAME
 cp $PRIMERS_FILE $TMPDIR/primers.txt
 
+# remove empty lines from primer file
+perl -pi -e 's/^\s*\n//' primers.txt
+
 N_PRIMERS=`cat primers.txt | sed '/^\s*$/d' | wc -l`   
 
 COUNT=1

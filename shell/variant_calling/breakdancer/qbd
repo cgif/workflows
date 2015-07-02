@@ -89,18 +89,18 @@ if [ -d $INPUT_PATH ]
 then
 
     #create and set permissions for analysis project parent directory
-    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/translocation_mapping
-    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/translocation_mapping
+    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/breakdancer
+    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/breakdancer
 
-    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/translocation_mapping/$TODAY
-    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/translocation_mapping/$TODAY
+    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/breakdancer/$TODAY
+    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/breakdancer/$TODAY
 
     #create and set permissions for results project parent directory
-    mkdir -p $GROUP_VOL_CGI/results/$PROJECT/translocation_mapping
-    chmod 770 $GROUP_VOL_CGI/results/$PROJECT/translocation_mapping
+    mkdir -p $GROUP_VOL_CGI/results/$PROJECT/breakdancer
+    chmod 770 $GROUP_VOL_CGI/results/$PROJECT/breakdancer
 
-    mkdir -p $GROUP_VOL_CGI/results/$PROJECT/translocation_mapping/$TODAY
-    chmod 770 $GROUP_VOL_CGI/results/$PROJECT/translocation_mapping/$TODAY
+    mkdir -p $GROUP_VOL_CGI/results/$PROJECT/breakdancer/$TODAY
+    chmod 770 $GROUP_VOL_CGI/results/$PROJECT/breakdancer/$TODAY
 
     #for each sample directory...
     for SAMPLE in `ls --color=never $INPUT_PATH`
@@ -118,16 +118,16 @@ then
     	        echo "`$NOW`processing directory $SAMPLE..."
 
 	        #create and set permissions for analysis sample parent directory
-	        mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/translocation_mapping/$TODAY/$SAMPLE
-	        chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/translocation_mapping/$TODAY/$SAMPLE
+	        mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/breakdancer/$TODAY/$SAMPLE
+	        chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/breakdancer/$TODAY/$SAMPLE
 
  	        #create and set permissions for results sample parent directory
-   	        mkdir -p $GROUP_VOL_CGI/results/$PROJECT/translocation_mapping/$TODAY/$SAMPLE
-    	        chmod 770 $GROUP_VOL_CGI/results/$PROJECT/translocation_mapping/$TODAY/$SAMPLE
+   	        mkdir -p $GROUP_VOL_CGI/results/$PROJECT/breakdancer/$TODAY/$SAMPLE
+    	        chmod 770 $GROUP_VOL_CGI/results/$PROJECT/breakdancer/$TODAY/$SAMPLE
 
                 #...create output directory
-	        PATH_RUN_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/translocation_mapping/$TODAY/$SAMPLE
-	        PATH_OUT_DIR=$GROUP_VOL_CGI/results/$PROJECT/translocation_mapping/$TODAY/$SAMPLE
+	        PATH_RUN_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/breakdancer/$TODAY/$SAMPLE
+	        PATH_OUT_DIR=$GROUP_VOL_CGI/results/$PROJECT/breakdancer/$TODAY/$SAMPLE
 
 	        #create, configure and submit job scripts
 	        submitJobs $SAMPLE_DIR \

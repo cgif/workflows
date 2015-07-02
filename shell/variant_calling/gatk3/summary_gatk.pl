@@ -1,5 +1,7 @@
 #!/usr/bin/perl -w
+
 use strict;
+use warnings;
 
 #This script generates on-line summary that reflects jobs progress. 
 #Once job is finished and non-empty log file is present in the run directory, 
@@ -27,6 +29,7 @@ my $data_link = $1 if $data_deployment =~ /\/www\/html\/(.*)/;
 
 my %sum = ();
 
+#count number of chunks
 open (CHUNKS, "$ref_chunks");
 my $total_chunks = 0;
 while (<CHUNKS>){
@@ -36,6 +39,7 @@ while (<CHUNKS>){
     $total_chunks = $chunk if $chunk > $total_chunks;
 }
 
+#collect list of sample names
 my @sample_all = ();
 
 open (LIST, "$sample_list");
@@ -45,7 +49,7 @@ while (<LIST>){
 
 my @sample = Uniq(@sample_all);
 
-#collect data from gatk log files
+#collect data from gatk log files for each sample for each chunk 
 foreach my $sample (@sample){
     foreach my $chunk (1..$total_chunks){
 	my $chunk_formatted = sprintf("%03d", $chunk);
@@ -107,19 +111,21 @@ foreach my $sample (@sample){
 
 	my $merge_bam_gvcf_log = "$project_dir_scripts/$date/$sample/run/MB${sample}000.log";
 	if (-s $merge_bam_gvcf_log){
-	    my $merged_gvcf = "$project_dir_results/$date/$sample/haplotypecaller/$sample".".genomic.vcf.gz";
+	    my $merged_gvcf = "$project_dir_results/$date/$sample/haplotypecaller/$sample".".genomic.vcf";
 	    if (-s $merged_gvcf){
 		$sum{$sample}{'merged_gvcf'} = "PASS";
 	    }else{
 		$sum{$sample}{'merged_gvcf'} = "FAIL";
 	    }
+
 	    my $merged_bam = "$project_dir_results/$date/$sample/recalibration/$sample".".bam";
 	    if (-s $merged_bam){
 		$sum{$sample}{'merged_bam'} = "PASS";
 	    }else{
 		$sum{$sample}{'merged_bam'} = "FAIL";
 	    }
-		my $merged_hc_bam = "$project_dir_results/$date/$sample/haplotypecaller/$sample".".hc.bam";
+
+	    my $merged_hc_bam = "$project_dir_results/$date/$sample/haplotypecaller/$sample".".hc.bam";
 	    if (-s $merged_hc_bam){
 		$sum{$sample}{'merged_hc_bam'} = "PASS";
 	    }else{
@@ -129,6 +135,7 @@ foreach my $sample (@sample){
     }
 }
 
+#collect data from gatk log files for multisample genotyping
 foreach my $chunk (1..$total_chunks){
     my $chunk_formatted = sprintf("%03d", $chunk);
     my $genotypeGVCFs_log = "$project_dir_scripts/$date/multisample/run/GGIGFP000000${chunk_formatted}.log";
@@ -160,6 +167,7 @@ if (-s $recalibrate_vcf_log){
     }
 }
 
+#collect metrics from variant calling report
 my %report = ();
 my $eval_report = "$project_dir_results/$date/multisample/genotypeGVCFs/recalibration/$project"."_multisample.varianteval.dbSNP129.report";
 if (-s $eval_report){
@@ -215,7 +223,6 @@ print OUT "<TH><CENTER>Merged<BR>HC bam";
 open (LOG, ">$summary_results/run_log.txt");
 print LOG "SAMPLE\tPROCESS\tCHUNK\tRESULT\n";
 
-
 my @tags = qw(realignment_target realigned_bam recalibration_report_chunk recalibration_report recalibrated_bam hc_gvcf_chunk merged_gvcf merged_bam merged_hc_bam);
 foreach my $sample (sort @sample){
     foreach my $chunk (1..$total_chunks){	
@@ -250,17 +257,15 @@ foreach my $sample (sort @sample){
 			    print OUT "<TD><CENTER><IMG SRC=error.png ALT=FAIL></A>\n" if $sum{$sample}{$tag} eq "FAIL";
 			    print OUT "<TD> \n" if $sum{$sample}{$tag} ne "FAIL" && $sum{$sample}{$tag} ne "PASS";
 			    print LOG $sample, "\t", $tag, "\tALL\t", $sum{$sample}{$tag}, "\n";
-			}
-                    #end of if (-s $recalibration_merge_plot_log){
+			} #end of if (-s $recalibration_merge_plot_log)
 		    }else{
 			print OUT "<TD> \n";
 			print LOG $sample, "\t", $tag, "\tALL\tUNPROCESSED\n";
-		    }
+		    } #end of if (defined $sum{$sample}{$tag})
 		}else{
 		    print OUT "<TD> \n";
-		}
-		#end of if ($chunk == 1){
-## add here if tag marged_bam and merged_gvcf
+		} #end of if ($chunk == 1)
+
 	    }elsif ($tag eq "merged_gvcf" || $tag eq "merged_bam" || $tag eq "merged_hc_bam"){
 		if ($chunk == 1){
 		    if (defined $sum{$sample}{$tag}){
@@ -275,6 +280,7 @@ foreach my $sample (sort @sample){
 		}else{
 		    print OUT "<TD> \n";
 		}
+
 	    }else{
 		if (defined $sum{$sample}{$chunk}{$tag}){
 		    print OUT "<TD><CENTER><IMG SRC=tick.png ALT=PASS>\n" if $sum{$sample}{$chunk}{$tag} eq "PASS";
@@ -285,16 +291,13 @@ foreach my $sample (sort @sample){
 		    print OUT "<TD> \n";
 		    print LOG $sample, "\t", $tag, "\t", $chunk, "\tUNPROCESSED\n";		   
 		}
-	    }
-	    #end of if ($tag eq "recalibration_report"){
-	}
-	# end of foreach my $tag (@tags){
-    }
-    #end of foreach my $chunk (1..$total_chunks){
-}
-#end of foreach my $sample (@sample){
+	    } #end of if ($tag eq ...){
+	} # end of foreach my $tag (@tags){
+    } #end of foreach my $chunk (1..$total_chunks){
+} #end of foreach my $sample (@sample){
 
 print OUT "</TABLE>\n";
+
 
 #print GenotypeGVCFs statistics
 ##################################
@@ -303,7 +306,6 @@ print OUT "</TABLE>\n";
 print OUT "<HR>";
 
 #table header
-#############
 print OUT "<TABLE CELLPADDING=5>";
 print OUT "<TR><TH ROWSPAN='2'><CENTER>MULTISAMPLE<BR>GenotypeGVCFs";
 print OUT "<TH ROWSPAN='2'><CENTER>Chunk";
@@ -332,10 +334,7 @@ print OUT "<TH><CENTER>Total";
 print OUT "<TH><CENTER>Known<BR>(dbSNP129),%";
 print OUT "<TH><CENTER>TiTv<BR>total";
 
-#table rows
-#variant stats by chunk
-#######################
-
+#table rows: variant stats by chunk
 foreach my $chunk (1..$total_chunks){
     print OUT "<TR><TD><TD><CENTER>$chunk\n";
     if (defined $sum{'multisample'}{$chunk}{'raw_vcf_chunk'}){
@@ -355,9 +354,8 @@ foreach my $chunk (1..$total_chunks){
 	    print LOG "multisample\traw_vcf_full\tALL\tUNPROCESSED\n";
 	}
 
-	unless ($type eq "TARGETED"){
-	
         #deploy variant recalibration plots
+	unless ($type eq "TARGETED"){
 	    my $pdf_snp = "$project_dir_results/$date/multisample/genotypeGVCFs/recalibration/$project"."_multisample.SNP.plots.R.pdf";
 	    my $pdf_ind = "$project_dir_results/$date/multisample/genotypeGVCFs/recalibration/$project"."_multisample.INDEL.plots.R.pdf";
 	    my $pdf_deployment_vr = "$summary_deployment/variant_recalibration";
@@ -372,10 +370,7 @@ foreach my $chunk (1..$total_chunks){
 	    }else{
 		print LOG "multisample\tcalibrated_vcf_full\tALL\tUNPROCESSED\n";
 	    }
-	
 	}
-
-#	my $eval_report = "$project_dir_results/$date/multisample/genotypeGVCFs/recalibration/$project"."_multisample.varianteval.report"; #was defined earlier
 
 	if (-s $eval_report){
 
@@ -404,7 +399,9 @@ foreach my $chunk (1..$total_chunks){
 
 print OUT "</TABLE>\n";
 
-#deploy VCF files
+
+#deploy VCF files and print links to the summary page
+#####################################################
 
 my $vcf = "";
 my $tbi = "";
@@ -434,8 +431,8 @@ if (defined $sum{'multisample'}{'raw_vcf'}){
 }
 
 
-#summary metrics
-################
+#deploy summary metrics and print links on summary page
+############################################################
 
 #horizontal line
 print OUT "<HR>";
@@ -448,7 +445,6 @@ my $sample_cumulative_coverage_proportions = "$project_dir_results/$date/multisa
 my $sample_summary_php = "$project_dir_scripts/$date/multisample/run/sample_summary.php";
 my $sample_interval_summary_php = "$project_dir_scripts/$date/multisample/run/sample_interval_summary.php";
 my $sample_cumulative_coverage_proportions_php = "$project_dir_scripts/$date/multisample/run/sample_cumulative_coverage_proportions.php";
-
 
 #create target directory on server
 system("ssh $deployment_server mkdir -p -m 775 $summary_deployment/metrics > /dev/null 2>&1");
@@ -468,6 +464,7 @@ system("scp -r $sample_cumulative_coverage_proportions_php $deployment_server:$s
 system("scp -r $sample_cumulative_coverage_proportions.png $deployment_server:$summary_deployment/metrics > /dev/null 2>&1");
 system("scp -r $sample_cumulative_coverage_proportions.xlsx $deployment_server:$summary_deployment/metrics > /dev/null 2>&1");
 
+#print links
 my $sample_summary_url = "http://$deployment_server/$summary_link/metrics/$project.$date.sample_summary";
 my $sample_summary_php_url = "http://$deployment_server/$summary_link/metrics/sample_summary.php";
 

@@ -35,6 +35,7 @@ QUEUE=pqcgi
 PATH_HEADER=$GROUPVOL_CGI/rawdata/documents/hs37d5_head
 PATH_BAIT_AMPLICON_INTERVALS=$GROUPVOL_CGI/analysis/ngs_tools/reference/target/SureSelect_All_Exon_50M_hg19.tab.intList
 PATH_TARGET_INTERVALS=$GROUPVOL_CGI/analysis/ngs_tools/reference/target/SureSelect_All_Exon_50M_hg19.tab.intList
+PATH_NON_OVERLAPPING_INTERVALS=none
 PATH_RIBOSOMAL_RNA_INTERVALS=$GROUPVOL_CGI/resources/annotations/GRCh37.ribosomal_rna.intList
 PATH_ANNOTATION_REFFLAT=$GROUPVOL_CGI/resources/annotations/Homo_sapiens.GRCh37.74.refFlat
 PATH_REFERENCE_FASTA=$GROUPVOL_CGI/resources/reference/eukaryote/human/hs37d5/hs37d5.fa
@@ -46,7 +47,7 @@ METRIC_LEVEL=S
 ##################
 
 #parse command line args
-while getopts "i:r:d:s:m:b:t:p:a:f:q:h" option; do
+while getopts "i:r:d:s:m:b:t:l:p:a:f:q:h" option; do
     case "$option" in
 	
 	i) PATH_INPUT_DIR="$OPTARG";;
@@ -56,6 +57,7 @@ while getopts "i:r:d:s:m:b:t:p:a:f:q:h" option; do
 	m) METRIC="$OPTARG";;
 	b) PATH_BAIT_AMPLICON_INTERVALS="$OPTARG";;
 	t) PATH_TARGET_INTERVALS="$OPTARG";;
+	l) PATH_NON_OVERLAPPING_INTERVALS="$OPTARG";;
 	p) PATH_RIBOSOMAL_RNA_INTERVALS="$OPTARG";;
 	a) PATH_ANNOTATION_REFFLAT="$OPTARG";;
 	f) PATH_REFERENCE_FASTA="$OPTARG";;
@@ -132,41 +134,36 @@ echo "`${NOW}`using read group info: $PATH_READ_GROUP_INFO"
 #echo "`${NOW}`using header         : $PATH_HEADER"
 
 
-if [[ "$METRIC" != "NONE" ]]
-then
-
-     if [[ "$METRIC" == "HS" ]]
-     then
-	if [[ ! -f $PATH_BAIT_AMPLICON_INTERVALS ]] || [[ ! -f $PATH_TARGET_INTERVALS ]]
-	then
-	    echo "`${NOW}`bait coordinates file or target coordinates file is missing"
-	    exit 1
-	fi
-	echo "`${NOW}`generating Hybrid Sequencing metrics from merged file"
+if [[ "$METRIC" != "NONE" ]]; then
+	if [[ "$METRIC" == "HS" ]]; then
+		if [[ ! -f $PATH_BAIT_AMPLICON_INTERVALS ]] || [[ ! -f $PATH_TARGET_INTERVALS ]]; then
+	    	echo "`${NOW}`bait coordinates file or target coordinates file is missing"
+	    	exit 1
+		fi
+		echo "`${NOW}`generating Hybrid Sequencing metrics from merged file"
         echo "`${NOW}`using bait coordinates  : $PATH_BAIT_AMPLICON_INTERVALS"
-	echo "`${NOW}`using target coordinates: $PATH_TARGET_INTERVALS"
-     elif [[ "$METRIC" == "TP" ]]
-     then
-	if [[ ! -f $PATH_BAIT_AMPLICON_INTERVALS ]] || [[ ! -f $PATH_TARGET_INTERVALS ]]
-        then
-	    echo "`${NOW}`bait coordinates file or target coordinates file is missing"
-	    exit 1
-	fi
-	echo "`${NOW}`generating Targeted PCR metrics from merged file"
-        echo "`${NOW}`using amplicon coordinates: $PATH_BAIT_AMPLICON_INTERVALS"
-	echo "`${NOW}`using target coordinates  : $PATH_TARGET_INTERVALS"
-     elif [[ "$METRIC" == "RS" ]]
-     then
-	if [[ ! -f $PATH_RIBOSOMAL_RNA_INTERVALS ]] || [[ ! -f $PATH_ANNOTATION_REFFLAT ]]
-        then
-	    echo "`${NOW}`ribosomal RNA coordinates file or annotation refFlat file is missing"
-	    exit 1
-	fi
+		echo "`${NOW}`using target coordinates: $PATH_TARGET_INTERVALS"
+	elif [[ "$METRIC" == "TP" ]]; then
+		if [[ ! -f $PATH_BAIT_AMPLICON_INTERVALS ]] || [[ ! -f $PATH_TARGET_INTERVALS ]]; then
+			echo "`${NOW}`bait coordinates file or target coordinates file is missing"
+		exit 1
+		fi
+		if [[ ! -f $PATH_NON_OVERLAPPING_INTERVALS ]] && [[ "$PATH_NON_OVERLAPPING_INTERVALS" != "none" ]]; then
+			echo "`${NOW}`non-overlapping intervals file is missing and is not set to none"
+			exit 1
+		fi
+		echo "`${NOW}`generating Targeted PCR metrics from merged file"
+		echo "`${NOW}`using amplicon coordinates: $PATH_BAIT_AMPLICON_INTERVALS"
+		echo "`${NOW}`using target coordinates  : $PATH_TARGET_INTERVALS"
+	elif [[ "$METRIC" == "RS" ]]; then
+		if [[ ! -f $PATH_RIBOSOMAL_RNA_INTERVALS ]] || [[ ! -f $PATH_ANNOTATION_REFFLAT ]]; then
+			echo "`${NOW}`ribosomal RNA coordinates file or annotation refFlat file is missing"
+			exit 1
+		fi
 	echo "`${NOW}`generating RNA-seq metrics from merged file"
-        echo "`${NOW}`using ribosomal RNA coordinates: $PATH_RIBOSOMAL_RNA_INTERVALS"
-        echo "`${NOW}`using annotation refFlat file: $PATH_ANNOTATION_REFFLAT"
-     fi
-
+		echo "`${NOW}`using ribosomal RNA coordinates: $PATH_RIBOSOMAL_RNA_INTERVALS"
+		echo "`${NOW}`using annotation refFlat file: $PATH_ANNOTATION_REFFLAT"
+	fi
 fi
 
 #parse project name from input directory
@@ -380,6 +377,7 @@ do
 	sed -i -e "s/outBamName/$OUT_BAM_NAME/" $SCRIPT_PATH
 	sed -i -e "s/baitIntervalsFile/${PATH_BAIT_AMPLICON_INTERVALS//\//\\/}/" $SCRIPT_PATH
 	sed -i -e "s/targetIntervalsFile/${PATH_TARGET_INTERVALS//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/nonOvelappingIntervalsFile/${PATH_NON_OVERLAPPING_INTERVALS//\//\\/}/" $SCRIPT_PATH
 	sed -i -e "s/ribosomalRnaIntervalsFile/${PATH_RIBOSOMAL_RNA_INTERVALS//\//\\/}/" $SCRIPT_PATH
 	sed -i -e "s/annotationRefFlat/${PATH_ANNOTATION_REFFLAT//\//\\/}/" $SCRIPT_PATH
 	sed -i -e "s/referenceSequence/${PATH_REFERENCE_FASTA//\//\\/}/" $SCRIPT_PATH
@@ -396,36 +394,40 @@ do
 	
 	METRIC_MERGING_DEPENDECIES="$METRIC_MERGING_DEPENDECIES:$JOB_ID"
 
+	if [[ "$METRIC" != "TP" ]]
+	then
 
-        #print progress summary for submitted jobs
-        #if job is completed and log file is created in the run directory
-        #script examines whether the output files are in place and not empty
+        	#print progress summary for submitted jobs
+        	#if job is completed and log file is created in the run directory
+        	#script examines whether the output files are in place and not empty
  
-        SCRIPT_PATH=$PATH_RUN_DIR/summary_mergeandtag.$SAMPLE.pl
-        cp $BASEDIR/summary_mergeandtag.pl $SCRIPT_PATH
-	chmod 770 $SCRIPT_PATH
+        	SCRIPT_PATH=$PATH_RUN_DIR/summary_mergeandtag.$SAMPLE.pl
+        	cp $BASEDIR/summary_mergeandtag.pl $SCRIPT_PATH
+		chmod 770 $SCRIPT_PATH
 
-        sed -i -e "s/projectDirAnalysis/${PATH_RUN_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
-        sed -i -e "s/projectDirResults/${PATH_OUT_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
-        sed -i -e "s/Today/$TODAY/" $SCRIPT_PATH
-	sed -i -e "s/Project/$PROJECT/" $SCRIPT_PATH
-        sed -i -e "s/deploymentServer/$DEPLOYMENT_SERVER/" $SCRIPT_PATH
-        sed -i -e "s/summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SCRIPT_PATH
-        sed -i -e "s/summaryResults/${SUMMARY_RESULTS//\//\\/}/" $SCRIPT_PATH
-        sed -i -e "s/sampleList/${PATH_READ_GROUP_INFO//\//\\/}/" $SCRIPT_PATH
-        sed -i -e "s/markDuplicates/$MARK_DUPLICATES/" $SCRIPT_PATH
-	sed -i -e "s/metricLevel/$METRIC_LEVEL/" $SCRIPT_PATH
-	sed -i -e "s/collectMetric/$METRIC/" $SCRIPT_PATH
+        	sed -i -e "s/projectDirAnalysis/${PATH_RUN_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
+        	sed -i -e "s/projectDirResults/${PATH_OUT_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
+        	sed -i -e "s/Today/$TODAY/" $SCRIPT_PATH
+		sed -i -e "s/Project/$PROJECT/" $SCRIPT_PATH
+        	sed -i -e "s/deploymentServer/$DEPLOYMENT_SERVER/" $SCRIPT_PATH
+        	sed -i -e "s/summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SCRIPT_PATH
+        	sed -i -e "s/summaryResults/${SUMMARY_RESULTS//\//\\/}/" $SCRIPT_PATH
+        	sed -i -e "s/sampleList/${PATH_READ_GROUP_INFO//\//\\/}/" $SCRIPT_PATH
+        	sed -i -e "s/markDuplicates/$MARK_DUPLICATES/" $SCRIPT_PATH
+		sed -i -e "s/metricLevel/$METRIC_LEVEL/" $SCRIPT_PATH
+		sed -i -e "s/collectMetric/$METRIC/" $SCRIPT_PATH
 
-        LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.pl/\.log/g'`
-	echo -n "" > $LOG_OUTPUT_PATH
-	chmod 660 $LOG_OUTPUT_PATH
+        	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.pl/\.log/g'`
+		echo -n "" > $LOG_OUTPUT_PATH
+		chmod 660 $LOG_OUTPUT_PATH
 
-	echo "`${NOW}`submitting summary script $SCRIPT_PATH "
-        SUM_JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH -j oe -W depend=afterany:$JOB_ID -M cgi@imperial.ac.uk $SCRIPT_PATH` 
-	echo "`$NOW`job ID: $SUM_JOB_ID"
+		echo "`${NOW}`submitting summary script $SCRIPT_PATH "
+        	SUM_JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH -j oe -W depend=afterany:$JOB_ID -M cgi@imperial.ac.uk $SCRIPT_PATH` 
+		echo "`$NOW`job ID: $SUM_JOB_ID"
 
-	METRIC_MERGING_DEPENDECIES="$METRIC_MERGING_DEPENDECIES:$SUM_JOB_ID"
+		METRIC_MERGING_DEPENDECIES="$METRIC_MERGING_DEPENDECIES:$SUM_JOB_ID"
+
+	fi
 
 done;
 
@@ -433,18 +435,55 @@ echo "`$NOW`####################################################################
 #submit metric merging job
 if [[ "$METRIC" == "TP" ]]
 then
-	
+
+		
 	SCRIPT_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/mergePicardTargetedPcrMetrics.sh
 	cp $BASEDIR/mergePicardTargetedPcrMetrics.sh $SCRIPT_PATH
 	chmod 770 $SCRIPT_PATH
 
 	CUSTOM_AMPLICON_SET=`basename $PATH_BAIT_AMPLICON_INTERVALS`
 
+	if [[ "$PATH_NON_OVERLAPPING_INTERVALS" != "none" ]]; then
+		NON_OVERLAPPING_INTERVALS=TRUE
+	else 
+		NON_OVERLAPPING_INTERVALS=FALSE
+	fi
+
+	SCRIPT_DIR=$PATH_RUN_DIR_PREFIX/$TODAY/multisample
+
 	#configure job script
 	sed -i -e "s/mergeTagProjectDirectory/${PATH_OUT_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/#runFolder/${SCRIPT_DIR//\//\\/}/" $SCRIPT_PATH
 	sed -i -e "s/mergeTagDate/$TODAY/" $SCRIPT_PATH
 	sed -i -e "s/mergeTagProjectName/$PROJECT/" $SCRIPT_PATH
 	sed -i -e "s/customAmpliconSet/$CUSTOM_AMPLICON_SET/" $SCRIPT_PATH
+	sed -i -e "s/#nonOverlapping/$NON_OVERLAPPING_INTERVALS/" $SCRIPT_PATH
+
+
+	#create R script to plot interval coverage
+	OUTPUT_DIR=$PATH_OUT_DIR_PREFIX/$TODAY/multisample
+	SAMPLE_INTERVAL_SUMMARY=$PROJECT.$TODAY.sample_interval_summary
+		
+	R_SCRIPT_PATH=$SCRIPT_DIR/plot_amplicon_summary_metrics.R
+	
+	cp $BASEDIR/plot_amplicon_summary_metrics.R $R_SCRIPT_PATH
+	
+ 	sed -i -e "s/#resultsDir/${OUTPUT_DIR//\//\\/}/" $R_SCRIPT_PATH	
+ 	sed -i -e "s/#sampleIntervalSummary/$SAMPLE_INTERVAL_SUMMARY/" $R_SCRIPT_PATH
+
+	# plot non-overlapping regions coverage if using non-overlapping regions
+	if [[ "$PATH_NON_OVERLAPPING_INTERVALS" != "none" ]]; then
+
+		SAMPLE_INTERVAL_SUMMARY=$PROJECT.$TODAY.non_overlapping.sample_interval_summary
+		R_SCRIPT_PATH=$SCRIPT_DIR/plot_amplicon_summary_metrics.non_overlapping.R
+
+		cp $BASEDIR/plot_amplicon_summary_metrics.R $R_SCRIPT_PATH
+	
+ 		sed -i -e "s/#resultsDir/${OUTPUT_DIR//\//\\/}/" $R_SCRIPT_PATH	
+ 		sed -i -e "s/#sampleIntervalSummary/$SAMPLE_INTERVAL_SUMMARY/" $R_SCRIPT_PATH
+
+	fi
+
 	
 	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
 	echo -n "" > $LOG_OUTPUT_PATH
@@ -452,21 +491,45 @@ then
 
 	echo "`${NOW}`submitting job script to merge targeted PCR metrics: $SCRIPT_PATH "
 	JOB_ID=`qsub -W depend=$METRIC_MERGING_DEPENDECIES -q $QUEUE -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+
 	echo "`$NOW`job ID: $JOB_ID"
 	METRIC_MERGING_DEPENDECIES="$METRIC_MERGING_DEPENDECIES:$JOB_ID"
 
 	OUTPUT_FILE=$PROJECT.$TODAY.targetedPcrMetrics
-        HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
-        cp $BASEDIR/../../helper/tsvToHtmlTable.php $HTML_PATH
-        sed -i -e "s/#header/Targeted PCR Metrics/" $HTML_PATH
-        sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
+	HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
+	cp $BASEDIR/../../helper/tsvToHtmlTable.php $HTML_PATH
+	sed -i -e "s/#header/Targeted PCR Metrics/" $HTML_PATH
+	sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
 	cat $BASEDIR/picardTargetPcrMetricsColumnDescriptions.txt >> $HTML_PATH
 
 	OUTPUT_FILE=$PROJECT.$TODAY.perTargetCoverage
+	HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
+	cp $BASEDIR/../../helper/tsvToHtmlTable.php $HTML_PATH
+	sed -i -e "s/#header/Target coverage Picard/" $HTML_PATH
+	sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
+
+	if [[ "$PATH_NON_OVERLAPPING_INTERVALS" != "none" ]]; then
+		OUTPUT_FILE=$PROJECT.$TODAY.non_overlapping.perTargetCoverage
         HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
         cp $BASEDIR/../../helper/tsvToHtmlTable.php $HTML_PATH
-        sed -i -e "s/#header/Target coverage/" $HTML_PATH
+        sed -i -e "s/#header/Target coverage non-overlapping amplicon regions Picard/" $HTML_PATH
         sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
+	fi
+
+	OUTPUT_FILE=$PROJECT.$TODAY.sample_interval_summary
+	HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
+	cp $BASEDIR/../../helper/tsvToHtmlTable.php $HTML_PATH
+	sed -i -e "s/#header/Target coverage from GATK DepthOfCoverage/" $HTML_PATH
+	sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
+
+	if [[ "$PATH_NON_OVERLAPPING_INTERVALS" != "none" ]]; then
+		OUTPUT_FILE=$PROJECT.$TODAY.non_overlapping.sample_interval_summary
+        HTML_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/$OUTPUT_FILE.php
+        cp $BASEDIR/../../helper/tsvToHtmlTable.php $HTML_PATH
+        sed -i -e "s/#header/Target coverage non-overlapping amplicon regions from GATK DepthOfCoverage/" $HTML_PATH
+        sed -i -e "s/#tsvFile/${OUTPUT_FILE//\//\\/}/" $HTML_PATH
+	fi
+
 
 elif [ "$METRIC" == "HS" ]
 then
@@ -558,7 +621,7 @@ then
 	METRIC_MERGING_DEPENDECIES="$METRIC_MERGING_DEPENDECIES:$JOB_ID"
 
         #create php script that translate tsv file into html
-	for CATEGORY in FIRST_OF_PAIR SECOND_OF_PAIR PAIR
+	for CATEGORY in FIRST_OF_PAIR SECOND_OF_PAIR PAIR UNPAIRED
 	do
 
 	    OUTPUT_FILE=$PROJECT.$TODAY.alignment_summary_metrics.$CATEGORY

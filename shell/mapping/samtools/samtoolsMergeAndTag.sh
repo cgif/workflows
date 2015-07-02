@@ -44,6 +44,7 @@ TMP_PATH_RG_HEADER=$TMPDIR/rg_head.txt
 
 PATH_BAIT_AMPLICON_INTERVALS=baitIntervalsFile
 PATH_TARGET_INTERVALS=targetIntervalsFile
+PATH_NON_OVERLAPPING_INTERVALS=nonOvelappingIntervalsFile
 PATH_RIBOSOMAL_RNA_INTERVALS=ribosomalRnaIntervalsFile
 PATH_ANNOTATION_REFFLAT=annotationRefFlat
 REFERENCE_SEQUENCE=referenceSequence
@@ -437,18 +438,43 @@ then
 	echo "`${NOW}`using target coordinates  : $TARGET_INTERVALS"
 	echo "`${NOW}`using reference sequence file: $REFERENCE_SEQUENCE"
 
-        echo "`${NOW}`copying bait interval file to temp space..."
+	echo "`${NOW}`copying bait interval file to temp space..."
 	cp $PATH_BAIT_AMPLICON_INTERVALS $TMPDIR/tmp_amplicon.intervals
 
-        echo "`${NOW}`copying target interval file to temp space..."
+	echo "`${NOW}`copying target interval file to temp space..."
 	cp $PATH_TARGET_INTERVALS $TMPDIR/tmp_target.intervals
-	
+
+
 	#INFO: failes without meaningful error message if fasta file index (generated with samtools faidx)
 	#is not present.
 	echo "`${NOW}`collecting Picard Tartgeted PCR metrics..."	
 	OPTIONS="TMP_DIR=$TMPDIR VALIDATION_STRINGENCY=SILENT METRIC_ACCUMULATION_LEVEL=ALL_READS REFERENCE_SEQUENCE=tmp_reference.fa VERBOSITY=WARNING"
 	java -XX:+UseSerialGC -Xmx$JAVA_XMX -jar $PICARD_HOME/CollectTargetedPcrMetrics.jar INPUT=$TMP_PATH_OUT_BAM.sorted.dupmark.clean OUTPUT=$TMP_PATH_OUT_BAM.targetedPcrMetrics PER_TARGET_COVERAGE=$TMP_PATH_OUT_BAM.perTargetCoverage AMPLICON_INTERVALS=$TMPDIR/tmp_amplicon.intervals TARGET_INTERVALS=$TMPDIR/tmp_target.intervals $OPTIONS
-	
+
+	echo "`${NOW}`copying metrics to $OUT_BAM.targetedPcrMetrics..."
+	cp $TMP_PATH_OUT_BAM.targetedPcrMetrics $OUT_BAM.targetedPcrMetrics
+	chmod 660 $OUT_BAM.targetedPcrMetrics
+
+	echo "`${NOW}`copying all per target coverage to $OUT_BAM.perTargetCoverage..."
+	cp $TMP_PATH_OUT_BAM.perTargetCoverage $OUT_BAM.perTargetCoverage
+	chmod 660 $OUT_BAM.perTargetCoverage
+
+	# if we provided non-overlapping regions of the amplicon file
+	# generate coverage statistics for it
+
+	if [[ "$PATH_NON_OVERLAPPING_INTERVALS" != "none" ]]; then
+		echo "`${NOW}`copying non-overlapping amplicon interval file to temp space..."
+		cp $PATH_NON_OVERLAPPING_INTERVALS $TMPDIR/tmp_amplicon.non_overlapping.intervals
+
+		echo "`${NOW}`collecting Picard Tartgeted PCR metrics for non-overlapping amplicon intervals..."	
+		OPTIONS="TMP_DIR=$TMPDIR VALIDATION_STRINGENCY=SILENT METRIC_ACCUMULATION_LEVEL=ALL_READS REFERENCE_SEQUENCE=tmp_reference.fa VERBOSITY=WARNING"
+		java -XX:+UseSerialGC -Xmx$JAVA_XMX -jar $PICARD_HOME/CollectTargetedPcrMetrics.jar INPUT=$TMP_PATH_OUT_BAM.sorted.dupmark.clean OUTPUT=$TMP_PATH_OUT_BAM.non_overlapping.targetedPcrMetrics PER_TARGET_COVERAGE=$TMP_PATH_OUT_BAM.non_overlapping.perTargetCoverage AMPLICON_INTERVALS=$TMPDIR/tmp_amplicon.non_overlapping.intervals TARGET_INTERVALS=$TMPDIR/tmp_amplicon.non_overlapping.intervals $OPTIONS
+
+		echo "`${NOW}`copying non-overlapping per target coverage to $OUT_BAM.perTargetCoverage..."
+		cp $TMP_PATH_OUT_BAM.non_overlapping.perTargetCoverage $OUT_BAM.non_overlapping.perTargetCoverage
+		chmod 660 $OUT_BAM.non_overlapping.perTargetCoverage
+	fi
+
 	#change filename of input file as GATK only
 	#accepts input BAM files with the .bam extension :-S
 	mv $TMP_PATH_OUT_BAM.sorted.dupmark.clean $TMP_PATH_OUT_BAM.sorted.dupmark.clean.bam
@@ -458,29 +484,41 @@ then
 		-R tmp_reference.fa \
    		-T DepthOfCoverage \
    		--countType COUNT_FRAGMENTS \
-   		--outputFormat csv \
    		--omitDepthOutputAtEachBase \
    		-o $TMP_PATH_OUT_BAM.depthOfCoverage \
    		-I $TMP_PATH_OUT_BAM.sorted.dupmark.clean.bam \
+		-rf BadCigar \
    		-L $TMPDIR/tmp_amplicon.intervals
-		
-	echo "`${NOW}`copying metrics to $OUT_BAM.targetedPcrMetrics..."
-	cp $TMP_PATH_OUT_BAM.targetedPcrMetrics $OUT_BAM.targetedPcrMetrics
-	chmod 660 $OUT_BAM.targetedPcrMetrics
 
-	echo "`${NOW}`copying per target coverage to $OUT_BAM.perTargetCoverage..."
-	cp $TMP_PATH_OUT_BAM.perTargetCoverage $OUT_BAM.perTargetCoverage
-	chmod 660 $OUT_BAM.perTargetCoverage
-
-	echo "`${NOW}`copying per amplicon coverage to $OUT_BAM.perAmpliconCoverage..."
-	cp $TMP_PATH_OUT_BAM.depthOfCoverage $OUT_BAM.perAmpliconCoverage
-	chmod 660 $OUT_BAM.perAmpliconCoverage
-	
 	for EXT in sample_cumulative_coverage_counts sample_cumulative_coverage_proportions sample_interval_statistics sample_interval_summary sample_statistics sample_summary
 	do
 		cp $TMP_PATH_OUT_BAM.depthOfCoverage.$EXT $OUT_BAM.perAmpliconCoverage.$EXT
 		chmod 660 $OUT_BAM.perAmpliconCoverage.$EXT
 	done;
+
+	# if using non-overlapping intervals file, calculate gatk coverage for non-overlapping regions
+ 
+	if [[ "$PATH_NON_OVERLAPPING_INTERVALS" != "none" ]]; then
+
+		echo "`${NOW}`collecting GATK amplicon coverage metrics..."	
+		java -XX:+UseSerialGC -Xmx$JAVA_XMX -jar $GATK_HOME/GenomeAnalysisTK.jar \
+			-R tmp_reference.fa \
+   			-T DepthOfCoverage \
+   			--countType COUNT_FRAGMENTS \
+   			--omitDepthOutputAtEachBase \
+   			-o $TMP_PATH_OUT_BAM.non_overlapping.depthOfCoverage \
+   			-I $TMP_PATH_OUT_BAM.sorted.dupmark.clean.bam \
+			-rf BadCigar \
+   			-L $TMPDIR/tmp_amplicon.non_overlapping.intervals
+
+		for EXT in sample_cumulative_coverage_counts sample_cumulative_coverage_proportions sample_interval_statistics sample_interval_summary sample_statistics sample_summary
+		do
+			cp $TMP_PATH_OUT_BAM.non_overlapping.depthOfCoverage.$EXT $OUT_BAM.non_overlapping.perAmpliconCoverage.$EXT
+			chmod 660 $OUT_BAM.non_overlapping.perAmpliconCoverage.$EXT
+		done;
+
+	fi
+
 
 	echo "`${NOW}`-------------------------------------------------------------------------------------------------------"
 

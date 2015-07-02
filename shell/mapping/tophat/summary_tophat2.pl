@@ -1,18 +1,23 @@
 #!/usr/bin/perl -w
 
-$project_dir_analysis = "#projectDirAnalysis";
-$project_dir_results = "#projectDirResults";
-$summary_results = "#summaryResults";
-$deployment_server = "#deploymentServer";
-$summary_deployment = "#summaryDeployment";
+use strict;
+use warnings;
 
-#collect data from bwa log files
-%sum = (); 
+my $project_dir_analysis = "#projectDirAnalysis";
+my $project_dir_results = "#projectDirResults";
+my $summary_results = "#summaryResults";
+my $deployment_server = "#deploymentServer";
+my $summary_deployment = "#summaryDeployment";
 
 $project_dir_analysis =~ s/^(\S+)\/\S+$/$1/;
 $project_dir_results =~ s/^(\S+)\/\S+$/$1/;
 
+#collect data from bwa log files
+my %sum = (); 
+
 #collect info for each sample run
+my($sample, $sample_dir, $script, $output_prefix, $read, $bam, $log, $summary, $grep_mapping, $grep_concordant, $left, $right);
+
 opendir (PROJECT, "$project_dir_analysis"); 
 while (defined($sample = readdir(PROJECT))){
     next if $sample =~ /^\./;
@@ -96,11 +101,11 @@ print OUT "<TH><CENTER>Reads with multiple alignments";
 print OUT "<TH><CENTER>Overall Read Mapping Rate";
 print OUT "<TH><CENTER>Concordant Pair Alignment Rate\n";
 
-foreach $sample (sort {$a cmp $b} keys %sum){
+foreach my $sample (sort {$a cmp $b} keys %sum){
     print OUT "<TR><TD>$sample";
-    $count = 0;
+    my $count = 0;
 
-    foreach $read (sort {$a cmp $b} keys %{$sum{$sample}}){
+    foreach my $read (sort {$a cmp $b} keys %{$sum{$sample}}){
 	print OUT "<TD>$read" if $count == 0;
 	print OUT "<TR><TD><TD>$read" if $count;
 	$count++;

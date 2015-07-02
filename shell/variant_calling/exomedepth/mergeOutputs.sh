@@ -4,7 +4,7 @@
 #PBS -l select=1:ncpus=1:mem=10gb
 
 #PBS -M cgi@imperial.ac.uk
-#PBS -m bea
+#PBS -m ea
 #PBS -j oe
 
 #PBS -q pqcgi
@@ -29,13 +29,13 @@ COMBINED_CALLS=$MS_RESULTS_DIR/${PROJECT}.cnvs.exons.tsv
 
 echo "`$NOW`merging output for all samples"
 #get headers
-HEAD_SAMPLE=`cut -f 2 $PED_FILE | grep -v '#' | head -n 1`
+HEAD_SAMPLE=`grep -v '^#' $PED_FILE | cut -f 2 | head -n 1`
 head -n 1 $RESULTS_DIR/$HEAD_SAMPLE/${HEAD_SAMPLE}.cnv.calls.all.tsv > $MERGED_CNVS
 head -n 1 $RESULTS_DIR/$HEAD_SAMPLE/${HEAD_SAMPLE}.cnv.calls.all.summary.tsv > $MERGED_SUMMARY
 chmod 660 $MERGED_CNVS
 chmod 660 $MERGED_SUMMARY
 
-for SAMPLE in `cut -f 2 $PED_FILE | grep -v '#'`; do
+for SAMPLE in `grep -v '^#' $PED_FILE | cut -f 2`; do
 
 	tail -n +2 $RESULTS_DIR/$SAMPLE/${SAMPLE}.cnv.calls.all.tsv >> $MERGED_CNVS
 	tail -n +2 $RESULTS_DIR/$SAMPLE/${SAMPLE}.cnv.calls.autosomes.summary.tsv >> $MERGED_SUMMARY
@@ -43,7 +43,7 @@ done
 
 ## now add X_chromosome summaries (visually easier to compare between samples)
 
-for SAMPLE in `cut -f 2 $PED_FILE | grep -v '#'`; do
+for SAMPLE in `grep -v '^#' $PED_FILE | cut -f 2`; do
 
 	tail -n +2 $RESULTS_DIR/$SAMPLE/${SAMPLE}.cnv.calls.X_chromosome.summary.tsv >> $MERGED_SUMMARY
 done

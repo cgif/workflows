@@ -1,5 +1,7 @@
 #!/usr/bin/perl -w
+
 use strict;
+use warnings;
 
 #This script generates on-line summary that reflects jobs progress. 
 #Once job is finished and non-empty log file is present in the run directory,
@@ -19,7 +21,7 @@ my $enc_dir = "encryptedDir";
 my $summary_link = $1 if  $summary_deployment =~ /\/www\/html\/(.*)/;
 my $data_link = $1 if $data_deployment =~ /\/www\/html\/(.*)/;
 
-
+#collect list of samples
 my @sample_all = ();
 
 open (LIST, "$sample_list");
@@ -33,6 +35,7 @@ while (<LIST>){
 
 my @sample = Uniq(@sample_all);
 
+#collect data from log files
 my %sum = ();
 
 foreach my $sample (@sample){
@@ -64,8 +67,11 @@ foreach my $sample (@sample){
 }
 
 
-open (OUT, ">$summary_results/index.html");
+#########################################
+#per sample results
+#########################################
 
+open (OUT, ">$summary_results/index.html");
 print OUT "<HTML>";
 print OUT "<HEAD><META HTTP-EQUIV='refresh' CONTENT='60'></HEAD>";
 print OUT "<TABLE CELLPADDING=5><TR>";
@@ -77,6 +83,7 @@ print OUT "<TH><CENTER>CNV calls<BR>X chromosome";
 #create data directory
 system("ssh $deployment_server mkdir -p -m 775 $data_deployment/$enc_dir > /dev/null 2>&1");
 
+#print status for CNV call and deploy CNV file to the Web server for each sample
 my @tags = qw(autosomes X_chromosome);
 foreach my $sample (sort @sample){
 	print OUT "<TR><TD>$sample\n";
@@ -102,9 +109,12 @@ foreach my $sample (sort @sample){
 }
 
 print OUT "</TABLE>\n";
+
+
 #########################################
 #multisample results and summary metrics
 #########################################
+
 #horizontal line
 print OUT "<HR>";
 
@@ -119,9 +129,6 @@ my $multisample_exons = "$project_dir_results/$date/multisample/$project.cnvs.ex
 system("ssh $deployment_server mkdir -p -m 775 $summary_deployment/multisample > /dev/null 2>&1");
 system("ssh $deployment_server mkdir -p -m 775 $data_deployment/$enc_dir/multisample > /dev/null 2>&1");
 
-
-
-
 #copy files to server
 system("scp -r $multisample_calls $deployment_server:$data_deployment/$enc_dir/multisample > /dev/null 2>&1");
 system("scp -r $multisample_bed $deployment_server:$data_deployment/$enc_dir/multisample > /dev/null 2>&1");
@@ -129,6 +136,7 @@ system("scp -r $multisample_summary $deployment_server:$summary_deployment/multi
 system("scp -r $multisample_summary_php $deployment_server:$summary_deployment/multisample > /dev/null 2>&1");
 system("scp -r $multisample_exons $deployment_server:$data_deployment/$enc_dir/multisample > /dev/null 2>&1");
 
+#print links on summary page
 my $multisample_calls_url = "http://$deployment_server/$data_link/$enc_dir/multisample/$project.cnvs.tsv";
 my $multisample_bed_url = "http://$deployment_server/$data_link/$enc_dir/multisample/$project.cnvs.bed";
 my $multisample_summary_url = "http://$deployment_server/$summary_link/multisample/$project.cnvs.summary.tsv";
