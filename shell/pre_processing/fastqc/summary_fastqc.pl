@@ -5,6 +5,7 @@ use warnings;
 
 my $fastq_dir = "#pathReadsFastq";
 my $analysis_dir = "#pathAnalysisDir";
+my $runs_dir = "#pathRunsDir";
 my $report_dir = "#pathReportsDir";
 my $ms_report_dir = "#pathMSReportsDir";
 my $deployment_server = "#deploymentServer";
@@ -28,7 +29,7 @@ while (defined(my $sample = readdir(PROJECT))){
     next unless (-d "$sample_dir");
 
     #check for FastQC run log file; integrity and proper pairing of fastq files
-    my $run_dir = "$analysis_dir/$sample/run";
+    my $run_dir = "$runs_dir/$sample";
     opendir (RUNDIR, "$run_dir");
     
     my $log_count = 0;
