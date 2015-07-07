@@ -3,34 +3,37 @@
 ### Task 1 - plot histograms and boxplots of ABHet and DP for variants in dbSNP129 (known) and variants not in dbSN19 (novel).
 #############
 
-# data files are in format "variant\tinfo.ABHet\tinfo.DP", with a header line
+# data file is in tab delimited format with a header line
+# It needs to contain columns ABHet, DP and dbSNP129.RS
+# missing values are NA
 
 #define variables
-known.file <- "aitman_taadz_dbSNP129_ABHet_DP.txt"
-novel.file <- "aitman_taadz_not_dbSNP129_ABHet_DP.txt"
-project <- "aitman_taadz"
+data.file <- "aitman_taadx.ABHet.DP.tsv"
+project <- "aitman_taadx"
 dbSNP <- "dbSNP129"
 
 #script
 
-known <- read.table(file = known.file, header = TRUE, stringsAsFactors = FALSE)
-novel <- read.table(file = novel.file, header = TRUE, stringsAsFactors = FALSE)
+data <- read.table(file = data.file, header = TRUE, stringsAsFactors = FALSE)
+
+known <- subset( x = data, subset = !is.na(dbSNP129.RS)) 
+novel <- subset( x = data, subset = is.na(dbSNP129.RS))
 
 pdf( paste(project, "_ABHet_DP_plots_", dbSNP, ".pdf", sep = "") )
-boxplot(known$info.ABHet, novel$info.ABHet, names = c(paste("known", dbSNP, sep=" "), "novel"), main = paste(project, dbSNP, "ABHet values", sep = " "), ylab = "ABHet")
+boxplot(known$ABHet, novel$ABHet, names = c(paste("known (", dbSNP, ")", sep=""), "novel"), main = paste(project, "ABHet values", sep = " "), ylab = "ABHet")
 
-hist(known$info.ABHet, breaks = 40, col=rgb(1,0,0,0.5), xlim=c(0,1), freq = FALSE, main = paste(project, dbSNP, "ABHet density histogram", sep = " "), xlab = "ABHet" )
-hist(novel$info.ABHet, breaks = 40, col=rgb(0,0,1,0.5), freq = FALSE, add = TRUE)
-legend( x = "topright", legend = c("known", "novel"), fill = c(rgb(1,0,0,0.5), rgb(0,0,1,0.5)) )
+hist(known$ABHet, breaks = 40, col=rgb(1,0,0,0.5), xlim=c(0,1), freq = FALSE, main = paste(project, "ABHet density histogram", sep = " "), xlab = "ABHet" )
+hist(novel$ABHet, breaks = 40, col=rgb(0,0,1,0.5), freq = FALSE, add = TRUE)
+legend( x = "topright", legend = c(paste("known (", dbSNP, ")", sep = ""), "novel"), fill = c(rgb(1,0,0,0.5), rgb(0,0,1,0.5)) )
 
-boxplot(known$info.DP, novel$info.DP, names = c(paste("known", dbSNP, sep = " "), "novel"), main = paste(project, dbSNP, "DP values", sep = " "), ylab = "DP")
+boxplot(known$DP, novel$DP, names = c(paste("known (", dbSNP, ")", sep = ""), "novel"), main = paste(project, "DP values", sep = " "), ylab = "DP")
 
-hist(known$info.DP, breaks = 40, col=rgb(1,0,0,0.5), freq = FALSE, main = paste(project, dbSNP, "DP density histogram", sep = " "), xlab = "DP" )
-hist(novel$info.DP, breaks = 40, col=rgb(0,0,1,0.5), freq = FALSE, add = TRUE)
-legend( x = "topright", legend = c("known", "novel"), fill = c(rgb(1,0,0,0.5), rgb(0,0,1,0.5)) )
+hist(known$DP, breaks = 40, col=rgb(1,0,0,0.5), freq = FALSE, main = paste(project, "DP density histogram", sep = " "), xlab = "DP" )
+hist(novel$DP, breaks = 40, col=rgb(0,0,1,0.5), freq = FALSE, add = TRUE)
+legend( x = "topright", legend = c(paste("known (", dbSNP, ")", sep = ""), "novel"), fill = c(rgb(1,0,0,0.5), rgb(0,0,1,0.5)) )
 
-plot(known$info.ABHet ~ known$info.DP, main = paste(project, ", known ", dbSNP, sep = ""))
-plot(novel$info.ABHet ~ novel$info.DP, main = paste(project, ", novel ", dbSNP, sep = ""))
+plot(known$ABHet ~ known$DP, main = paste(project, ", known (", dbSNP, ")", sep = ""), xlab = "DP", ylab = "ABHet")
+plot(novel$ABHet ~ novel$DP, main = paste(project, ", novel (", dbSNP, ")", sep = ""), xlab = "DP", ylab = "ABHet")
 
 dev.off()
 
@@ -42,23 +45,23 @@ rm(list=ls(all=TRUE))
 ### Task 2 - fit mixture distribution and select filtering threshold
 #############
 
-# data files are in format "variant\tinfo.ABHet\tinfo.DP", with header
+# data file is in tab delimited format with a header line
+# It needs to contain columns ABHet, DP and dbSNP129.RS
+# missing values are NA
 
 #define variables
-known.file <- "aitman_taadz_dbSNP129_ABHet_DP.txt"
-novel.file <- "aitman_taadz_not_dbSNP129_ABHet_DP.txt"
-project <- "aitman_taadz"
+data.file <- "aitman_taadx.ABHet.DP.tsv"
+project <- "aitman_taadx"
 dbSNP <- "dbSNP129"
 
 #script
 
-known <- read.table(file = known.file, header = TRUE, stringsAsFactors = FALSE)
-novel <- read.table(file = novel.file, header = TRUE, stringsAsFactors = FALSE)
+data <- read.table(file = data.file, header = TRUE, stringsAsFactors = FALSE)
 
-#combine ABHet values from both sets and remove missing values
-x <- c(novel$info.ABHet, known$info.ABHet)
-x <- x[!is.na(x)]
-x <- 1-x
+#remove missing ABHet values and transform data to get right skewed distribution
+
+ABHet <- data$ABHet[!is.na(data$ABHet)]
+x <- 1-ABHet
 
 #inspect the data (if running interactively)
 hist(x, freq=FALSE, breaks = 40)
@@ -72,7 +75,8 @@ pmixture.p <- function(x,p)
 f.neglog <- function(p) -sum(log(dmixture.p(x,p)))
 
 #define starting parameters
-start.params <- c(0.5, 0.5, 0.03, 12, 57) # best for mixture with gamma
+
+start.params <- c(0.5, 0.5, 0.08, 11, 59) # best for mixture with gamma (aitman_taadx project)
 
 #run MLE
 mle.fit <- optim(start.params, f.neglog)
@@ -91,7 +95,7 @@ legend( x = "topright", legend = c("mixture", "negatives (gamma distribution)", 
 
 
 #find threshold z for chosen FDR
-z <- 0.3026
+z <- 0.2805
 fdr <- (1 - mle.fit$par[1])*(1-pgamma(z,mle.fit$par[4], mle.fit$par[5])) / ( mle.fit$par[1]*(1-pnorm(z,mle.fit$par[2],mle.fit$par[3])) +  (1 - mle.fit$par[1])*(1-pgamma(z,mle.fit$par[4], mle.fit$par[5])))
 fdr
 
@@ -129,11 +133,14 @@ spec.roc <- 1 - spec
 plot(sens ~ spec.roc , type = "l", main = paste(project, " ROC based on mixture model", sep = ""), xlab = "1 - specificity", ylab = "sensitivity")
 
 # ROC assuming all novel variants are false positives (negatives)
+known <- subset( x = data, subset = !is.na(dbSNP129.RS)) 
+novel <- subset( x = data, subset = is.na(dbSNP129.RS))
+
 z <- seq(0,1,len=100)
-pos <- known$info.ABHet[!is.na(known$info.ABHet)]
+pos <- known$ABHet[!is.na(known$ABHet)]
 n.true <- length(pos)
 n.tp <- numeric()
-neg <- novel$info.ABHet[!is.na(known$info.ABHet)]
+neg <- novel$ABHet[!is.na(known$ABHet)]
 n.neg <- length(neg)
 n.tn <- numeric()
 

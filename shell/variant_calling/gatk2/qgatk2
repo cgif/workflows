@@ -1062,7 +1062,8 @@ function submitVariantCallerMultiSampleJobs {
 				sed -i -e "s/#rVersion/$R_VERSION/" $script_path
 				sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
 
-				sed -i -e "s/#dbSnp/${DBSNP//\//\\/}/" $script_path	
+				sed -i -e "s/#dbSnpExPost129/${DBSNP_EX_POST_129//\//\\/}/" $script_path				
+				sed -i -e "s/#dbSnp/${DBSNP//\//\\/}/" $script_path
 				sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
 				sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
 				sed -i -e "s/#analysisDir/${analysis_dir//\//\\/}/" $script_path
