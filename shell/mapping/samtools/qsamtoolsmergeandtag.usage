@@ -20,6 +20,7 @@ USAGE
                             [-f <path_to_reference_sequence_fasta_file,
                                 default /groupvol/cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.fa>]
                             [-q <level_at_which_to_accumulate_metrics RG|L|S, default S>]
+							[-c <sample status file for amplicon sequencing>]
 
 
 DESCRIPTION
@@ -40,16 +41,16 @@ DESCRIPTION
                 lines contain read group information. The column order  
                 is as follows:
                 
-		read_group_id                   The ID used to tag read groups.
+				read_group_id                   The ID used to tag read groups.
                                                 Must be a substring of the 
                                                 corresponding BAM file.
 
-                sample_name                     The name of the sample.
+				sample_name                     The name of the sample.
                                                 Must match the folder name
                                                 containing the BAM files of the
                                                 corresponding sample.
 
-                library_name                    The name of the sequencing library.
+				library_name                    The name of the sequencing library.
                                                 If reads from different libraries
                                                 generated from the same sample are
                                                 merged it is important to supply
@@ -74,50 +75,54 @@ DESCRIPTION
                 platform_unit                   For example the lane of an Illumina
                                                 flowcell.
 
-		mapping_date			The date of the read mapping run.  
+				mapping_date					The date of the read mapping run.  
 
-		clip_cycle			Soft clips bases in machine cycles from start 
-						to end, inclusive. Accepts a string of ranges 
-						of the form start1-end1,start2-end2, etc.
+				clip_cycle						Soft clips bases in machine cycles from start 
+												to end, inclusive. Accepts a string of ranges 
+												of the form start1-end1,start2-end2, etc.
 
- 		clip_read			Soft clips bases specified in clip_cycle 
-						column in both paired-reads (1,2) or just 
-						a single read (e.g. 1)
+ 				clip_read						Soft clips bases specified in clip_cycle 
+												column in both paired-reads (1,2) or just 
+												a single read (e.g. 1)
 
-	-d      Mark PCR duplicates (default is TRUE)
+	-d	Mark PCR duplicates (default is TRUE)
         
-	-s      Absolut path to SAM header to be used in the merged BAM file.
-                !!!THIS OPTION IS NOT SUPPORTED!!! 
-                At the present header dictionary is collected from the last BAM file 
-                to be merged in the library and the RG header entries are appended.  
+	-s	Absolut path to SAM header to be used in the merged BAM file.
+		!!!THIS OPTION IS NOT SUPPORTED!!! 
+		At the present header dictionary is collected from the last BAM file 
+		to be merged in the library and the RG header entries are appended.  
 
-	-m      The metrics to collect from the merged BAM file with Picard tools.
-                (Valid values: HS for hybrid sequencing,
-                TP for targeted PCR, RS of RNA-seq) 
+	-m	The metrics to collect from the merged BAM file with Picard tools.
+		(Valid values: HS for hybrid sequencing,
+		TP for targeted PCR, RS of RNA-seq) 
 
-	-b      Absolute path to sequence capture bait coordinate file (required if
-                collecting hybrid sequencing metrics or amplican coordinate
-                file (required if collecting targeted PCR metrics). See also -m option. 
-                The file needs to be in interval list format.
-                (see http://picard.sourceforge.net/javadoc/net/sf/picard/util/IntervalList.html)
+	-b	Absolute path to sequence capture bait coordinate file (required if
+		collecting hybrid sequencing metrics or amplican coordinate
+		file (required if collecting targeted PCR metrics). See also -m option. 
+		The file needs to be in interval list format.
+		(see http://picard.sourceforge.net/javadoc/net/sf/picard/util/IntervalList.html)
                 
-	-t      Absolute path to hybrid sequencing or targeted PCR
-                target interval file (required if collecting hybrid sequencing or
-                targeted PCR metrics respectively. See also -m option.
-                The file needs to be in interval list format.
-                (see http://picard.sourceforge.net/javadoc/net/sf/picard/util/IntervalList.html)
+	-t	Absolute path to hybrid sequencing or targeted PCR
+		target interval file (required if collecting hybrid sequencing or
+		targeted PCR metrics respectively. See also -m option.
+		The file needs to be in interval list format.
+		(see http://picard.sourceforge.net/javadoc/net/sf/picard/util/IntervalList.html)
 
-	-p      Absolute path to ribosomal RNA coordinates (required if collecting
+	-p 	Absolute path to ribosomal RNA coordinates (required if collecting
                 RNA-seq metrics). See also -m option.
 
-        -a	Absolute path to gene annotations in refFlat format (required if collecting 
+	-a	Absolute path to gene annotations in refFlat format (required if collecting 
 		RNA-seq metrics). See also -m option. Format described here: 
 		http://genome.ucsc.edu/goldenPath/gbdDescriptionsOld.html#RefFlat. 
 
-	-f      Absolute path to reference sequence fasta file.
+	-f	Absolute path to reference sequence fasta file.
 
-        -q      The level at which to accumulate metrics. RG - read group, L - library, S - sample. 
-                More than one level can be specified in a coma-separated list.
+	-q	The level at which to accumulate metrics. RG - read group, L - library, S - sample. 
+		More than one level can be specified in a coma-separated list.
 
-        -h      Display help and exit.
+	-c	Absolute path to sample status file, required for amplicon sequencing. File 
+		format SampleID\tstatus\n (0-negative control, 1 - sample), no header line
+
+	-h	Display help and exit.
+
 

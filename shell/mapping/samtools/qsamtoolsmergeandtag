@@ -42,12 +42,13 @@ PATH_REFERENCE_FASTA=$GROUPVOL_CGI/resources/reference/eukaryote/human/hs37d5/hs
 METRIC=NONE
 MARK_DUPLICATES=TRUE
 METRIC_LEVEL=S
+SAMPLE_STATUS=none
 
 #COMMAND LINE ARGS
 ##################
 
 #parse command line args
-while getopts "i:r:d:s:m:b:t:l:p:a:f:q:h" option; do
+while getopts "i:r:d:s:m:b:t:l:p:a:f:q:c:h" option; do
     case "$option" in
 	
 	i) PATH_INPUT_DIR="$OPTARG";;
@@ -62,6 +63,7 @@ while getopts "i:r:d:s:m:b:t:l:p:a:f:q:h" option; do
 	a) PATH_ANNOTATION_REFFLAT="$OPTARG";;
 	f) PATH_REFERENCE_FASTA="$OPTARG";;
 	q) METRIC_LEVEL="$OPTARG";;
+	c) SAMPLE_STATUS="$OPTARG";;
 	h) cat $USAGE; exit 0;;
 	[?]) cat $USAGE; exit 1;;
 
@@ -128,6 +130,18 @@ if [ "$METRIC" != "NONE" ]
 	    exit 1
     fi
 fi
+
+# check that sample status is provided if amplicon sequencing
+if [[ $METRIC == "TP" ]]; then
+	if [[ "$SAMPLE_STATUS" == "none" ]]; then
+		echo "ERROR: sample status is not provided for amplicon sequencing"
+		exit 1;
+	elif [[ ! -f $SAMPLE_STATUS ]]; then
+		echo "ERROR: sample status file for amplicon sequencing does not exist: $SAMPLE_STATUS"
+		exit 1;
+	fi
+fi
+
 
 echo "`${NOW}`merging BAM files in $PATH_INPUT_DIR..."
 echo "`${NOW}`using read group info: $PATH_READ_GROUP_INFO"
@@ -463,6 +477,7 @@ then
 	#create R script to plot interval coverage
 	OUTPUT_DIR=$PATH_OUT_DIR_PREFIX/$TODAY/multisample
 	SAMPLE_INTERVAL_SUMMARY=$PROJECT.$TODAY.sample_interval_summary
+	SAMPLE_NON_OVERLAPPING_INTERVAL_SUMMARY=$PROJECT.$TODAY.non_overlapping.sample_interval_summary
 		
 	R_SCRIPT_PATH=$SCRIPT_DIR/plot_amplicon_summary_metrics.R
 	
@@ -470,19 +485,24 @@ then
 	
  	sed -i -e "s/#resultsDir/${OUTPUT_DIR//\//\\/}/" $R_SCRIPT_PATH	
  	sed -i -e "s/#sampleIntervalSummary/$SAMPLE_INTERVAL_SUMMARY/" $R_SCRIPT_PATH
+ 	sed -i -e "s/#nonOverlappingIntervalSummary/$SAMPLE_NON_OVERLAPPING_INTERVAL_SUMMARY/" $R_SCRIPT_PATH
+ 	sed -i -e "s/#projectName/$PROJECT/" $R_SCRIPT_PATH
+ 	sed -i -e "s/#mergetagDate/$TODAY/" $R_SCRIPT_PATH
+ 	sed -i -e "s/#sampleStatus/${SAMPLE_STATUS//\//\\/}/" $R_SCRIPT_PATH
+
 
 	# plot non-overlapping regions coverage if using non-overlapping regions
-	if [[ "$PATH_NON_OVERLAPPING_INTERVALS" != "none" ]]; then
+#	if [[ "$PATH_NON_OVERLAPPING_INTERVALS" != "none" ]]; then
 
-		SAMPLE_INTERVAL_SUMMARY=$PROJECT.$TODAY.non_overlapping.sample_interval_summary
-		R_SCRIPT_PATH=$SCRIPT_DIR/plot_amplicon_summary_metrics.non_overlapping.R
+#		SAMPLE_INTERVAL_SUMMARY=$PROJECT.$TODAY.non_overlapping.sample_interval_summary
+#		R_SCRIPT_PATH=$SCRIPT_DIR/plot_amplicon_summary_metrics.non_overlapping.R
 
-		cp $BASEDIR/plot_amplicon_summary_metrics.R $R_SCRIPT_PATH
+#		cp $BASEDIR/plot_non_overlapping_amplicon_summary_metrics.R $R_SCRIPT_PATH
 	
- 		sed -i -e "s/#resultsDir/${OUTPUT_DIR//\//\\/}/" $R_SCRIPT_PATH	
- 		sed -i -e "s/#sampleIntervalSummary/$SAMPLE_INTERVAL_SUMMARY/" $R_SCRIPT_PATH
+ #		sed -i -e "s/#resultsDir/${OUTPUT_DIR//\//\\/}/" $R_SCRIPT_PATH	
+# 		sed -i -e "s/#sampleIntervalSummary/$SAMPLE_INTERVAL_SUMMARY/" $R_SCRIPT_PATH
 
-	fi
+#	fi
 
 	
 	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
