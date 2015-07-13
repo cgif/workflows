@@ -306,10 +306,15 @@ if ($collect_metric =~ /TP/){
     $metrics_file = "$metrics_path/$metrics_name";
     $html_file = "$html_path/$metrics_name.php";
     if (-s $metrics_file){
-        system("scp -r $metrics_file $deployment_server:$summary_deployment/metrics/$metrics_name");
+        system("scp -r $metrics_file* $deployment_server:$summary_deployment/metrics");
 	system("scp -r $html_file $deployment_server:$summary_deployment/metrics/$metrics_name.php");
         print OUT "<P><FONT SIZE = '+1'><A HREF = '$url/metrics/$metrics_name.php'>Targeted PCR metrics</A>".
                                         "<A HREF = '$url/metrics/$metrics_name'> [TSV]</A>".
+                                        "<A HREF = '$url/metrics/$metrics_name.readsAlligned.png'> [Plot aligned reads]</A>".
+                                        "<A HREF = '$url/metrics/$metrics_name.basesOnBait.png'> [Plot reads ON and OFF amplicon]</A>".
+                                        "<A HREF = '$url/metrics/$metrics_name.meanTargetCoverage.png'> [Plot mean target coverage]</A>".
+                                        "<A HREF = '$url/metrics/$metrics_name.foldEnrichment.png'> [Plot fold enrichment]</A>".
+                                        "<A HREF = '$url/metrics/$metrics_name.cumulativeCoverage.png'> [Plot cumulative coverage]</A>".
 					"</FONT><BR>";
     }
     $metrics_name = "$project.$date.perTargetCoverage";
@@ -365,9 +370,15 @@ if ($collect_metric =~ /HS/){
     $metrics_file = "$metrics_path/$metrics_name";
     $html_file = "$html_path/$metrics_name.php";
     if (-s $metrics_file){
-        system("scp -r $metrics_file $deployment_server:$summary_deployment/metrics/$metrics_name");
+        system("scp -r $metrics_file* $deployment_server:$summary_deployment/metrics");
 	system("scp -r $html_file $deployment_server:$summary_deployment/metrics/$metrics_name.php");
-        print OUT "<P><FONT SIZE = '+1'><A HREF = '$url/metrics/$metrics_name.php'>Hybrid metrics</A></FONT><BR>";
+        print OUT "<P><FONT SIZE = '+1'><A HREF = '$url/metrics/$metrics_name.php'>Hybrid metrics</A></FONT>".
+                                        "<A HREF = '$url/metrics/$metrics_name.readsAlligned.png'> [Plot aligned reads]</A>".
+                                        "<A HREF = '$url/metrics/$metrics_name.basesOnBait.png'> [Plot reads ON and OFF bait]</A>".
+                                        "<A HREF = '$url/metrics/$metrics_name.meanTargetCoverage.png'> [Plot mean target coverage]</A>".
+                                        "<A HREF = '$url/metrics/$metrics_name.foldEnrichment.png'> [Plot fold enrichment]</A>".
+                                        "<A HREF = '$url/metrics/$metrics_name.cumulativeCoverage.png'> [Plot cumulative coverage]</A>".
+					"</FONT><BR>";
     }
     $metrics_name = "$project.$date.perTargetCoverage";
     $metrics_file = "$metrics_path/$metrics_name";

@@ -93,3 +93,8 @@ do
 	fi
 	
 done
+
+#plot HS metrics
+echo "`${NOW}`generating plots for HS metrics..."
+
+R --vanilla < $RUN_DIR/plot_HS_metrics.R

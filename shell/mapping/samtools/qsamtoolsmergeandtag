@@ -484,6 +484,17 @@ then
 
 	fi
 
+
+	#create R script to plot PCR metrics
+	PCR_METRICS_SUMMARY=$PATH_OUT_DIR_PREFIX/$TODAY/multisample/$PROJECT.$TODAY.targetedPcrMetrics
+		
+	R_SCRIPT_PATH=$SCRIPT_DIR/plot_PCR_metrics.R
+	
+	cp $BASEDIR/plot_PCRorHS_metrics.R $R_SCRIPT_PATH
+	
+ 	sed -i -e "s/#metricsSummary/${PCR_METRICS_SUMMARY//\//\\/}/" $R_SCRIPT_PATH	
+ 	sed -i -e "s/#experimentType/$METRIC/" $R_SCRIPT_PATH
+
 	
 	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
 	echo -n "" > $LOG_OUTPUT_PATH
@@ -545,6 +556,16 @@ then
 	sed -i -e "s/mergeTagDate/$TODAY/" $SCRIPT_PATH
 	sed -i -e "s/mergeTagProjectName/$PROJECT/" $SCRIPT_PATH
 	sed -i -e "s/customAmpliconSet/$CUSTOM_AMPLICON_SET/" $SCRIPT_PATH
+
+	#create R script to plot HS metrics
+	HS_METRICS_SUMMARY=$PATH_OUT_DIR_PREFIX/$TODAY/multisample/$PROJECT.$TODAY.hybridMetrics
+		
+	R_SCRIPT_PATH=$SCRIPT_DIR/plot_HS_metrics.R
+	
+	cp $BASEDIR/plot_PCRorHS_metrics.R $R_SCRIPT_PATH
+	
+ 	sed -i -e "s/#metricsSummary/${HS_METRICS_SUMMARY//\//\\/}/" $R_SCRIPT_PATH	
+ 	sed -i -e "s/#experimentType/$METRIC/" $R_SCRIPT_PATH
 	
 	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
 	echo -n "" > $LOG_OUTPUT_PATH

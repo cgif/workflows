@@ -227,6 +227,10 @@ if [[ "$NON_OVERLAPPING" == TRUE ]]; then
 
 fi
 
+#plot PCR metrics
+echo "`${NOW}`generating plots for PCR metrics..."
+
+R --vanilla < $RUN_DIR/plot_PCR_metrics.R
 
 	
 echo "`${NOW}`done"
