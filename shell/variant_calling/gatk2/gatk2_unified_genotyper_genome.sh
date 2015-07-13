@@ -27,6 +27,7 @@ BUNDLE=/groupvol/cgi/resources/GATK_resource_bundle/2.3/b37
 # define variables
 
 DBSNP=#dbSnp
+DBSNP_EX_POST_129=#dbSnpExPost129
 REFERENCE_FASTA=#referenceFasta
 REFRENCE_SEQ_DICT=`echo $REFERENCE_FASTA | perl -pe 's/\.fa/\.dict/'`
 ANALYSIS_DIR=#analysisDir
@@ -51,10 +52,15 @@ LOG_DEBUG="`$NOW`DEBUG $SCRIPT_CODE"
 
 echo "`${NOW}`INFO $SCRIPT_CODE copying GATK resources to tmp directory..."
 DBSNP_FILENAME=`basename $DBSNP`
+DBSNP_EX_POST_129_FILENAME=`basename $DBSNP_EX_POST_129`
 
 echo "`${NOW}`INFO $SCRIPT_CODE $DBSNP"
 cp $DBSNP $TMPDIR/$DBSNP_FILENAME
 cp $DBSNP.idx $TMPDIR/$DBSNP_FILENAME.idx
+
+echo "`${NOW}`$DBSNP_EX_POST_129"
+cp $DBSNP_EX_POST_129 $TMPDIR/$DBSNP_EX_POST_129_FILENAME
+cp $DBSNP_EX_POST_129.idx $TMPDIR/$DBSNP_EX_POST_129_FILENAME.idx
 
 
 cp $FRAGMENT_FILE $TMPDIR/fragment.intervals
@@ -103,6 +109,12 @@ CUT_OFF=30
 #	CUT_OFF=20
 #fi
 
+EMIT_CUT_OFF=10
+if [[ "$TYPE" == "TARGETED" ]]; then
+	EMIT_CUT_OFF=30
+fi
+
+
 
 # step 13: unified genotyper
 echo "`${NOW}`INFO $SCRIPT_CODE running UnifiedGenotyper"
@@ -115,7 +127,7 @@ java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME
     -G Standard \
     -A AlleleBalance \
     -stand_call_conf $CUT_OFF \
-    -stand_emit_conf 10 \
+    -stand_emit_conf $EMIT_CUT_OFF \
     -metrics $TMPDIR/$SAMPLE.$FRAGMENT.UGmetrics \
     -glm BOTH \
     -dcov $DOWNSAMPLING \
@@ -123,8 +135,21 @@ java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME
     -L $TMPDIR/fragment.intervals \
     $PED_ARG
 
+# add dbSNP129 information to annotations
+
+echo "`$NOW`running variant annotation against dbSNP129"
+
+java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
+  -T VariantAnnotator \
+  -R $TMPDIR/reference.fa \
+  -V $TMPDIR/$SAMPLE.$FRAGMENT.raw.vcf \
+  --resource:dbSNP129 $DBSNP_EX_POST_129_FILENAME \
+  -E dbSNP129.RS \
+  -o $TMPDIR/$SAMPLE.$FRAGMENT.raw.annotated.dbSNP129.vcf
+
 echo "`${NOW}`INFO $SCRIPT_CODE copying raw VCF file to output directory $ANALYSIS_DIR/unifiedgenotyper..."
-cp $SAMPLE.$FRAGMENT.raw.vcf $ANALYSIS_DIR/unifiedgenotyper/
+cp $TMPDIR/$SAMPLE.$FRAGMENT.raw.annotated.dbSNP129.vcf $ANALYSIS_DIR/unifiedgenotyper/$SAMPLE.$FRAGMENT.raw.vcf
+cp $TMPDIR/$SAMPLE.$FRAGMENT.raw.annotated.dbSNP129.vcf.idx $ANALYSIS_DIR/unifiedgenotyper/$SAMPLE.$FRAGMENT.raw.vcf.idx
 
 echo "`${NOW}`INFO $SCRIPT_CODE copying metrics to output directory $ANALYSIS_DIR/unifiedgenotyper/metrics..."
 cp $SAMPLE.$FRAGMENT.UGmetrics $ANALYSIS_DIR/unifiedgenotyper/metrics/

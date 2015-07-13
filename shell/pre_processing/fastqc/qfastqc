@@ -169,8 +169,8 @@ if [ -d $INPUT_PATH ]; then
     mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/multisample
     chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/multisample
 
-    mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/multisample/run
-    chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/multisample/run
+    mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/multisample
+    chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/multisample
     MS_ANALYSIS_DIR=$GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/multisample
 
     #create and set permissions for multisample results directory
@@ -213,9 +213,9 @@ if [ -d $INPUT_PATH ]; then
 			mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/$SAMPLE
 			chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/$SAMPLE
 
-			mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/$SAMPLE/run
-			chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/$SAMPLE/run
-			OUT_SCRIPTS=$GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/$SAMPLE/run
+			mkdir -p $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/$SAMPLE
+			chmod 770 $GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/$SAMPLE
+			OUT_SCRIPTS=$GROUP_VOL_CGI/runs/$PROJECT/$FASTQC/$SEQ_RUN_DATE/$SAMPLE
 
 			echo "`$NOW`input directory: $FASTQ_DIR"
 			echo "`$NOW`QC report output directory: $OUT_RESULTS" 
@@ -238,7 +238,7 @@ if [ -d $INPUT_PATH ]; then
 
     echo "`$NOW`creating and submitting job script for summary of results"
     #create summary script from template
-    SUMMARY_PATH=$MS_ANALYSIS_DIR/run/summary.$PROJECT.pl
+    SUMMARY_PATH=$MS_ANALYSIS_DIR/summary.$PROJECT.pl
     cp $BASEDIR/summary_fastqc.pl $SUMMARY_PATH
     chmod 770 $SUMMARY_PATH
 

@@ -140,6 +140,26 @@ java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME
   --exclude_sample_file $TMPDIR/exclude_samples.txt \
   --excludeNonVariants
 
+## for amplicon sequencing, generate a table with ABHet, DP and dbSNP129.RS values
+
+if [[ "$SEQUENCING_TYPE" == "TARGETED" ]]; then
+
+	echo "`$NOW` extracting variants and their ABHet, DP and dbSNP129 values to table"
+
+	java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
+		-T VariantsToTable \
+		-R $TMPDIR/reference.fa \
+		-V $TMPDIR/raw_merged.noaux.vcf \
+		-F CHROM -F POS -F ID -F REF -F ALT -F ABHet -F DP -F dbSNP129.RS \
+		--allowMissingData \
+		-o $TMPDIR/ABHet.DP.tsv
+
+	echo "`$NOW` copying variants table $RESULTS_DIR..."
+	cp $TMPDIR/ABHet.DP.tsv $RESULTS_DIR/$SAMPLE.ABHet.DP.tsv
+
+fi
+
+
 echo "`$NOW`compressing merged, filtered VCF file..."
 $TABIX_HOME/bgzip -c $TMPDIR/raw_merged.noaux.vcf > $TMPDIR/raw_merged.noaux.vcf.gz
 
@@ -354,6 +374,7 @@ else
 	echo "`$NOW`Targete sequencing data -> Skipping variant recalibration as variant set size will be to small to build recalibration model. "
 	
 fi
+
 
 
 # step 7: variant evaluation with VariantEval 

@@ -28,7 +28,7 @@ while (defined(my $sample = readdir(PROJECT))){
     next unless (-d "$sample_dir");
 
     #check for FastQC run log file; integrity and proper pairing of fastq files
-    my $run_dir = "$analysis_dir/$sample/run";
+    my $run_dir = "$analysis_dir/$sample";
     opendir (RUNDIR, "$run_dir");
     
     my $log_count = 0;
