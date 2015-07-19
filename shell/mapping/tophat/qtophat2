@@ -16,7 +16,7 @@ TODAY=`date +%Y-%m-%d`
 
 #returns absolute path to qfastqc directory, not changing your current directory
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
-GROUP_VOL_CGI=/groupvol/cgi
+GROUP_VOL=/project/tgu
 DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
 DEPLOYMENT_BASE_DIR=/www/html/report
 
@@ -37,7 +37,7 @@ JAVA_VERSION=jdk-7u25
 PICARD_VERSION=1.85
 
 PATH_REFERENCE_FASTA=/groupvol/cgi/resources/reference/eukaryote/human/GRCh37/bowtie2_indexed/GRCh37.fa
-PATH_ANNOTATION_GFF=/groupvol/cgi/resources/annotations/bowtie2_indexed/Homo_sapiens.GRCh37.74.gff
+PATH_ANNOTATION_GFF=/groupvol/cgi/resources/annotations/bowtie2_indexed/Homo_sapiens.GRCh37.75.gff
 PATTERN_READ1='_R1_'
 PATTERN_READ2='_R2_'
 MULT_READS=F
@@ -83,7 +83,7 @@ function submitJobs {
         local path_reads_directory=$1
 	local path_reference_fasta=$2
 	local path_annotation_gff=$3
-	local path_analysis_dir=$4
+	local path_scripts_dir=$4
 	local path_results_dir=$5
 	local pattern_read1=$6
 	local pattern_read2=$7
@@ -92,8 +92,7 @@ function submitJobs {
 	local mult_reads=${10}
 	local edit_dist0=${11}
 	local summary_script_path=${12}
-
-	local path_scripts_dir=$path_analysis_dir/run      
+      
 	local setup_log=$path_scripts_dir/setup.log
 	local job_id_list=$path_scripts_dir/job_id.list
 	echo -n "" > $job_id_list
@@ -187,57 +186,54 @@ if [ -d $INPUT_PATH ]
 then
 
         #create and set permissions for analysis project parent directory
-        mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT
-	chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT
+        mkdir -p $GROUP_VOL/runs/$PROJECT
+	chmod 770 $GROUP_VOL/runs/$PROJECT
 
-	mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME
-	chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME
+	mkdir -p $GROUP_VOL/runs/$PROJECT/$ANALYSIS_NAME
+	chmod 770 $GROUP_VOL/runs/$PROJECT/$ANALYSIS_NAME
 
-	mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY
-	chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY
+	mkdir -p $GROUP_VOL/runs/$PROJECT/$ANALYSIS_NAME/$TODAY
+	chmod 770 $GROUP_VOL/runs/$PROJECT/$ANALYSIS_NAME/$TODAY
 
-	mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/multisample
-	chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/multisample
+	mkdir -p $GROUP_VOL/runs/$PROJECT/$ANALYSIS_NAME/$TODAY/multisample
+	chmod 770 $GROUP_VOL/runs/$PROJECT/$ANALYSIS_NAME/$TODAY/multisample
 
-	mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/multisample/run
-	chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/multisample/run
-
-	PATH_MS_ANALYSIS_PATH=$GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/multisample
+	PATH_MS_ANALYSIS=$GROUP_VOL/runs/$PROJECT/$ANALYSIS_NAME/$TODAY/multisample
 
         #create and set permissions for results project parent directory
-	mkdir -p $GROUP_VOL_CGI/results/$PROJECT
-	chmod 770 $GROUP_VOL_CGI/results/$PROJECT
+	mkdir -p $GROUP_VOL/results/$PROJECT
+	chmod 770 $GROUP_VOL/results/$PROJECT
 
-	mkdir -p $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME
-	chmod 770 $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME
+	mkdir -p $GROUP_VOL/results/$PROJECT/$ANALYSIS_NAME
+	chmod 770 $GROUP_VOL/results/$PROJECT/$ANALYSIS_NAME
 
-	mkdir -p $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY
-	chmod 770 $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY
+	mkdir -p $GROUP_VOL/results/$PROJECT/$ANALYSIS_NAME/$TODAY
+	chmod 770 $GROUP_VOL/results/$PROJECT/$ANALYSIS_NAME/$TODAY
 
-	mkdir -p $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY/multisample
-	chmod 770 $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY/multisample
+	mkdir -p $GROUP_VOL/results/$PROJECT/$ANALYSIS_NAME/$TODAY/multisample
+	chmod 770 $GROUP_VOL/results/$PROJECT/$ANALYSIS_NAME/$TODAY/multisample
 
-	PATH_MS_RESULTS_PATH=$GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY/multisample
+	PATH_MS_RESULTS=$GROUP_VOL/results/$PROJECT/$ANALYSIS_NAME/$TODAY/multisample
 
         #create and set permissions for summary
-	SUMMARY_RESULTS=$PATH_MS_RESULTS_PATH
+	SUMMARY_RESULTS=$PATH_MS_RESULTS
 	SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/$ANALYSIS_NAME/$TODAY
 	ssh $DEPLOYMENT_SERVER "mkdir -p $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
 	ssh $DEPLOYMENT_SERVER "chmod 0775 $DEPLOYMENT_BASE_DIR/project/$PROJECT/$ANALYSIS_NAME" > /dev/null 2>&1
 	ssh $DEPLOYMENT_SERVER "chmod 0775 $DEPLOYMENT_BASE_DIR/project/$PROJECT" > /dev/null 2>&1
-	scp -r ${BASEDIR}/../../tick.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
-	scp -r ${BASEDIR}/../../error.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
-	scp -r ${BASEDIR}/../../warning.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+	scp -r ${BASEDIR}/../../resources/images/tick.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+	scp -r ${BASEDIR}/../../resources/images/error.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
+	scp -r ${BASEDIR}/../../resources/images/warning.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
 	ssh $DEPLOYMENT_SERVER "chmod -R 664 $SUMMARY_DEPLOYMENT/*png" > /dev/null 2>&1
 
         #create summary script and set variables
-	SUMMARY_SCRIPT=$PATH_MS_ANALYSIS_PATH/run/summary_tophat2.pl
+	SUMMARY_SCRIPT=$PATH_MS_ANALYSIS/summary_tophat2.pl
 	cp $BASEDIR/summary_tophat2.pl $SUMMARY_SCRIPT
 	chmod 770 $SUMMARY_SCRIPT
 
         #set variables in summary script
-	sed -i -e "s/#projectDirAnalysis/${PATH_MS_ANALYSIS_PATH//\//\\/}/" $SUMMARY_SCRIPT
-	sed -i -e "s/#projectDirResults/${PATH_MS_RESULTS_PATH//\//\\/}/" $SUMMARY_SCRIPT
+	sed -i -e "s/#projectDirAnalysis/${PATH_MS_ANALYSIS//\//\\/}/" $SUMMARY_SCRIPT
+	sed -i -e "s/#projectDirResults/${PATH_MS_RESULTS//\//\\/}/" $SUMMARY_SCRIPT
 	sed -i -e "s/#deploymentServer/$DEPLOYMENT_SERVER/" $SUMMARY_SCRIPT
 	sed -i -e "s/#summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SUMMARY_SCRIPT
 	sed -i -e "s/#summaryResults/${SUMMARY_RESULTS//\//\\/}/" $SUMMARY_SCRIPT
@@ -262,21 +258,18 @@ then
 			then
 
 		                #create and set permissions for analysis sample parent directory
-			        mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
-				chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
-
-				mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE/run
-				chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE/run
+			        mkdir -p $GROUP_VOL/runs/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
+				chmod 770 $GROUP_VOL/runs/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
 
  		                #create and set permissions for results sample parent directory
-   				mkdir -p $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
-    				chmod 770 $GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
+   				mkdir -p $GROUP_VOL/results/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
+    				chmod 770 $GROUP_VOL/results/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
 
         	                #create output directory
-				PATH_RUN_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
-				PATH_OUT_DIR=$GROUP_VOL_CGI/results/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE   
+				PATH_RUN_DIR=$GROUP_VOL/runs/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE
+				PATH_OUT_DIR=$GROUP_VOL/results/$PROJECT/$ANALYSIS_NAME/$TODAY/$SAMPLE   
 
-   				SETUP_LOG=$PATH_RUN_DIR/run/setup.log
+   				SETUP_LOG=$PATH_RUN_DIR/setup.log
 				echo -n "" > $SETUP_LOG
 	
 		                #create, configure and submit job scripts
