@@ -133,7 +133,7 @@ cut -f 1 $OUTPUT_SAMPLE_LIST > $TMPDIR/output_samples.txt
 echo "`${NOW}`INFO $SCRIPT_CODE removing variants from auxiliary samples..."
 java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
   -T SelectVariants \
-  -R $REFERENCE_FASTA \
+  -R $TMPDIR/reference.fa \
   --variant $TMPDIR/raw_merged.vcf \
   -o $TMPDIR/raw_merged.noaux.vcf \
   --sample_file $TMPDIR/output_samples.txt \
@@ -294,7 +294,7 @@ then
 	echo "`${NOW}`INFO $SCRIPT_CODE removing variants from auxiliary samples from SNP and INDEL recalibrated VCF file..."
 	java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
 		-T SelectVariants \
-		-R $REFERENCE_FASTA \
+		-R $TMPDIR/reference.fa \
 		--variant $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.vcf \
 		-o $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.noaux.vcf \
 		--sample_file $TMPDIR/output_samples.txt \
@@ -333,7 +333,7 @@ then
 	echo "`${NOW}`INFO $SCRIPT_CODE removing variants from auxiliary samples from PASS variants VCF file..."
 	java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
 		-T SelectVariants \
-		-R $REFERENCE_FASTA \
+		-R $TMPDIR/reference.fa \
 		--variant $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.PASS.vcf \
 		-o $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.PASS.noaux.vcf \
 		--sample_file $TMPDIR/output_samples.txt \
