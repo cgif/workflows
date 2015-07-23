@@ -36,8 +36,8 @@ PATH_HEADER=$GROUPVOL_CGI/rawdata/documents/hs37d5_head
 PATH_BAIT_AMPLICON_INTERVALS=$GROUPVOL_CGI/analysis/ngs_tools/reference/target/SureSelect_All_Exon_50M_hg19.tab.intList
 PATH_TARGET_INTERVALS=$GROUPVOL_CGI/analysis/ngs_tools/reference/target/SureSelect_All_Exon_50M_hg19.tab.intList
 PATH_NON_OVERLAPPING_INTERVALS=none
-PATH_RIBOSOMAL_RNA_INTERVALS=$GROUPVOL_CGI/resources/annotations/GRCh37.ribosomal_rna.intList
-PATH_ANNOTATION_REFFLAT=$GROUPVOL_CGI/resources/annotations/Homo_sapiens.GRCh37.74.refFlat
+PATH_RIBOSOMAL_RNA_INTERVALS=$GROUPVOL_CGI/resources/annotations/GRCh37.75.ribosomal_rna.intList
+PATH_ANNOTATION_REFFLAT=$GROUPVOL_CGI/resources/annotations/Homo_sapiens.GRCh37.75.refFlat
 PATH_REFERENCE_FASTA=$GROUPVOL_CGI/resources/reference/eukaryote/human/hs37d5/hs37d5.fa
 METRIC=NONE
 MARK_DUPLICATES=TRUE
@@ -620,6 +620,13 @@ then
 	sed -i -e "s/mergeTagProjectDirectory/${PATH_OUT_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
 	sed -i -e "s/mergeTagDate/$TODAY/" $SCRIPT_PATH
 	sed -i -e "s/mergeTagProjectName/$PROJECT/" $SCRIPT_PATH
+
+	#create R script to plot RS metrics	
+	R_SCRIPT_PATH=$SCRIPT_DIR/plot_RS_metrics.R
+	cp $BASEDIR/plot_RS_metrics.R $R_SCRIPT_PATH
+
+	RS_METRICS_SUMMARY=$PATH_OUT_DIR_PREFIX/$TODAY/multisample/$PROJECT.$TODAY.RnaSeqMetrics
+ 	sed -i -e "s/#metricsSummary/${RS_METRICS_SUMMARY//\//\\/}/" $R_SCRIPT_PATH	
 	
 	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
 	echo -n "" > $LOG_OUTPUT_PATH

@@ -372,7 +372,7 @@ if ($collect_metric =~ /HS/){
     if (-s $metrics_file){
         system("scp -r $metrics_file* $deployment_server:$summary_deployment/metrics");
 	system("scp -r $html_file $deployment_server:$summary_deployment/metrics/$metrics_name.php");
-        print OUT "<P><FONT SIZE = '+1'><A HREF = '$url/metrics/$metrics_name.php'>Hybrid metrics</A></FONT>".
+        print OUT "<P><FONT SIZE = '+1'><A HREF = '$url/metrics/$metrics_name.php'>Hybrid metrics</A>".
                                         "<A HREF = '$url/metrics/$metrics_name.readsAlligned.png'> [Plot aligned reads]</A>".
                                         "<A HREF = '$url/metrics/$metrics_name.basesOnBait.png'> [Plot reads ON and OFF bait]</A>".
                                         "<A HREF = '$url/metrics/$metrics_name.meanTargetCoverage.png'> [Plot mean target coverage]</A>".
@@ -395,9 +395,12 @@ if ($collect_metric =~ /RS/){
     $metrics_file = "$metrics_path/$metrics_name";
     $html_file = "$html_path/$metrics_name.php";
     if (-s $metrics_file){
-        system("scp -r $metrics_file $deployment_server:$summary_deployment/metrics/$metrics_name");
+        system("scp -r $metrics_file* $deployment_server:$summary_deployment/metrics");
 	system("scp -r $html_file $deployment_server:$summary_deployment/metrics/$metrics_name.php");
-        print OUT "<P><FONT SIZE = '+1'><A HREF = '$url/metrics/$metrics_name.php'>RNA-Seq metrics</A></FONT><BR>";
+        print OUT "<P><FONT SIZE = '+1'><A HREF = '$url/metrics/$metrics_name.php'>RNA-Seq metrics</A>".
+					"<A HREF = '$url/metrics/$metrics_name.basesAlignment.png'> [Plot genomic distribution of aligned bases]</A>".
+					"<A HREF = '$url/metrics/$metrics_name.median5primeTo3primeBias.png'> [Plot 5' to 3' bias]</A>".
+					"</FONT><BR>";
     }
     $chart_name = "$project.$date.chartOutput.pdf";
     $chart_file = "$metrics_path/$chart_name";

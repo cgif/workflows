@@ -72,5 +72,8 @@ do
 
 done
 
+#plot RS metrics
+echo "`${NOW}`generating plots for RS metrics..."
 
+R --vanilla < $RUN_DIR/plot_RS_metrics.R
 
