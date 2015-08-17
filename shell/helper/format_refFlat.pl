@@ -9,20 +9,17 @@ $tmp_dir = $ARGV[0];
 $gff = "$tmp_dir/tmp.gff";
 $gp = "$tmp_dir/tmp.genePred";
 $rf = "$tmp_dir/tmp.refFlat";
-$utility_dir = "/groupvol/cgi/software/ucsc";
-`$utility_dir/ldHgGene -out=$gp null null $gff`;
 
 open(GP, "$gp");
 open(RF, ">$rf");
 while(<GP>){
     chomp();
     /^\S+(\s+(\S+)\s+.*)/;
-    $info = $1;
-    $tr_id = $2;
+    $info = $1; $tr_id = $2;
     $gene_name = "";
-    $gene_name = `grep $tr_id $gff|head -n1|cut -f9|cut -d ';' -f4`;
-    $gene_name =~ s/gene_name \"(\S+)\"/$1/;
-    $gene_name =~ s/\s*(\S+)\s*/$1/;
+    $gene_name = `grep $tr_id $gff|head -n 1|cut -f 9`;
+    $gene_name =~ s/.*gene_name \"\s*(\S+)\s*\".*/$1/;
+    chomp($gene_name);
     print "$info\n" unless $gene_name;
     print RF "$gene_name$info\n";
 }

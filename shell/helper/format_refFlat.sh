@@ -13,7 +13,11 @@
 
 cp $GFF $TMPDIR/tmp.gff
 
-perl /groupvol/cgi/src/helper/format_refFlat.pl $TMPDIR
+/groupvol/cgi/software/ucsc/ldHgGene -out=$TMPDIR/tmp.genePred null null $TMPDIR/tmp.gff
+cp $TMPDIR/tmp.genePred $RF.genePred
+chmod 550 $RF.genePred
+
+perl /home/asoskins/workflows/shell/helper/format_refFlat.pl $TMPDIR
 
 cp $TMPDIR/tmp.refFlat $RF
-chmod 770 $RF
+chmod 550 $RF
