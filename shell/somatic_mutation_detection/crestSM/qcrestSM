@@ -112,7 +112,7 @@ function submitCrest {
 	cp /groupvol/cgi/bin/crest/countDiff.pl $analysis_dir/run/countDiff.pl
 
 	#run breakDancer job for each chromosome
-	for chrom in `samtools view -H $tumor_bam|grep -P '^@SQ'|grep -vP 'MT|GL|NC_007605|hs37d5'|cut -f 2|cut -f 2 -d :`; do
+	for chrom in `samtools view -H $tumor_bam|grep -P '^@SQ'|grep -vP 'hs37d5'|cut -f 2|cut -f 2 -d :`; do
 	
 		echo "`$NOW`-------------------------------------------------------------------------------------"	 
 		echo "`$NOW`processing chromosome $chrom..."
@@ -175,10 +175,12 @@ function submitCrest {
 	local log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
 	echo "`$NOW`$script_path"
 				
-	local job_id=`qsub -W depend=$crest_dependency -o $log_output_path $script_path`
-	echo "`$NOW`job ID: $job_id"
-	echo "`$NOW`-------------------------------------------------------------------------------------"
+	local merge_dependency=`qsub -W depend=$crest_dependency -o $log_output_path $script_path`
+	echo "`$NOW`job ID: $merge_dependency"
+	echo "$merge_dependency" >> $ANALYSIS_DIR_MSVC/merge_dependency.tsv
 
+	echo "`$NOW`-------------------------------------------------------------------------------------"
+	 
 }
 
 ######################
@@ -205,16 +207,12 @@ RESULTS_DIR_MSVC=$RESULTS_DIR_PROJECT/$TODAY/multisample
 
 mkdir -p $ANALYSIS_DIR_MSVC
 chmod 770 $ANALYSIS_DIR_MSVC
+
+mkdir -p $ANALYSIS_DIR_MSVC/run
+chmod 770 $ANALYSIS_DIR_MSVC/run
     
 mkdir -p $RESULTS_DIR_MSVC
 chmod 770 $RESULTS_DIR_MSVC
-
-SETUP_LOG=$ANALYSIS_DIR_MSVC/setup.log
-echo -n "" > $SETUP_LOG
-
-#redirect stdout and stderr to terminal and log file
-exec > >(tee $SETUP_LOG)
-exec 2>&1
 
 echo "`$NOW`setting up CREST run..."
 echo "`$NOW`project   	      : $PROJECT"
@@ -229,12 +227,15 @@ echo "`$NOW`results directory : $RESULTS_DIR_PROJECT"
 SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/crestSM/$TODAY
 ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
 
+#save job ids for merging jobs
+echo -n "" > $ANALYSIS_DIR_MSVC/merge_dependency.tsv
+
 #get sample count from sample list skipping blank lines
 TOTAL_SAMPLE_COUNT=`sort $SAMPLE_LIST | uniq | awk '/^\s*$/ {next;} { print; }' | wc -l`
 SAMPLE_COUNT=0     
 
 #for each sample (make sure that each sample and date is unique) run MuTect
-sort $SAMPLE_LIST | uniq | while read SAMPLE_GERMLINE SAMPLE_TUMOR DATE; do
+sort $SAMPLE_LIST | uniq | while read SAMPLE_GERMLINE SAMPLE_TUMOR DATE SEX; do
 	
         if [[ "$SAMPLE_GERMLINE" != "" ]] && [[ "$SAMPLE_TUMOR" != "" ]]; then
                
@@ -261,7 +262,28 @@ sort $SAMPLE_LIST | uniq | while read SAMPLE_GERMLINE SAMPLE_TUMOR DATE; do
 
 done
 
+echo "`$NOW`submitting summary script..."
 
+SCRIPT_PATH=$ANALYSIS_DIR_PROJECT/$TODAY/multisample/run/summary_crestSM.pl
+cp $BASEDIR/summary_crestSM.pl $SCRIPT_PATH
+chmod 770 $SCRIPT_PATH
+
+CREST_DIR=$RESULTS_DIR_PROJECT/$TODAY
+sed -i -e "s/#inputDir/${CREST_DIR//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#deploymentServer/${DEPLOYMENT_SERVER//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#project/${PROJECT//\//\\/}/" $SCRIPT_PATH
+
+LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.pl/\.log/g'`
+echo "`$NOW`$SCRIPT_PATH"
+				
+MERGE_DEPENDENCY=afterok
+for JOB_ID in `cut -f 1 $ANALYSIS_DIR_MSVC/merge_dependency.tsv`; do
+        MERGE_DEPENDENCY="$MERGE_DEPENDENCY:$JOB_ID"
+done
+
+JOB_ID=`qsub -M cgi@imperial.ac.uk -m ea -j oe -W depend=$MERGE_DEPENDENCY -o $LOG_PATH $SCRIPT_PATH`
+echo "`$NOW`job ID: $JOB_ID"
   
 	    
 
