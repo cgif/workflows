@@ -1,0 +1,89 @@
+#!/bin/bash
+
+# creates and submits scripts to remove 
+# duplicates and unmapped reads from BAM files 
+# as well as rename chromosomes to hg18 names
+
+
+#CONFIGURATION
+##############
+
+GROUPVOL_TGU=/project/tgu
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+
+USAGE="USAGE: qfilterandrename -i <path_to_fastq_directory> -n <project_name>"
+
+SAMTOOLS_VERSION=0.1.18
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+QUEUE=pqcgi
+
+#parse command line args
+while getopts "i:n:h" option; do
+	case "$option" in
+		i) INPUT_DIR="$OPTARG";;
+		n) PROJECT="$OPTARG";;
+	esac
+done
+
+# check for presence of required input parameters
+if [ -z $INPUT_DIR ] || [ -z $PROJECT ]; then
+        echo "Error: Required input argument missing."
+        cat $USAGE
+        exit 1
+fi
+
+mkdir -p $GROUPVOL_TGU/results/$PROJECT/filtered_bam
+chmod 770 $GROUPVOL_TGU/results/$PROJECT/filtered_bam
+
+mkdir -p $GROUPVOL_TGU/results/$PROJECT/filtered_bam/$TODAY
+chmod 770 $GROUPVOL_TGU/results/$PROJECT/filtered_bam/$TODAY
+
+mkdir -p $GROUPVOL_TGU/runs/$PROJECT/filtered_bam
+chmod 770 $GROUPVOL_TGU/runs/$PROJECT/filtered_bam
+
+mkdir -p $GROUPVOL_TGU/runs/$PROJECT/filtered_bam/$TODAY
+chmod 770 $GROUPVOL_TGU/runs/$PROJECT/filtered_bam/$TODAY
+
+FILTERED_DIR=$GROUPVOL_TGU/results/$PROJECT/filtered_bam/$TODAY
+
+for SAMPLE in `ls --color=never $INPUT_DIR`; do
+
+	if [[ $SAMPLE != multisample ]]; then 
+
+		echo "`$NOW`###########################################################################################"
+		echo "`$NOW`sample $SAMPLE"
+		echo "`$NOW`###########################################################################################"
+
+		mkdir -p $GROUPVOL_TGU/results/$PROJECT/filtered_bam/$TODAY/$SAMPLE
+		chmod 770 $GROUPVOL_TGU/results/$PROJECT/filtered_bam/$TODAY/$SAMPLE
+
+		mkdir -p $GROUPVOL_TGU/runs/$PROJECT/filtered_bam/$TODAY/$SAMPLE
+		chmod 770 $GROUPVOL_TGU/runs/$PROJECT/filtered_bam/$TODAY/$SAMPLE
+
+		#creating job script from template
+		SCRIPT_PATH=$GROUPVOL_TGU/runs/$PROJECT/filtered_bam/$TODAY/$SAMPLE/filterandrename.$SAMPLE.sh
+		cp $BASEDIR/filterandrename.sh $SCRIPT_PATH
+		chmod 770 $SCRIPT_PATH
+
+		sed -i -e "s/#samtoolsVersion/${SAMTOOLS_VERSION//\//\\/}/" $SCRIPT_PATH
+		sed -i -e "s/#mergetagDir/${INPUT_DIR//\//\\/}/" $SCRIPT_PATH
+		sed -i -e "s/#filteredDir/${FILTERED_DIR//\//\\/}/" $SCRIPT_PATH
+		sed -i -e "s/#sample/${SAMPLE}/" $SCRIPT_PATH
+
+       	 	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+		echo -n "" > $LOG_OUTPUT_PATH
+		chmod 660 $LOG_OUTPUT_PATH
+
+		echo "`${NOW}`submitting script $SCRIPT_PATH "
+		JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+		echo "`${NOW}`job ID: $JOB_ID"
+
+	fi
+
+done
