@@ -13,6 +13,7 @@ NOW="date +%Y-%m-%d%t%T%t"
 
 #today
 TODAY=`date +%Y-%m-%d`
+#TODAY=2015-08-18
 
 #returns absolute path to qfastqc directory, not changing your current directory
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
@@ -42,10 +43,11 @@ PATTERN_READ1='_R1_'
 PATTERN_READ2='_R2_'
 MULT_READS=F
 EDIT_DIST0=F
+LIBRARY_TYPE=NONE
 
 #COMMAND LINE ARGS
 ##################
-while getopts "i:r:a:t:p:n:hmd" option; do
+while getopts "i:r:a:t:p:n:l:hmd" option; do
     case "$option" in
 	
 	i) INPUT_PATH="$OPTARG";;
@@ -56,6 +58,7 @@ while getopts "i:r:a:t:p:n:hmd" option; do
 	n) PROJECT="$OPTARG";;
         m) MULT_READS=T;;
         d) EDIT_DIST0=T;;
+	l) LIBRARY_TYPE="$OPTARG";;
 	h) cat $USAGE; exit 0;;
 	[?]) cat $USAGE; exit 1;;
 
@@ -92,6 +95,7 @@ function submitJobs {
 	local mult_reads=${10}
 	local edit_dist0=${11}
 	local summary_script_path=${12}
+	local library_type=${13}
       
 	local setup_log=$path_scripts_dir/setup.log
 	local job_id_list=$path_scripts_dir/job_id.list
@@ -141,6 +145,7 @@ function submitJobs {
 		sed -i -e "s/#outputPrefix/$output_prefix/" $script_path
 		sed -i -e "s/#multReads/$mult_reads/" $script_path
 		sed -i -e "s/#editDist0/$edit_dist0/" $script_path
+		sed -i -e "s/#libraryType/$library_type/" $script_path
 		sed -i -e "s/#pathOutputDir/${path_results_dir//\//\\/}/" $script_path
 		sed -i -e "s/#pathReferenceFastaNoExt/${path_reference_fasta_no_ext//\//\\/}/" $script_path
 		sed -i -e "s/#pathAnnotation/${path_annotation_gff//\//\\/}/" $script_path
@@ -284,7 +289,8 @@ then
 			                   $WALLTIME_HOURS_PER_RUN \
 			                   $MULT_READS \
 			                   $EDIT_DIST0 \
-		                           $SUMMARY_SCRIPT
+		                           $SUMMARY_SCRIPT \
+					   $LIBRARY_TYPE
 
 			else
 

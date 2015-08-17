@@ -8,6 +8,7 @@ USAGE
            	[-p <read2_tag, default '_R2_'>]
            	[-m <report_multiple_alignments, default FALSE>]
                 [-d <realign_reads_with_edit_distance_above_0, default FALSE>]
+		[-l <library_type, default NONE, available options NONE, UNSTRANDED, STRANDED>] 
                 
 	
 DESCRIPTION
@@ -38,6 +39,12 @@ DESCRIPTION
  
 	-d	Map every read in all the mapping steps (transcriptome, genome, and splice variants detected by TopHat) unless alignment is perfect. 
                 Report the best possible alignment. By default TopHat will not try to realign reads already mapped in earlier steps with edit distance <= 2. 
+
+	-l 	Take into account RNA-seq library type. UNSTRANDED corresponds to TopHat option fr-unstranded and means that reads from the left-most end of 
+		the fragment (in transcript coordinates) map to the transcript strand, and the right-most end maps to the opposite strand (recommended for 
+		the TruSeq RNA Sample Prep Kit). STRANDED corresponds to TopHat option fr-firststrand and enforces the rule that the right-most end of the 
+		fragment (in transcript coordinates) is the first sequenced (or only sequenced for single-end reads). Equivalently, it is assumed that only 
+		the strand generated during first strand synthesis is sequenced (recommended for the TruSeq RNA Stranded Sample Prep Kit).
 
 	-h	Display help and exit.
 
