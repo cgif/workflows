@@ -449,7 +449,6 @@ echo "`$NOW`####################################################################
 #submit metric merging job
 if [[ "$METRIC" == "TP" ]]
 then
-
 		
 	SCRIPT_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/mergePicardTargetedPcrMetrics.sh
 	cp $BASEDIR/mergePicardTargetedPcrMetrics.sh $SCRIPT_PATH
@@ -570,9 +569,11 @@ then
 	chmod 770 $SCRIPT_PATH
 
 	CUSTOM_AMPLICON_SET=`basename $PATH_BAIT_AMPLICON_INTERVALS`
+	SCRIPT_DIR=$PATH_RUN_DIR_PREFIX/$TODAY/multisample
 
 	#configure job script
 	sed -i -e "s/mergeTagProjectDirectory/${PATH_OUT_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/#runFolder/${SCRIPT_DIR//\//\\/}/" $SCRIPT_PATH
 	sed -i -e "s/mergeTagDate/$TODAY/" $SCRIPT_PATH
 	sed -i -e "s/mergeTagProjectName/$PROJECT/" $SCRIPT_PATH
 	sed -i -e "s/customAmpliconSet/$CUSTOM_AMPLICON_SET/" $SCRIPT_PATH
@@ -580,7 +581,7 @@ then
 	#create R script to plot HS metrics
 	HS_METRICS_SUMMARY=$PATH_OUT_DIR_PREFIX/$TODAY/multisample/$PROJECT.$TODAY.hybridMetrics
 		
-	R_SCRIPT_PATH=$SCRIPT_DIR/plot_HS_metrics.R
+	R_SCRIPT_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/plot_HS_metrics.R
 	
 	cp $BASEDIR/plot_PCRorHS_metrics.R $R_SCRIPT_PATH
 	
@@ -616,17 +617,24 @@ then
 	cp $BASEDIR/mergePicardRnaSeqMetrics.sh $SCRIPT_PATH
 	chmod 770 $SCRIPT_PATH
 
+	SCRIPT_DIR=$PATH_RUN_DIR_PREFIX/$TODAY/multisample
+
 	#configure job script
 	sed -i -e "s/mergeTagProjectDirectory/${PATH_OUT_DIR_PREFIX//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/#runFolder/${SCRIPT_DIR//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/#samtoolsVersion/$SAMTOOLS_VERSION/" $SCRIPT_PATH
+	sed -i -e "s/#rVersion/$R_VERSION/" $SCRIPT_PATH
 	sed -i -e "s/mergeTagDate/$TODAY/" $SCRIPT_PATH
 	sed -i -e "s/mergeTagProjectName/$PROJECT/" $SCRIPT_PATH
 
 	#create R script to plot RS metrics	
-	R_SCRIPT_PATH=$SCRIPT_DIR/plot_RS_metrics.R
+	R_SCRIPT_PATH=$PATH_RUN_DIR_PREFIX/$TODAY/multisample/plot_RS_metrics.R
 	cp $BASEDIR/plot_RS_metrics.R $R_SCRIPT_PATH
 
 	RS_METRICS_SUMMARY=$PATH_OUT_DIR_PREFIX/$TODAY/multisample/$PROJECT.$TODAY.RnaSeqMetrics
+	READ_COUNTS_FILE=$PATH_OUT_DIR_PREFIX/$TODAY/multisample/$PROJECT.$TODAY.readCounts
  	sed -i -e "s/#metricsSummary/${RS_METRICS_SUMMARY//\//\\/}/" $R_SCRIPT_PATH	
+ 	sed -i -e "s/#countsFile/${READ_COUNTS_FILE//\//\\/}/" $R_SCRIPT_PATH	
 	
 	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
 	echo -n "" > $LOG_OUTPUT_PATH

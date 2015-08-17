@@ -22,7 +22,7 @@ reads.aligned.df <- data.frame(names=factor(names,levels=rownames(metrics)), sta
 
 if (experiment == "TP") {
 
-labels=c("uniquely mapped reads", "ambiguously mapped reads", "unmapped reads")
+labels=c("uniquely mapped reads", "non-uniquely mapped reads", "unmapped reads")
 width.add=170
 
 } 

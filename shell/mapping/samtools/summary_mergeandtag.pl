@@ -222,7 +222,7 @@ my $metrics_path = "$project_dir_results/$date/multisample";
 my $html_path = "$project_dir_analysis/$date/multisample";
 
 #create merged pdf with metrics at different levels, deploy them to the Web server and print links on the summary page
-my ($metrics_name, $metrics_file, $read_groups, $cur_file, $libraries, $samples, $html_file, $lines, $png_file, $chart_name, $chart_file);
+my ($metrics_name, $metrics_file, $counts_name, $counts_file, $read_groups, $cur_file, $libraries, $samples, $html_file, $lines, $png_file, $chart_name, $chart_file);
 if ($metric_level =~ /RG/){
     print OUT "<HR><TABLE><TR><TD><FONT SIZE = '+1'>Read Group metrics";
     foreach my $category (qw(quality_by_cycle quality_distribution)){
@@ -393,13 +393,19 @@ if ($collect_metric =~ /HS/){
 if ($collect_metric =~ /RS/){
     $metrics_name = "$project.$date.RnaSeqMetrics";
     $metrics_file = "$metrics_path/$metrics_name";
+    $counts_name = "$project.$date.readCounts";
+    $counts_file = "$metrics_path/$counts_name";
     $html_file = "$html_path/$metrics_name.php";
     if (-s $metrics_file){
         system("scp -r $metrics_file* $deployment_server:$summary_deployment/metrics");
+        system("scp -r $counts_file* $deployment_server:$summary_deployment/metrics");
 	system("scp -r $html_file $deployment_server:$summary_deployment/metrics/$metrics_name.php");
         print OUT "<P><FONT SIZE = '+1'><A HREF = '$url/metrics/$metrics_name.php'>RNA-Seq metrics</A>".
 					"<A HREF = '$url/metrics/$metrics_name.basesAlignment.png'> [Plot genomic distribution of aligned bases]</A>".
-					"<A HREF = '$url/metrics/$metrics_name.median5primeTo3primeBias.png'> [Plot 5' to 3' bias]</A>".
+					"<A HREF = '$url/metrics/$metrics_name.median5primeTo3primeBias.png'> [Plot 5' to 3' bias]</A><BR>".
+					"<A HREF = '$url/metrics/$counts_name.png'> [Plot chromosomal distribution]</A><BR>".
+					"<A HREF = '$url/metrics/$counts_name.normalized.png'> [Plot chromosomal distribution normalized by the total length of transcripts]</A><BR>".
+					"<A HREF = '$url/metrics/$counts_name.normalizedNoMTGL.png'> [Plot chromosomal distribution normalized by the total length of transcripts, MT and GL contigs removed]</A><BR>".
 					"</FONT><BR>";
     }
     $chart_name = "$project.$date.chartOutput.pdf";
