@@ -244,7 +244,7 @@ if [ -d $INPUT_PATH ]; then
 
     #configure summary script, it will be executed from fastqc script
     sed -i -e "s/#pathReadsFastq/${INPUT_PATH//\//\\/}/" $SUMMARY_PATH
-    sed -i -e "s/#pathAnalysisDir/${PROJECT_ANALYSIS_DIR//\//\\/}/" $SUMMARY_PATH
+    sed -i -e "s/#pathRunsDir/${PROJECT_ANALYSIS_DIR//\//\\/}/" $SUMMARY_PATH
     sed -i -e "s/#pathReportsDir/${PROJECT_RESULT_DIR//\//\\/}/" $SUMMARY_PATH
     sed -i -e "s/#pathMSReportsDir/${MS_RESULT_DIR//\//\\/}/" $SUMMARY_PATH
     sed -i -e "s/#deploymentServer/$DEPLOYMENT_SERVER/" $SUMMARY_PATH
