@@ -9,6 +9,7 @@
 ##############
 
 GROUPVOL_CGI=/groupvol/cgi
+GROUPVOL_TGU=/project/tgu
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
 DEPLOYMENT_BASE_DIR=/www/html/report
@@ -29,7 +30,7 @@ QUEUE=pqcgi
 WALLTIME_HOURS_PER_RUN=72
 
 #default parameters
-PATH_ANNOTATION_GFF=$GROUPVOL_CGI/resources/annotations/bowtie2_indexed/Homo_sapiens.GRCh37.74.gff
+PATH_ANNOTATION_GFF=$GROUPVOL_CGI/resources/annotations/bowtie2_indexed/Homo_sapiens.GRCh37.75.gff
 FEATURE=gene_id
 STRAND=F
 
@@ -83,30 +84,27 @@ echo "########################################################"
 
 #create directories and set permissions
 
-mkdir -p $GROUPVOL_CGI/results/$PROJECT/HTSeq
-chmod 770 $GROUPVOL_CGI/results/$PROJECT/HTSeq
+mkdir -p $GROUPVOL_TGU/results/$PROJECT/HTSeq
+chmod 770 $GROUPVOL_TGU/results/$PROJECT/HTSeq
 
-mkdir -p $GROUPVOL_CGI/results/$PROJECT/HTSeq/$TODAY
-chmod 770 $GROUPVOL_CGI/results/$PROJECT/HTSeq/$TODAY
+mkdir -p $GROUPVOL_TGU/results/$PROJECT/HTSeq/$TODAY
+chmod 770 $GROUPVOL_TGU/results/$PROJECT/HTSeq/$TODAY
 
-mkdir -p $GROUPVOL_CGI/results/$PROJECT/HTSeq/$TODAY/multisample
-chmod 770 $GROUPVOL_CGI/results/$PROJECT/HTSeq/$TODAY/multisample
+mkdir -p $GROUPVOL_TGU/results/$PROJECT/HTSeq/$TODAY/multisample
+chmod 770 $GROUPVOL_TGU/results/$PROJECT/HTSeq/$TODAY/multisample
 
-PATH_OUT_DIR_PREFIX=$GROUPVOL_CGI/results/$PROJECT/HTSeq/$TODAY
+PATH_OUT_DIR_PREFIX=$GROUPVOL_TGU/results/$PROJECT/HTSeq/$TODAY
 	
-mkdir -p $GROUPVOL_CGI/analysis/$PROJECT/HTSeq
-chmod 770 $GROUPVOL_CGI/analysis/$PROJECT/HTSeq
+mkdir -p $GROUPVOL_TGU/runs/$PROJECT/HTSeq
+chmod 770 $GROUPVOL_TGU/runs/$PROJECT/HTSeq
 
-mkdir -p $GROUPVOL_CGI/analysis/$PROJECT/HTSeq/$TODAY
-chmod 770 $GROUPVOL_CGI/analysis/$PROJECT/HTSeq/$TODAY
+mkdir -p $GROUPVOL_TGU/runs/$PROJECT/HTSeq/$TODAY
+chmod 770 $GROUPVOL_TGU/runs/$PROJECT/HTSeq/$TODAY
 
-mkdir -p $GROUPVOL_CGI/analysis/$PROJECT/HTSeq/$TODAY/multisample
-chmod 770 $GROUPVOL_CGI/analysis/$PROJECT/HTSeq/$TODAY/multisample
+mkdir -p $GROUPVOL_TGU/runs/$PROJECT/HTSeq/$TODAY/multisample
+chmod 770 $GROUPVOL_TGU/runs/$PROJECT/HTSeq/$TODAY/multisample
 
-mkdir -p $GROUPVOL_CGI/analysis/$PROJECT/HTSeq/$TODAY/multisample/run
-chmod 770 $GROUPVOL_CGI/analysis/$PROJECT/HTSeq/$TODAY/multisample/run
-
-PATH_RUN_DIR_PREFIX=$GROUPVOL_CGI/analysis/$PROJECT/HTSeq/$TODAY
+PATH_RUN_DIR_PREFIX=$GROUPVOL_TGU/runs/$PROJECT/HTSeq/$TODAY
 
 #create and set permissions for summary
 SUMMARY_RESULTS=$PATH_OUT_DIR_PREFIX/multisample
@@ -119,7 +117,7 @@ scp -r ${BASEDIR}/*png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
 ssh $DEPLOYMENT_SERVER "chmod -R 664 $SUMMARY_DEPLOYMENT/*png" > /dev/null 2>&1
 
 #create summary script and set variables
-SUMMARY_SCRIPT=$PATH_RUN_DIR_PREFIX/multisample/run/HTSeq_summary.pl
+SUMMARY_SCRIPT=$PATH_RUN_DIR_PREFIX/multisample/HTSeq_summary.pl
 cp $BASEDIR/HTSeq_summary.pl $SUMMARY_SCRIPT
 chmod 770 $SUMMARY_SCRIPT
 
@@ -146,9 +144,6 @@ do
 		mkdir -p $PATH_RUN_DIR_PREFIX/$SAMPLE
 		chmod 770 $PATH_RUN_DIR_PREFIX/$SAMPLE
 
-		mkdir -p $PATH_RUN_DIR_PREFIX/$SAMPLE/run
-		chmod 770 $PATH_RUN_DIR_PREFIX/$SAMPLE/run
-
  		#create and set permissions for results sample parent directory
 		mkdir -p $PATH_OUT_DIR_PREFIX/$SAMPLE
 		chmod 770 $PATH_OUT_DIR_PREFIX/$SAMPLE
@@ -156,7 +151,7 @@ do
 		BAM_FILE=$PATH_INPUT_DIR/$SAMPLE/$SAMPLE.bam
 		HTSEQ_COUNTS=$PATH_OUT_DIR_PREFIX/$SAMPLE/$SAMPLE.HTSeq.counts
 
-		SCRIPT_PATH=$PATH_RUN_DIR_PREFIX/$SAMPLE/run/$SAMPLE.HTSeq.sh
+		SCRIPT_PATH=$PATH_RUN_DIR_PREFIX/$SAMPLE/$SAMPLE.HTSeq.sh
 		cp $BASEDIR/HTSeq.sh $SCRIPT_PATH
 		chmod 770 $SCRIPT_PATH
 
@@ -181,9 +176,8 @@ do
 		HTSEQ_SAMPLES="$HTSEQ_SAMPLES\t$SAMPLE"
 
 		#submit job and save job ID to dependency variable 
-		SUMMARY_LOG=$PATH_RUN_DIR_PREFIX/$SAMPLE/run/$SAMPLE.HTSeq_summary.log
+		SUMMARY_LOG=$PATH_RUN_DIR_PREFIX/$SAMPLE/$SAMPLE.HTSeq_summary.log
 		SUMMARY_ID=`qsub -q $QUEUE -j oe -W depend=afterany:$JOB_ID -o $SUMMARY_LOG $SUMMARY_SCRIPT`
-#		SUMMARY_ID=`qsub -q $QUEUE -j oe -o $SUMMARY_LOG $SUMMARY_SCRIPT`
 		echo "`$NOW`$SUMMARY_SCRIPT"
 		echo "`$NOW`$SUMMARY_ID"
 		echo "########################################################"
@@ -194,7 +188,7 @@ done
 
 echo "`$NOW`submitting script for merging count columns into cross-sample counts table"
 
-SCRIPT_PATH=$PATH_RUN_DIR_PREFIX/multisample/run/mergeColumns.sh
+SCRIPT_PATH=$PATH_RUN_DIR_PREFIX/multisample/mergeColumns.sh
 cp $BASEDIR/mergeColumns.sh $SCRIPT_PATH
 chmod 770 $SCRIPT_PATH
 
