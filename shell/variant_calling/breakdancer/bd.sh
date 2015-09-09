@@ -3,7 +3,7 @@
 ## script to run CREST
 
 #PBS -l walltime=10:00:00
-#PBS -l select=1:ncpus=1:mem=2gb
+#PBS -l select=1:ncpus=1:mem=100gb
 
 #PBS -m bea
 #PBS -M cgi@imperial.ac.uk

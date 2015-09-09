@@ -95,7 +95,7 @@ function submitJobs {
 
         #for each fastq file (fastq files have to be gzipped and 
         #have to have a fq.gz or fastq.gz extension
-        for FASTQ in `ls --color=never $FASTQ_DIR/*.f*q*`
+        for FASTQ in `ls --color=never $FASTQ_DIR/*.f*q*.gz`
         do 
     
             FASTQ_BASENAME=`basename $FASTQ .gz`
@@ -156,7 +156,7 @@ if [ -d $INPUT_PATH ] ; then
 	if [ -d $FASTQ_DIR ]; then
 
 		#count fastq files in directory		
-		FASTQ_COUNT=`ls --color=never $FASTQ_DIR/*.f*q* | wc -l`
+		FASTQ_COUNT=`ls --color=never $FASTQ_DIR/*.f*q*.gz | wc -l`
 
 		if [ $FASTQ_COUNT -gt 0 ]; then
 

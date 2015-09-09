@@ -2,7 +2,7 @@
 
 ## script to merge RnaSeqMetrics files
 
-#PBS -l walltime=1:00:00
+#PBS -l walltime=24:00:00
 #PBS -l select=1:ncpus=1:mem=800mb
 
 #PBS -M cgi@imperial.ac.uk
@@ -16,6 +16,10 @@ NOW="date +%Y-%m-%d%t%T%t"
 MERGETAG_PROJECT_DIRECTORY=mergeTagProjectDirectory
 MERGETAG_DATE=mergeTagDate
 PROJECT_NAME=mergeTagProjectName
+RUN_DIR=#runFolder
+
+module load samtools/#samtoolsVersion
+module load R/#rVersion
 
 OUTPUT_DIR=$MERGETAG_PROJECT_DIRECTORY/$MERGETAG_DATE/multisample
 
@@ -72,5 +76,49 @@ do
 
 done
 
+#plot RS metrics
+echo "`${NOW}`generating plots for RS metrics..."
 
+#create outputfile
+COUNTS_FILE=$OUTPUT_DIR/$PROJECT_NAME.$MERGETAG_DATE.readCounts
+
+#extract column headers and append them to output file
+echo -e "sample\tchrom\tread_counts" > $COUNTS_FILE
+
+for SAMPLE in `ls $MERGETAG_PROJECT_DIRECTORY/$MERGETAG_DATE`; do
+
+	if [[ "$SAMPLE" != "multisample" ]]; then
+	
+		BAM_FILE=$MERGETAG_PROJECT_DIRECTORY/$MERGETAG_DATE/$SAMPLE/$SAMPLE.bam
+		if [[ -e "$BAM_FILE" ]]; then		
+
+			echo "`$NOW`$SAMPLE"
+			GL_COUNT=0
+
+			#calculate number of reads mapped to each chromosome
+			for CHROM in `samtools view -H $BAM_FILE | perl -e 'while(<>) {print "$1\n" if /SN:(.*?)\s/'}`; do
+
+				COUNT=`samtools view $BAM_FILE $CHROM|wc -l`
+
+				if [[ $CHROM == *"GL"* ]]; then
+
+					GL_COUNT=$(( GL_COUNT + $COUNT ))				
+
+				else
+
+					echo -e "$SAMPLE\t$CHROM\t$COUNT" >> $COUNTS_FILE
+
+				fi
+
+			done
+
+			echo -e "$SAMPLE\tGL\t$GL_COUNT" >> $COUNTS_FILE
+		
+		fi
+
+	fi
+
+done
+
+R --vanilla < $RUN_DIR/plot_RS_metrics.R
 

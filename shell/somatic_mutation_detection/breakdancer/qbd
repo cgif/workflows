@@ -184,7 +184,7 @@ sed -i -e "s/#deploymentServer/${DEPLOYMENT_SERVER//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SCRIPT_PATH
 
 echo "`$NOW`$SCRIPT_PATH"
-LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.pl/\.log/g'`
 JOB_ID=`qsub -l walltime=24:00:00 -l mem=10gb -M cgi@imperial.ac.uk -m ea -j oe -q pqcgi -W depend=$MERGE_DEPENDENCY -o $LOG_PATH $SCRIPT_PATH`
 echo "`$NOW`JOB_ID: $JOB_ID"
 

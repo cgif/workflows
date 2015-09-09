@@ -26,6 +26,7 @@ NOW="date +%Y-%m-%d%t%T%t"
 #today
 TODAY=`date +%Y-%m-%d`
 
+
 #get the directory this script resides in
 GROUP_VOL_CGI=/groupvol/cgi
 PROJECT_TGU=/project/tgu

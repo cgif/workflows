@@ -1,0 +1,142 @@
+#!/bin/bash
+
+# creates and submits scripts to run MEDIPS 
+# quality control on the input bam files
+
+GROUPVOL_TGU=/project/tgu
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
+DEPLOYMENT_BASE_DIR=/www/html/report
+
+USAGE="qQualityMetrics -i <input_dir> -n <project_name>"
+
+R_VERSION=3.0.1
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+QUEUE=pqcgi
+
+#parse command line args
+while getopts "i:n:h" option; do
+    case "$option" in
+	
+	i) INPUT_DIR="$OPTARG";;
+	n) PROJECT="$OPTARG";;
+	h) cat $USAGE; exit 0;;
+	[?]) cat $USAGE; exit 1;;
+
+esac
+done
+
+# check for presence of required input parameters
+if [ -z $INPUT_DIR ]; then
+        echo "Error: Required input argument missing."
+        cat $USAGE
+        exit 1
+fi
+
+
+mkdir -p $GROUPVOL_TGU/results/$PROJECT/medips
+chmod 770 $GROUPVOL_TGU/results/$PROJECT/medips
+
+mkdir -p $GROUPVOL_TGU/results/$PROJECT/medips/$TODAY
+chmod 770 $GROUPVOL_TGU/results/$PROJECT/medips/$TODAY
+
+mkdir -p $GROUPVOL_TGU/results/$PROJECT/medips/$TODAY/multisample
+chmod 770 $GROUPVOL_TGU/results/$PROJECT/medips/$TODAY/multisample
+
+mkdir -p $GROUPVOL_TGU/runs/$PROJECT/medips
+chmod 770 $GROUPVOL_TGU/runs/$PROJECT/medips
+
+mkdir -p $GROUPVOL_TGU/runs/$PROJECT/medips/$TODAY
+chmod 770 $GROUPVOL_TGU/runs/$PROJECT/medips/$TODAY
+
+mkdir -p $GROUPVOL_TGU/runs/$PROJECT/medips/$TODAY/multisample
+chmod 770 $GROUPVOL_TGU/runs/$PROJECT/medips/$TODAY/multisample
+
+SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/medips/$TODAY
+ssh $DEPLOYMENT_SERVER "mkdir -p $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
+ssh $DEPLOYMENT_SERVER "chmod  775 $DEPLOYMENT_BASE_DIR/project/$PROJECT/medips" > /dev/null 2>&1
+ssh $DEPLOYMENT_SERVER "chmod  775 $DEPLOYMENT_BASE_DIR/project/$PROJECT/medips/$TODAY" > /dev/null 2>&1
+
+MEDIPS_DEPENDECIES="afterany"
+SAMPLES=""
+
+for SAMPLE in `ls $INPUT_DIR`; do
+
+	if [[ $SAMPLE != "multisample" ]]; then
+
+	 	echo "`$NOW`###########################################################################################"
+		echo "`$NOW`sample $SAMPLE"
+
+		SAMPLES="$SAMPLES $SAMPLE"
+
+		mkdir -p $GROUPVOL_TGU/results/$PROJECT/medips/$TODAY/$SAMPLE
+		chmod 770 $GROUPVOL_TGU/results/$PROJECT/medips/$TODAY/$SAMPLE
+
+		mkdir -p $GROUPVOL_TGU/runs/$PROJECT/medips/$TODAY/$SAMPLE
+		chmod 770 $GROUPVOL_TGU/runs/$PROJECT/medips/$TODAY/$SAMPLE
+
+		#create script to submit R script for MEDIPS QC
+		SCRIPT_PATH=$GROUPVOL_TGU/runs/$PROJECT/medips/$TODAY/$SAMPLE/$SAMPLE.qualityMetrics.sh
+		cp $BASEDIR/qualityMetrics.sh $SCRIPT_PATH
+		chmod 770 $SCRIPT_PATH
+
+		#create R script for MEDIPS QC
+		R_SCRIPT_PATH=$GROUPVOL_TGU/runs/$PROJECT/medips/$TODAY/$SAMPLE/$SAMPLE.qualityMetrics.R
+		cp $BASEDIR/qualityMetrics.R $R_SCRIPT_PATH
+		chmod 770 $R_SCRIPT_PATH
+
+		BAM_INPUT=$INPUT_DIR/$SAMPLE/$SAMPLE.nondup.rename.filt.bam
+
+		sed -i -e "s/#Rversion/${R_VERSION}/" $SCRIPT_PATH
+		sed -i -e "s/#inputBam/${BAM_INPUT//\//\\/}/" $SCRIPT_PATH
+		sed -i -e "s/#Rscript/${R_SCRIPT_PATH//\//\\/}/" $SCRIPT_PATH
+
+		LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+		echo -n "" > $LOG_OUTPUT_PATH
+		chmod 660 $LOG_OUTPUT_PATH
+
+		echo "`${NOW}`submitting job script $SCRIPT_PATH "
+		JOB_ID=`qsub -q pqcgi -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+		echo "`${NOW}`job ID: $JOB_ID"
+
+		MEDIPS_DEPENDECIES="$MEDIPS_DEPENDECIES:$JOB_ID"
+
+		MEDIPS_SAMPLE_DIR=$GROUPVOL_TGU/results/$PROJECT/medips/$TODAY/$SAMPLE
+
+		sed -i -e "s/#sample/${SAMPLE}/" $R_SCRIPT_PATH
+		sed -i -e "s/#medipsSampleDir/${MEDIPS_SAMPLE_DIR//\//\\/}/" $R_SCRIPT_PATH
+
+	fi
+done
+
+#submit summary script
+#if job is completed and log file is created in the run directory
+#script displays plots and quality metrics on eliot
+
+SCRIPT_PATH=$GROUPVOL_TGU/runs/$PROJECT/medips/$TODAY/multisample/$PROJECT.summary_medips.pl
+cp $BASEDIR/summary_medips.pl $SCRIPT_PATH
+chmod 770 $SCRIPT_PATH
+
+MEDIPS_RESULTS_DIR=$GROUPVOL_TGU/results/$PROJECT/medips/$TODAY
+MEDIPS_RUNS_DIR=$GROUPVOL_TGU/runs/$PROJECT/medips/$TODAY
+SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/medips/$TODAY
+sed -i -e "s/#medipsResultsDir/${MEDIPS_RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#medipsRunsDir/${MEDIPS_RUNS_DIR//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#deploymentServer/${DEPLOYMENT_SERVER//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SCRIPT_PATH
+
+LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.pl/\.log/g'`
+echo -n "" > $LOG_OUTPUT_PATH
+chmod 660 $LOG_OUTPUT_PATH
+
+echo "`$NOW`submitting summary script: $SCRIPT_PATH"
+SUM_JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH -j oe -W depend=$MEDIPS_DEPENDECIES -M cgi@imperial.ac.uk $SCRIPT_PATH` 
+echo "`$NOW`job ID: $SUM_JOB_ID"
+echo "`$NOW`progress and summary can be seen at $DEPLOYMENT_SERVER/report/project/$PROJECT/medips/$TODAY"
+

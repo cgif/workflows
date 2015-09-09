@@ -134,11 +134,31 @@ grep AUX $SAMPLE_LIST | cut -f1 > $TMPDIR/exclude_samples.txt
 echo "`${NOW}`removing variants from auxiliary samples..."
 java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
   -T SelectVariants \
-  -R $REFERENCE_FASTA \
+  -R $TMPDIR/reference.fa \
   --variant $TMPDIR/raw_merged.vcf \
   -o $TMPDIR/raw_merged.noaux.vcf \
   --exclude_sample_file $TMPDIR/exclude_samples.txt \
   --excludeNonVariants
+
+## for amplicon sequencing, generate a table with ABHet, DP and dbSNP129.RS values
+
+if [[ "$SEQUENCING_TYPE" == "TARGETED" ]]; then
+
+	echo "`$NOW` extracting variants and their ABHet, DP and dbSNP129 values to table"
+
+	java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
+		-T VariantsToTable \
+		-R $TMPDIR/reference.fa \
+		-V $TMPDIR/raw_merged.noaux.vcf \
+		-F CHROM -F POS -F ID -F REF -F ALT -F ABHet -F DP -F dbSNP129.RS \
+		--allowMissingData \
+		-o $TMPDIR/ABHet.DP.tsv
+
+	echo "`$NOW` copying variants table $RESULTS_DIR..."
+	cp $TMPDIR/ABHet.DP.tsv $RESULTS_DIR/$SAMPLE.ABHet.DP.tsv
+
+fi
+
 
 echo "`$NOW`compressing merged, filtered VCF file..."
 $TABIX_HOME/bgzip -c $TMPDIR/raw_merged.noaux.vcf > $TMPDIR/raw_merged.noaux.vcf.gz
@@ -276,7 +296,7 @@ then
 	echo "`${NOW}`removing variants from auxiliary samples from SNP recalibrated VCF file..."
 	java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
 		-T SelectVariants \
-		-R $REFERENCE_FASTA \
+		-R $TMPDIR/reference.fa \
 		--variant $TMPDIR/$SAMPLE.recalibratedSNPs.rawINDELs.vcf \
 		-o $SAMPLE.recalibratedSNPs.rawINDELs.noaux.vcf \
 		--exclude_sample_file $TMPDIR/exclude_samples.txt \
@@ -291,7 +311,7 @@ then
 	echo "`${NOW}`removing variants from auxiliary samples from SNP and INDEL recalibrated VCF file..."
 	java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
 		-T SelectVariants \
-		-R $REFERENCE_FASTA \
+		-R $TMPDIR/reference.fa \
 		--variant $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.vcf \
 		-o $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.noaux.vcf \
 		--exclude_sample_file $TMPDIR/exclude_samples.txt \
@@ -320,7 +340,7 @@ then
 	echo "`${NOW}`removing variants from auxiliary samples from PASS variants VCF file..."
 	java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME/GenomeAnalysisTK.jar \
 		-T SelectVariants \
-		-R $REFERENCE_FASTA \
+		-R $TMPDIR/reference.fa \
 		--variant $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.PASS.vcf \
 		-o $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.PASS.noaux.vcf \
 		--exclude_sample_file $TMPDIR/exclude_samples.txt \
@@ -354,6 +374,7 @@ else
 	echo "`$NOW`Targete sequencing data -> Skipping variant recalibration as variant set size will be to small to build recalibration model. "
 	
 fi
+
 
 
 # step 7: variant evaluation with VariantEval 

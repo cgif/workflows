@@ -172,10 +172,7 @@ done
 
 perl -i -pe 's/X(.*?)\.(\d*?)\.(\d*?)/$1:$2-$3/' $OUTPUT_FILE
 
-#plot coverage across samples and amplicons
-echo "`${NOW}`generating coverage plots..."
 
-R --vanilla < $RUN_DIR/plot_amplicon_summary_metrics.R
 
 # if we have non-overlapping region statistics, merge gatk coverage as well
 
@@ -220,13 +217,23 @@ if [[ "$NON_OVERLAPPING" == TRUE ]]; then
 
 	perl -i -pe 's/X(.*?)\.(\d*?)\.(\d*?)/$1:$2-$3/' $OUTPUT_FILE
 
-	#plot coverage across samples and non_overlapping amplicon regions
-	echo "`${NOW}`generating coverage plots for non-overlapping regions..."
+#	#plot coverage across samples and non_overlapping amplicon regions
+#	echo "`${NOW}`generating coverage plots for non-overlapping regions..."
 
-	R --vanilla < $RUN_DIR/plot_amplicon_summary_metrics.non_overlapping.R
+#	R --vanilla < $RUN_DIR/plot_amplicon_summary_metrics.non_overlapping.R
 
 fi
 
+#plot coverage across samples and amplicons
+echo "`${NOW}`generating coverage plots..."
+
+R --vanilla < $RUN_DIR/plot_amplicon_summary_metrics.R
+
+
+#plot PCR metrics
+echo "`${NOW}`generating plots for PCR metrics..."
+
+R --vanilla < $RUN_DIR/plot_PCR_metrics.R
 
 	
 echo "`${NOW}`done"

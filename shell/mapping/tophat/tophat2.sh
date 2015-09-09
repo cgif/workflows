@@ -64,6 +64,7 @@ PATH_OUTPUT_DIR=#pathOutputDir
 #tophat parameters
 MULT_READS=#multReads
 EDIT_DIST0=#editDist0
+LIBRARY_TYPE=#libraryType
              
 echo "`${NOW}`copying reads to temporary scratch space..."
 #check if mate file exists
@@ -131,8 +132,18 @@ then
 	EDIT_DIST0_ARG="--read-realign-edit-dist=0"
 fi
 
+LIBRARY_TYPE_ARG=""
+if [[ $LIBRARY_TYPE == "UNSTRANDED" ]]
+then
+	LIBRARY_TYPE_ARG="--library-type fr-unstranded"
+
+elif [[ $LIBRARY_TYPE == "STRANDED" ]]
+then
+	LIBRARY_TYPE_ARG="--library-type fr-firststrand"
+fi 
+
 echo "`${NOW}`running tophat alignment"
-tophat $SECONDARY_ALIGNMENT_ARG $EDIT_DIST0_ARG -p $THREADS --transcriptome-index=$TMPDIR/$ANNOTATION_BASENAME $TMPDIR/$REFERENCE_FASTA_BASENAME $TMPDIR/$FASTQ_READ1_NO_EXT $TMPDIR/$FASTQ_READ2_NO_EXT
+tophat $SECONDARY_ALIGNMENT_ARG $EDIT_DIST0_ARG $LIBRARY_TYPE_ARG -p $THREADS --transcriptome-index=$TMPDIR/$ANNOTATION_BASENAME $TMPDIR/$REFERENCE_FASTA_BASENAME $TMPDIR/$FASTQ_READ1_NO_EXT $TMPDIR/$FASTQ_READ2_NO_EXT
 
 echo "`${NOW}`merging accepted_hits.bam and unmapped.bam"
 

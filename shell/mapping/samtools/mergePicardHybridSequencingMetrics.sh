@@ -17,6 +17,7 @@ MERGETAG_PROJECT_DIRECTORY=mergeTagProjectDirectory
 MERGETAG_DATE=mergeTagDate
 PROJECT_NAME=mergeTagProjectName
 CUSTOM_AMPLICON_SET=customAmpliconSet
+RUN_DIR=#runFolder
 
 OUTPUT_DIR=$MERGETAG_PROJECT_DIRECTORY/$MERGETAG_DATE/multisample
 
@@ -93,3 +94,8 @@ do
 	fi
 	
 done
+
+#plot HS metrics
+echo "`${NOW}`generating plots for HS metrics..."
+
+R --vanilla < $RUN_DIR/plot_HS_metrics.R

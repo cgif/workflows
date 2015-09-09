@@ -11,11 +11,11 @@ my $deployment_server = "#deploymentServer";
 my $summary_deployment = "#summaryDeployment/";
 
 #my $bedtools_version = "2.13.3";
-#my $dir = "/groupvol/cgi/results/johnson_glioma/breakDancer/2015-02-11";
+#my $dir = "/groupvol/cgi/results/johnson_glioma/breakDancer/2015-05-13";
 #my $genes_bed = "/groupvol/cgi/resources/annotations/eukaryote/human/GRCh37/GRCh37.74.gene.bed";
 #my $project = "johnson_glioma";
 #my $deployment_server = "eliot.med.ic.ac.uk";
-#my $summary_deployment = "/www/html/report/project/johnson_glioma/breakDancer/2015-02-11";
+#my $summary_deployment = "/www/html/report/project/johnson_glioma/breakDancer/2015-05-13";
 
 my %blood = (); 
 my %tumor = ();
@@ -54,7 +54,7 @@ foreach  $sample_pair (keys %blood_samples){
 	open(BLOOD, "$bd_blood");
 	while (<BLOOD>){
 
-		next if /^#|MT|GL|NC_007605|hs37d5/;
+		next if /^#/;
 		@blood_data = split(/\t/,$_);
 
 		#collect all germlime breakpoints into %blood
@@ -82,7 +82,7 @@ foreach  $sample_pair (keys %tumor_samples){
 	open(TUMOR, "$bd_tumor");
 	while (<TUMOR>){
 
-		next if /^#|MT|GL|NC_007605|hs37d5/;
+		next if /^#/;
 		@tumor_data = split(/\t/,$_);
 
 		#find out whether this breakpoind is within 1kb of any girmline event from any sample 

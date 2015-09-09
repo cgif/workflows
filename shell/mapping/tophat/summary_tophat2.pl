@@ -22,7 +22,7 @@ opendir (PROJECT, "$project_dir_analysis");
 while (defined($sample = readdir(PROJECT))){
     next if $sample =~ /^\./;
 
-    $sample_dir = "$project_dir_analysis/$sample/run";
+    $sample_dir = "$project_dir_analysis/$sample";
     next unless (-d "$sample_dir");
 
     #collect info for each read group
