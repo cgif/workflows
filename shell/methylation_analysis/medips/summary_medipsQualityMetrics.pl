@@ -62,5 +62,16 @@ foreach my $sample (@samples){
 }
 print OUT "</TABLE>";
 
+my $cor_matrix="$medips_results_dir/multisample/correlation_matrix.tsv";
+if (-e $cor_matrix){
+
+	system("echo -ne '\t'|cat - $medips_results_dir/multisample/correlation_matrix.tsv > $medips_results_dir/multisample/tmp.tsv");
+	system("mv $medips_results_dir/multisample/tmp.tsv $medips_results_dir/multisample/correlation_matrix.tsv");
+	print OUT "<HR><P><A HREF = correlation_matrix.tsv>Correlation Matrics</A> and <A HREF = correlation_plot.png>Hierarchical Clustering</A> for genome coverage profiles across all samples\n";
+	system("scp $medips_results_dir/multisample/correlation_matrix.tsv $deployment_server:$summary_deployment/correlation_matrix.tsv > /dev/null 2>&1");
+	system("scp $medips_results_dir/multisample/correlation_plot.png $deployment_server:$summary_deployment/correlation_plot.png > /dev/null 2>&1");
+
+}
+
 system("scp $medips_results_dir/multisample/index.html $deployment_server:$summary_deployment/index.html > /dev/null 2>&1");
 system("ssh $deployment_server chmod 0664 $summary_deployment/* > /dev/null 2>&1");
