@@ -13,7 +13,7 @@ NOW="date +%Y-%m-%d%t%T%t"
 
 #today
 TODAY=`date +%Y-%m-%d`
-#TODAY=2015-08-18
+#TODAY=2015-09-09
 
 #returns absolute path to qfastqc directory, not changing your current directory
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
