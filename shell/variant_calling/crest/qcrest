@@ -18,11 +18,11 @@ DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
 DEPLOYMENT_BASE_DIR=/www/html/report
 
 QUEUE=pqcgi
-WALLTIME_HOURS_PER_RUN=30
+WALLTIME_HOURS_PER_RUN=72
 
 # default values
-REFERENCE=/ax3-cgi/resources/reference/eukaryote/human/hs37d5/hs37d5
-READ_LENGTH=150
+REFERENCE=/ax3-cgi/resources/reference/eukaryote/human/GRCh37/GRCh37.fa
+READ_LENGTH=100
 MIN_SC_READS=3
 SENSITIVE=no
 PORT=20010
