@@ -1,0 +1,265 @@
+#!/bin/bash
+
+#
+# sets up directory structure and generates, configures and submits
+# scripts to extract fraction of reads from fastq file,
+# align it to nr data base,
+# and generate summary of sample contamination
+#
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+PYTHON_VERSION=2.7.3
+BLAST_VERSION=2.2.28
+BLAT_VERSION=34
+BOWTIE_VERSION=1.0.0
+
+GROUP_VOL=/ax3-cgi
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+PATTERN_READ_1=_R1_
+PATTERN_READ_2=_R2_
+COUNT=100000
+
+WALLTIME_HOURS_PER_IMSA_RUN=5
+THREADS_PER_IMSA_RUN=2
+IMSA_DIR=$BASEDIR/../../metagenomics/imsa
+ANALYSIS_NAME=contamination
+ACTIONS_FILE=$IMSA_DIR/actions.txt 
+BOWTIE_HG_DATABASE=/ax3-cgi/resources/reference/eukaryote/human/hs37d5/bowtie_indexed/hs37d5
+BLAT_HG_DATABASE=/ax3-cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.2bit
+BLAT_HG_OOC_FILE=/ax3-cgi/resources/reference/eukaryote/human/hs37d5/blat_indexed/hs37d5.11.ooc
+BLAST_NT_DATABASE=/ax3-cgi/resources/reference/nt/nt.fa
+BLAST_HG_DATABASE=/ax3-cgi/resources/reference/eukaryote/human/hs37d5/blast_indexed/hs37d5
+TAXONOMY_DMP=/ax3-cgi/resources/taxonomy/gi_taxid_nucl.dmp
+
+USAGE="qReduce_fastq -i <input_dir> -n <project_name> -c <number_of_reads_to_sample> a <imsa_actions_file>"
+
+while getopts "i:n:c:a:w:o:O:d:D:x:h" option; do
+    case "$option" in
+	
+	i) INPUT_DIR="$OPTARG";;
+	n) PROJECT="$OPTARG";;
+	c) COUNT="$OPTARG";;
+	a) ACTIONS_FILE="$OPTARG";;
+	w) BOWTIE_HG_DATABASE="$OPTARG";;
+	o) BLAT_HG_DATABASE="$OPTARG";;
+	O) BLAT_HG_OOC_FILE="$OPTARG";;
+	d) BLAST_HG_DATABASE="$OPTARG";;
+	D) BLAST_NT_DATABASE="$OPTARG";;
+	x) TAXONOMY_DMP="$OPTARG";;
+	h) cat "$USAGE"; exit 0;;
+	[?]) cat $USAGE;;
+
+esac
+done
+
+#create and set permissions for results and runs parent directories
+RESULTS_DIR=$GROUP_VOL/results/$PROJECT/contamination
+mkdir -p $RESULTS_DIR
+chmod 770 $RESULTS_DIR
+
+mkdir -p $RESULTS_DIR/$TODAY
+chmod 770 $RESULTS_DIR/$TODAY
+
+RUN_DIR=$GROUP_VOL/analysis/$PROJECT/contamination
+mkdir -p $RUN_DIR
+chmod 770 $RUN_DIR
+
+mkdir -p $RUN_DIR/$TODAY/multisample/run
+chmod 770 $RUN_DIR/$TODAY/multisample/run
+
+IMSA_DEPENDECIES="afterok"
+
+for SAMPLE in `ls --color=never $INPUT_DIR`; do
+
+	echo "`$NOW`"
+	echo "`$NOW`###############################"
+	echo "`$NOW`processing directory $SAMPLE..."
+	echo "`$NOW`###############################"
+
+	#create output dir path
+	mkdir -p $RUN_DIR/$TODAY/$SAMPLE/reduced_fastq
+	chmod 770 $RUN_DIR/$TODAY/$SAMPLE/reduced_fastq
+
+	mkdir -p $RUN_DIR/$TODAY/$SAMPLE/imsa
+	chmod 770 $RUN_DIR/$TODAY/$SAMPLE/imsa
+
+	mkdir -p $RUN_DIR/$TODAY/$SAMPLE/run
+	chmod 770 $RUN_DIR/$TODAY/$SAMPLE/run
+
+	#for each fastq file (fastq files have to be gzipped and 
+	#have to have a fq.gz or fastq.gz extension
+
+	for FASTQ_READ1 in `ls --color=never $INPUT_DIR/$SAMPLE/*.f*q.gz | grep $PATTERN_READ_1`; do
+
+		FASTQ_READ2=`echo $FASTQ_READ1 | perl -pe "s/$PATTERN_READ_1/$PATTERN_READ_2/"`
+
+		if [ -e $FASTQ_READ2 ]; then
+
+			echo "`$NOW`"
+			echo "`$NOW`processing read group $FASTQ_READ1..."
+			FASTQ_BASENAME=`basename $FASTQ_READ1`
+			FASTQ_NAME="${FASTQ_BASENAME%_R1*}"
+
+			#creating job script to reduce fastq file
+			SCRIPT_PATH=$RUN_DIR/$TODAY/$SAMPLE/run/reduce_fastq.$SAMPLE.$FASTQ_NAME.sh
+			cp $BASEDIR/reduce_fastq.sh $SCRIPT_PATH
+			chmod 770 $SCRIPT_PATH
+
+			SAMPLE_DIR=$RUN_DIR/$TODAY/$SAMPLE/reduced_fastq
+
+			sed -i -e "s/#python_version/${PYTHON_VERSION//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#count/${COUNT//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#fastq1_path/${FASTQ_READ1//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#fastq2_path/${FASTQ_READ2//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#analysis_dir/${SAMPLE_DIR//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#base_dir/${BASEDIR//\//\\/}/" $SCRIPT_PATH
+
+			LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
+			echo -n "" > $LOG_OUTPUT_PATH
+			chmod 660 $LOG_OUTPUT_PATH
+
+			echo "`${NOW}`submitting job script $SCRIPT_PATH "
+			JOB_ID=`qsub -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+			echo "`${NOW}`job ID: $JOB_ID"
+
+
+	                #creating job script to run alignment for the first read
+			FASTQ_READ1_BASENAME=`basename $FASTQ_READ1`
+			FASTQ_READ1_NAME="${FASTQ_READ1_BASENAME%%.*}"
+
+			SCRIPT_PATH=$RUN_DIR/$TODAY/$SAMPLE/run/run_imsa.$SAMPLE.$FASTQ_READ1_NAME.sh
+			cp $IMSA_DIR/imsa.sh $SCRIPT_PATH
+			chmod 770 $SCRIPT_PATH
+
+			SAMPLE_DIR=$RUN_DIR/$TODAY/$SAMPLE/imsa
+			FASTQ_READ1=$RUN_DIR/$TODAY/$SAMPLE/reduced_fastq/$FASTQ_READ1_BASENAME
+
+			sed -i -e "s/#walltimeHours/$WALLTIME_HOURS_PER_IMSA_RUN/" $SCRIPT_PATH
+			sed -i -e "s/#threadsPerRun/$THREADS_PER_IMSA_RUN/g" $SCRIPT_PATH
+			sed -i -e "s/#blatVersion/$BLAT_VERSION/" $SCRIPT_PATH
+			sed -i -e "s/#blastVersion/$BLAST_VERSION/" $SCRIPT_PATH
+			sed -i -e "s/#bowtieVersion/$BOWTIE_VERSION/" $SCRIPT_PATH
+			sed -i -e "s/#baseDir/${IMSA_DIR//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#analysis/$ANALYSIS_NAME/" $SCRIPT_PATH
+			sed -i -e "s/#resultPath/${SAMPLE_DIR//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#readPath/${FASTQ_READ1//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#actionsFile/${ACTIONS_FILE//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#bowtieHGdatabase/${BOWTIE_HG_DATABASE//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#blatHGdatabase/${BLAT_HG_DATABASE//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#blatHGOOCfile/${BLAT_HG_OOC_FILE//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#blastNTdatabase/${BLAST_NT_DATABASE//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#blastHGdatabase/${BLAST_HG_DATABASE//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#taxonomyDmp/${TAXONOMY_DMP//\//\\/}/" $SCRIPT_PATH
+
+			LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+			echo -n "" > $LOG_OUTPUT_PATH
+			chmod 660 $LOG_OUTPUT_PATH
+
+			echo "`${NOW}`submitting job script $SCRIPT_PATH "
+			JOB_ID1=`qsub -W depend=afterok:$JOB_ID -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+			echo "`${NOW}`job ID: $JOB_ID1"
+
+
+	                #creating job script to run alignment for the second read
+			FASTQ_READ2_BASENAME=`basename $FASTQ_READ2`
+			FASTQ_READ2_NAME="${FASTQ_READ2_BASENAME%%.*}"
+
+			SCRIPT_PATH=$RUN_DIR/$TODAY/$SAMPLE/run/run_imsa.$SAMPLE.$FASTQ_READ2_NAME.sh
+			cp $IMSA_DIR/imsa.sh $SCRIPT_PATH
+			chmod 770 $SCRIPT_PATH
+
+			FASTQ_READ2=$RUN_DIR/$TODAY/$SAMPLE/reduced_fastq/$FASTQ_READ2_BASENAME
+
+			sed -i -e "s/#walltimeHours/$WALLTIME_HOURS_PER_IMSA_RUN/" $SCRIPT_PATH
+			sed -i -e "s/#threadsPerRun/$THREADS_PER_IMSA_RUN/g" $SCRIPT_PATH
+			sed -i -e "s/#blatVersion/$BLAT_VERSION/" $SCRIPT_PATH
+			sed -i -e "s/#blastVersion/$BLAST_VERSION/" $SCRIPT_PATH
+			sed -i -e "s/#bowtieVersion/$BOWTIE_VERSION/" $SCRIPT_PATH
+			sed -i -e "s/#baseDir/${IMSA_DIR//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#analysis/$ANALYSIS_NAME/" $SCRIPT_PATH
+			sed -i -e "s/#resultPath/${SAMPLE_DIR//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#readPath/${FASTQ_READ2//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#actionsFile/${ACTIONS_FILE//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#bowtieHGdatabase/${BOWTIE_HG_DATABASE//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#blatHGdatabase/${BLAT_HG_DATABASE//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#blatHGOOCfile/${BLAT_HG_OOC_FILE//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#blastNTdatabase/${BLAST_NT_DATABASE//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#blastHGdatabase/${BLAST_HG_DATABASE//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#taxonomyDmp/${TAXONOMY_DMP//\//\\/}/" $SCRIPT_PATH
+
+			LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+			echo -n "" > $LOG_OUTPUT_PATH
+			chmod 660 $LOG_OUTPUT_PATH
+
+			echo "`${NOW}`submitting job script $SCRIPT_PATH "
+			JOB_ID2=`qsub -W depend=afterok:$JOB_ID -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+			echo "`${NOW}`job ID: $JOB_ID2"
+
+
+	                #creating job script to run IMSA
+			SCRIPT_PATH=$RUN_DIR/$TODAY/$SAMPLE/run/pp_imsa.$SAMPLE.$FASTQ_NAME.sh
+			cp $IMSA_DIR/postprocess.sh $SCRIPT_PATH
+			chmod 770 $SCRIPT_PATH
+
+			sed -i -e "s/#blatVersion/$BLAT_VERSION/" $SCRIPT_PATH
+			sed -i -e "s/#blastVersion/$BLAST_VERSION/" $SCRIPT_PATH
+			sed -i -e "s/#bowtieVersion/$BOWTIE_VERSION/" $SCRIPT_PATH
+			sed -i -e "s/#baseDir/${IMSA_DIR//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#analysis/$ANALYSIS_NAME/" $SCRIPT_PATH
+			sed -i -e "s/#resultPath/${SAMPLE_DIR//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#bowtieHGdatabase/${BOWTIE_HG_DATABASE//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#blatHGdatabase/${BLAT_HG_DATABASE//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#blatHGOOCfile/${BLAT_HG_OOC_FILE//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#blastNTdatabase/${BLAST_NT_DATABASE//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#blastHGdatabase/${BLAST_HG_DATABASE//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#taxonomyDmp/${TAXONOMY_DMP//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#readPath1/${FASTQ_READ1//\//\\/}/" $SCRIPT_PATH
+			sed -i -e "s/#readPath2/${FASTQ_READ2//\//\\/}/" $SCRIPT_PATH
+
+			LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+			echo -n "" > $LOG_OUTPUT_PATH
+			chmod 660 $LOG_OUTPUT_PATH
+
+			echo "`${NOW}`submitting job script $SCRIPT_PATH "
+			JOB_ID=`qsub -W depend=afterok:$JOB_ID1:$JOB_ID2 -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+			echo "`${NOW}`job ID: $JOB_ID"
+
+			IMSA_DEPENDECIES="$IMSA_DEPENDECIES:$JOB_ID"
+
+		else
+
+			echo "`${NOW}`no mate for $FASTQ_READ1..."
+
+		fi
+
+	done
+done
+
+#creating job script to run IMSA
+SCRIPT_PATH=$RUN_DIR/$TODAY/multisample/run/sum_imsa.$SAMPLE.sh
+cp $BASEDIR/analyse_contamination.sh $SCRIPT_PATH
+chmod 770 $SCRIPT_PATH
+
+INPUT_DIR=$RUN_DIR/$TODAY
+OUTPUT_FILE=$RESULTS_DIR/$TODAY/imsa_summary.xls
+
+sed -i -e "s/#input_dir/${INPUT_DIR//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#output_file/${OUTPUT_FILE//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#pattern_read1/${PATTERN_READ_1//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#pattern_read2/${PATTERN_READ_2//\//\\/}/" $SCRIPT_PATH
+
+LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+echo -n "" > $LOG_OUTPUT_PATH
+chmod 660 $LOG_OUTPUT_PATH
+
+echo "`${NOW}`"
+echo "`${NOW}`###################################"
+echo "`${NOW}`submitting summary job $SCRIPT_PATH "
+JOB_ID=`qsub -W depend=$IMSA_DEPENDECIES -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+echo "`${NOW}`job ID: $JOB_ID"
+
