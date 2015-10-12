@@ -18,14 +18,8 @@ module load samtools/#samtoolsVersion
 bam_file=#bamFile
 htseq_counts=#htseqCounts
 gff_file=#gffFile
-strand=#strand
+ss_library=#strand
 feature=#feature
-
-ss_library=no
-if  [ $strand == T ]
-then
-        ss_library=yes
-fi
 
 cp $bam_file $TMPDIR/tmp.bam
 cp $bam_file.bai $TMPDIR/tmp.bam.bai
