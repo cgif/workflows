@@ -50,6 +50,11 @@ echo "`${NOW}`copying fasq files to temporary scratch space..."
 echo "`${NOW}`$FASTQ_READ1"
 cp $PATH_READS_DIRECTORY/$FASTQ_READ1 $TMPDIR/$FASTQ_READ1
 
+# checks if FASTQ_READ2 exists. If doesn't exists assume RUN sigle read
+if [ ! -f "$PATH_READS_DIRECTORY/$FASTQ_READ2" ]; then
+	SINGLE_READS="T"
+fi
+
 if [[ "$SINGLE_READS" == "F" ]]; then
 	echo "`${NOW}`$FASTQ_READ2"
 	cp $PATH_READS_DIRECTORY/$FASTQ_READ2 $TMPDIR/$FASTQ_READ2
@@ -98,7 +103,7 @@ cp $TMPDIR/qc/*zip $PATH_QC_REPORT_DIR
 chmod 660 $PATH_QC_REPORT_DIR/*zip
 
 echo "`${NOW}`creating deployment directory $DEPLOYMENT_PATH on $DEPLOYMENT_SERVER..."
-ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $DEPLOYMENT_PATH" > /dev/null 2>&1
+ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $DEPLOYMENT_PATH" < /dev/null
 
 for ZIP in `ls $TMPDIR/qc/*.zip`
 do
@@ -108,10 +113,10 @@ do
 	REPORT_DIR=`basename $ZIP .zip`	
 		
 	echo "`${NOW}`deploying $REPORT_DIR report directory to $DEPLOYMENT_SERVER:$DEPLOYMENT_PATH..."
-	scp -r $TMPDIR/$REPORT_DIR $DEPLOYMENT_SERVER:$DEPLOYMENT_PATH/  > /dev/null 2>&1
-	ssh $DEPLOYMENT_SERVER "chmod 775 $DEPLOYMENT_PATH/$REPORT_DIR" > /dev/null 2>&1
-	ssh $DEPLOYMENT_SERVER "chmod 775 $DEPLOYMENT_PATH/$REPORT_DIR/*"  > /dev/null 2>&1
-	ssh $DEPLOYMENT_SERVER "chmod 664 $DEPLOYMENT_PATH/$REPORT_DIR/*/*"  > /dev/null 2>&1
+	scp -r $TMPDIR/$REPORT_DIR $DEPLOYMENT_SERVER:$DEPLOYMENT_PATH/  < /dev/null 
+	ssh $DEPLOYMENT_SERVER "chmod 775 $DEPLOYMENT_PATH/$REPORT_DIR" < /dev/null 
+	ssh $DEPLOYMENT_SERVER "chmod 775 $DEPLOYMENT_PATH/$REPORT_DIR/*"  < /dev/null
+	ssh $DEPLOYMENT_SERVER "chmod 664 $DEPLOYMENT_PATH/$REPORT_DIR/*/*"  < /dev/null
 
     echo "`${NOW}`copying unzipped QC report to $PATH_QC_REPORT_DIR/$REPORT_DIR"
 	mkdir -p -m 770 $PATH_QC_REPORT_DIR/$REPORT_DIR
