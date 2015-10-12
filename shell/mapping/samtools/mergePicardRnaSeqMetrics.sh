@@ -100,7 +100,7 @@ for SAMPLE in `ls $MERGETAG_PROJECT_DIRECTORY/$MERGETAG_DATE`; do
 
 				COUNT=`samtools view $BAM_FILE $CHROM|wc -l`
 
-				if [[ $CHROM == *"GL"* ]]; then
+				if [[ $CHROM == *"GL"* || $CHROM == *"JH"* ]]; then
 
 					GL_COUNT=$(( GL_COUNT + $COUNT ))				
 

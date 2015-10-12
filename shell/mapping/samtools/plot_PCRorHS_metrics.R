@@ -3,6 +3,7 @@ library("scales")
 
 metrics.file <- "#metricsSummary"
 experiment <- "#experimentType"
+mark.duplicates <- "#markDuplicates"
 
 metrics <- read.delim(metrics.file, as.is=T, row.names=1)
 width <- length(rownames(metrics)) * 15
@@ -22,15 +23,20 @@ reads.aligned.df <- data.frame(names=factor(names,levels=rownames(metrics)), sta
 
 if (experiment == "TP") {
 
-labels=c("uniquely mapped reads", "non-uniquely mapped reads", "unmapped reads")
-width.add=170
+	labels=c("uniquely mapped reads", "non-uniquely mapped reads", "unmapped reads")	
+	width.add=170
 
 } 
 
 if (experiment == "HS") {
 
-labels=c("non-duplicate, uniquely mapped reads", "non-duplicate, non-uniquely mapped reads", "unmapped + mapped duplicate reads")
-width.add=230
+	if (mark.duplicates == "TRUE") {
+		labels=c("non-duplicate, uniquely mapped reads", "non-duplicate, non-uniquely mapped reads", "unmapped + mapped duplicate reads")
+		width.add=230
+	} else {
+		labels=c("uniquely mapped reads", "non-uniquely mapped reads", "unmapped reads")
+		width.add=170
+	}
 
 }
 
@@ -76,6 +82,9 @@ dev.off()
 #plot target coverage
 mean.target.coverage.ext <- "meanTargetCoverage"
 
+metrics$MEAN_TARGET_COVERAGE[metrics$MEAN_TARGET_COVERAGE == "?"] <- 0.01
+metrics$MEAN_TARGET_COVERAGE <- round(as.numeric(metrics$MEAN_TARGET_COVERAGE), digits=2)
+
 png(paste(metrics.file, ".", mean.target.coverage.ext, ".png", sep=""), width=width, height=500)
 
 ggplot(metrics,aes(rownames(metrics),MEAN_TARGET_COVERAGE))+geom_bar(stat="identity",fill="#DD8888")+ggtitle("MEAN COVERAGE FOR TARGETS with at least x2 coverage at one base")+scale_x_discrete("SAMPLE ID")+scale_y_continuous("COVERAGE [X FOLDS]",expand = c(0, 10))+theme(plot.title=element_text(face="bold",vjust=2),axis.title.x=element_text(vjust=-0.5),axis.text.x=element_text(angle=90,vjust=0.5),axis.title.y=element_text(vjust=0.5),panel.background=element_rect(fill="white"),panel.grid.major.x=element_line(colour="NA"),panel.grid.major.y=element_line(colour="light grey"))
@@ -101,7 +110,7 @@ percent <- rep(100,length(targets.covered))
 targets.covered <- targets.covered*percent
 coverage.df <- data.frame(names=factor(names,levels=rownames(metrics)), coverage=coverage, targets.covered=targets.covered)
 
-png(paste(metrics.file, ".", cumulative.coverage.ext, ".png", sep=""), width=width, height=500)
+png(paste(metrics.file, ".", cumulative.coverage.ext, ".png", sep=""), width=500, height=500)
 
 ggplot(coverage.df,aes(coverage,targets.covered,colour=names,group=names))+geom_point(shape=4,size=4)+geom_line(linetype=1,alpha=I(1/2))+guides(col = guide_legend(title=NULL,nrow = 25))+ggtitle("PERCENTAGE OF TARGET BASES ACHIEVING X COVERAGE OR GREATER")+scale_x_continuous("COVERAGE, X",breaks=c(10,20,30))+scale_y_continuous("BASES [%]",expand = c(0, 0),lim=c(0,100))+theme(plot.title=element_text(face="bold",vjust=2),axis.title.x=element_text(vjust=-0.5),axis.title.y=element_text(vjust=0.5),panel.background=element_rect(fill="white"),panel.grid.major.x=element_line(colour="grey95"),panel.grid.major.y=element_line(colour="grey90"))
 

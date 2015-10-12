@@ -19,6 +19,8 @@ PROJECT_NAME=mergeTagProjectName
 CUSTOM_AMPLICON_SET=customAmpliconSet
 RUN_DIR=#runFolder
 
+module load R/#Rversion
+
 OUTPUT_DIR=$MERGETAG_PROJECT_DIRECTORY/$MERGETAG_DATE/multisample
 
 echo "`$NOW`merging hybridMetrics files..."

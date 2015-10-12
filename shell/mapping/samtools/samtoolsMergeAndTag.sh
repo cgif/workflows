@@ -19,6 +19,7 @@ module load picard/picardVersion
 module load samtools/samtoolsVersion
 module load R/rVersion
 module load gatk/gatkVersion
+module load bedtools/bedtoolsVersion
 
 PICARD_VERSION=picardVersion
 
@@ -55,6 +56,8 @@ METRIC_LEVEL=metricLevel
 RG_LEVEL=`echo $METRIC_LEVEL | grep RG`
 L_LEVEL=`echo $METRIC_LEVEL | grep L`
 S_LEVEL=`echo $METRIC_LEVEL | grep S`
+MAKE_BW=makeBw
+
 
 echo "`${NOW}`-------------------------------------------------------------------------------------------------------"
 #merge header and read group info
@@ -551,5 +554,30 @@ then
 
 fi
 
+if [ "$MAKE_BW" == "TRUE" ]
+then
+
+	cat $TMPDIR/tmp_reference.dict | perl -e 'while(<>) {if (/^\@SQ\tSN:(\d+|X|Y|MT)\tLN:(\d+)\t.*/) {$chrom = $1; $size = $2; $chrom = "M" if $chrom eq "MT"; print "chr$chrom\t$size\n"}}' > $TMPDIR/chrom.sizes
+
+	echo "`${NOW}` generating bigWig file to see coverage profile in UCSC browser"
+
+	echo "`${NOW}` removing duplicates and unmapped reads and renaming chromosome names to hg19" 
+
+	samtools view -hF 1028 $TMP_PATH_OUT_BAM.sorted.dupmark.clean | perl -e 'while(<>) {if (/^\@SQ\tSN:(\d+|X|Y)/) { s/(.*\tSN:)(.*)/$1chr$2/; print } elsif (/^\@SQ\tSN:MT/) { s/(.*\tSN:)MT(.*)/$1chrM$2/; print } elsif (/^\@SQ/ && /SN:/) { next } elsif (/^@/) { print } else { @cols = split(/\t/); if ($cols[2] =~ /^\d+$|^X$|^Y$/) {$cols[2] = "chr$cols[2]"} elsif ($cols[2] =~ /^MT$/) {$cols[2] = "chrM"} else {next} $line = ""; foreach $col (@cols) { $line .= $col."\t"; } chop($line); print "$line" }}' | samtools view -bS - > $TMPDIR/$OUTPUT_BAM_PREFIX.filtered.renamed.bam
+	samtools index $TMPDIR/$OUTPUT_BAM_PREFIX.filtered.renamed.bam
+	samtools flagstat $TMPDIR/$OUTPUT_BAM_PREFIX.filtered.renamed.bam > $TMPDIR/$OUTPUT_BAM_PREFIX.filtered.renamed.flagstat
+
+	TOTAL=`cat $TMPDIR/$OUTPUT_BAM_PREFIX.filtered.renamed.flagstat|grep total|cut -f 1 -d ' '`
+	SCALE=`echo "scale=2;1000000/${TOTAL}" | bc`
+
+	echo "`${NOW}` calculate coverage, multiply by scale factor $SCALE ($TOTAL reads)"
+	genomeCoverageBed -bg -split -scale $SCALE -ibam $TMPDIR/$OUTPUT_BAM_PREFIX.filtered.renamed.bam -g $TMPDIR/chrom.sizes > $TMPDIR/$OUTPUT_BAM_PREFIX.bedGraph
+
+	echo "`${NOW}` translate bedGraph to BigWig"
+	/groupvol/cgi/software/ucsc/bedGraphToBigWig $TMPDIR/$OUTPUT_BAM_PREFIX.bedGraph $TMPDIR/chrom.sizes $TMPDIR/$OUTPUT_BAM_PREFIX.bw
+	cp $TMPDIR/$OUTPUT_BAM_PREFIX.bw $PATH_OUTPUT_DIR
+
+fi
+
 #list files for debugging
-ls -al
+ls -alh

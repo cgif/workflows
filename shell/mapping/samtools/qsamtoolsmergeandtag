@@ -22,12 +22,14 @@ PICARD_VERSION=1.85
 SAMTOOLS_VERSION=0.1.18
 R_VERSION=2.15
 GATK_VERSION=3.2-2
+BEDTOOLS_VERSION=2.13.3
 
 #now
 NOW="date +%Y-%m-%d%t%T%t"
 
 #today
 TODAY=`date +%Y-%m-%d`
+#TODAY=2015-09-12
 
 QUEUE=pqcgi
 
@@ -43,12 +45,14 @@ METRIC=NONE
 MARK_DUPLICATES=TRUE
 METRIC_LEVEL=S
 SAMPLE_STATUS=none
+MAKE_BW=FALSE
+
 
 #COMMAND LINE ARGS
 ##################
 
 #parse command line args
-while getopts "i:r:d:s:m:b:t:l:p:a:f:q:c:h" option; do
+while getopts "i:r:d:s:m:b:t:l:p:a:f:q:c:w:h" option; do
     case "$option" in
 	
 	i) PATH_INPUT_DIR="$OPTARG";;
@@ -64,6 +68,7 @@ while getopts "i:r:d:s:m:b:t:l:p:a:f:q:c:h" option; do
 	f) PATH_REFERENCE_FASTA="$OPTARG";;
 	q) METRIC_LEVEL="$OPTARG";;
 	c) SAMPLE_STATUS="$OPTARG";;
+	w) MAKE_BW="$OPTARG";;
 	h) cat $USAGE; exit 0;;
 	[?]) cat $USAGE; exit 1;;
 
@@ -224,7 +229,6 @@ scp -r ${BASEDIR}/../../resources/images/warning.png $DEPLOYMENT_SERVER:$SUMMARY
 scp -r ${BASEDIR}/../../resources/images/tick.png $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT/ > /dev/null 2>&1
 ssh $DEPLOYMENT_SERVER "chmod -R 664 $SUMMARY_DEPLOYMENT/*png" > /dev/null 2>&1
 
-
 echo "`$NOW`creating and submitting merging jobs for samples in read group info file:"
 
 METRIC_MERGING_DEPENDECIES="afterany"
@@ -383,6 +387,7 @@ do
 	sed -i -e "s/samtoolsVersion/$SAMTOOLS_VERSION/" $SCRIPT_PATH
 	sed -i -e "s/rVersion/$R_VERSION/" $SCRIPT_PATH
 	sed -i -e "s/gatkVersion/$GATK_VERSION/" $SCRIPT_PATH
+	sed -i -e "s/bedtoolsVersion/$BEDTOOLS_VERSION/" $SCRIPT_PATH
 	sed -i -e "s/readGroupInfo/${PATH_RG_TAGS//\//\\/}/" $SCRIPT_PATH
 	sed -i -e "s/markDuplicates/$MARK_DUPLICATES/" $SCRIPT_PATH
 	sed -i -e "s/headerFile/${PATH_HEADER//\//\\/}/" $SCRIPT_PATH
@@ -397,6 +402,7 @@ do
 	sed -i -e "s/referenceSequence/${PATH_REFERENCE_FASTA//\//\\/}/" $SCRIPT_PATH
 	sed -i -e "s/calculateMetric/$METRIC/" $SCRIPT_PATH
 	sed -i -e "s/metricLevel/$METRIC_LEVEL/" $SCRIPT_PATH
+	sed -i -e "s/makeBw/$MAKE_BW/" $SCRIPT_PATH
 
 	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
 	echo -n "" > $LOG_OUTPUT_PATH
@@ -577,6 +583,7 @@ then
 	sed -i -e "s/mergeTagDate/$TODAY/" $SCRIPT_PATH
 	sed -i -e "s/mergeTagProjectName/$PROJECT/" $SCRIPT_PATH
 	sed -i -e "s/customAmpliconSet/$CUSTOM_AMPLICON_SET/" $SCRIPT_PATH
+	sed -i -e "s/#Rversion/$R_VERSION/" $SCRIPT_PATH
 
 	#create R script to plot HS metrics
 	HS_METRICS_SUMMARY=$PATH_OUT_DIR_PREFIX/$TODAY/multisample/$PROJECT.$TODAY.hybridMetrics
@@ -587,6 +594,7 @@ then
 	
  	sed -i -e "s/#metricsSummary/${HS_METRICS_SUMMARY//\//\\/}/" $R_SCRIPT_PATH	
  	sed -i -e "s/#experimentType/$METRIC/" $R_SCRIPT_PATH
+ 	sed -i -e "s/#markDuplicates/$MARK_DUPLICATES/" $R_SCRIPT_PATH
 	
 	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
 	echo -n "" > $LOG_OUTPUT_PATH
@@ -635,6 +643,7 @@ then
 	READ_COUNTS_FILE=$PATH_OUT_DIR_PREFIX/$TODAY/multisample/$PROJECT.$TODAY.readCounts
  	sed -i -e "s/#metricsSummary/${RS_METRICS_SUMMARY//\//\\/}/" $R_SCRIPT_PATH	
  	sed -i -e "s/#countsFile/${READ_COUNTS_FILE//\//\\/}/" $R_SCRIPT_PATH	
+ 	sed -i -e "s/#refFile/${PATH_REFERENCE_FASTA//\//\\/}/" $R_SCRIPT_PATH	
 	
 	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
 	echo -n "" > $LOG_OUTPUT_PATH
@@ -712,6 +721,7 @@ sed -i -e "s/markDuplicates/$MARK_DUPLICATES/" $SCRIPT_PATH
 sed -i -e "s/metricLevel/$METRIC_LEVEL/" $SCRIPT_PATH
 sed -i -e "s/collectMetric/$METRIC/" $SCRIPT_PATH
 sed -i -e "s/multisample_no/multisample_yes/" $SCRIPT_PATH
+sed -i -e "s/makeBW/$MAKE_BW/" $SCRIPT_PATH
 
 LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.pl/\.log/g'`
 echo -n "" > $LOG_OUTPUT_PATH

@@ -20,7 +20,8 @@ USAGE
                             [-f <path_to_reference_sequence_fasta_file,
                                 default /groupvol/cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.fa>]
                             [-q <level_at_which_to_accumulate_metrics RG|L|S, default S>]
-							[-c <sample status file for amplicon sequencing>]
+			    [-c <sample status file for amplicon sequencing>]
+			    [-w <produce customer tracks with coverage profiles in UCSC genome browser if TRUE, default is FALSE>]
 
 
 DESCRIPTION
@@ -122,6 +123,8 @@ DESCRIPTION
 
 	-c	Absolute path to sample status file, required for amplicon sequencing. File 
 		format SampleID\tstatus\n (0-negative control, 1 - sample), no header line
+
+	-w 	Produce customer tracks with coverage profiles in UCSC genome browser if TRUE, default is FALSE
 
 	-h	Display help and exit.
 
