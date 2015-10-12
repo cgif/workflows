@@ -51,8 +51,8 @@ echo "`${NOW}`$FASTQ_READ1"
 cp $PATH_READS_DIRECTORY/$FASTQ_READ1 $TMPDIR/$FASTQ_READ1
 
 # checks if FASTQ_READ2 exists. If doesn't exists assume RUN sigle read
-if [ ! -f "$PATH_READ_DIRECTORY/$FASTQ_READ2" ]; then
-	SINGLE_READS = "T"
+if [ ! -f "$PATH_READS_DIRECTORY/$FASTQ_READ2" ]; then
+	SINGLE_READS="T"
 fi
 
 if [[ "$SINGLE_READS" == "F" ]]; then
