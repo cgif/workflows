@@ -28,13 +28,15 @@ perl -e 'while(<>){
      s/"//g;
      @data = split(/\t/,$_); 
      $id = $data[1];
-     next unless $id =~ /ENSG/;
+     next unless $id =~ /ENS/;
 
-     $name = `grep $id $ENV{'GFF_PATH'}|head -n 1|cut -f 9|cut -f 4 -d ";"`;
-     $name =~ s/ gene_name "(.*)"\n/$1/;
+     $name = `grep $id $ENV{'GFF_PATH'}|head -n 1|cut -f 9`;
+     $name =~ s/.*gene_name \"(.*?)\".*/$1/;
+     chomp($name);
 
-     $biotype = `grep $id $ENV{'GFF_PATH'}|head -n 1|cut -f 9|cut -f 5 -d ";"`;
-     $biotype =~ s/ gene_biotype "(.*)"\n/$1/;
+     $biotype = `grep $id $ENV{'GFF_PATH'}|head -n 1|cut -f 9`;
+     $biotype =~ s/.*gene_biotype \"(.*?)\".*/$1/;
+     chomp($biotype);
 
      $go = `grep $id $ENV{'GO_PATH'}|cut -f 2,3 |grep -vP "molecular_function|cellular_component|biological_process"|tr -d ":"|tr "\t" ":"|tr "\n" ";"`;
 

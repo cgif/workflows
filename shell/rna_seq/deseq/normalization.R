@@ -192,13 +192,15 @@ dev.off()
 #######################################################################################
 #boxplot p-value for DE analysis binned by GC-content or gene length
 #######################################################################################
-
+#cap -log(p-value) to 20
+log = -log10(res$pval)
+log[log > 20] = 20
 png( file = paste( results.dir, "DEanalysis_gc_bias.png", sep="/" ) )
-    biasBoxplot(log(res$pval), fData(data)[res$id,]$gc, xlab = "Gene GC-content, %", ylab = "log(p-value)", main = "DE analysis: p-value binned by gene GC-content")
+    biasBoxplot(log, fData(data)[res$id,]$gc, xlab = "Gene GC-content, %", ylab = "-log10(p-value)", main = "DE analysis: p-value binned by gene GC-content")
 dev.off()
 
 png( file = paste( results.dir, "DEanalysis_length_bias.png", sep="/" ) )
-    biasBoxplot(log(res$pval), fData(data)[res$id,]$length, xlab = "Gene length, bp", ylab = "log(p-value)", main = "DE analysis: p-value binned by gene length")
+    biasBoxplot(log, fData(data)[res$id,]$length, xlab = "Gene length, bp", ylab = "-log10(p-value)", main = "DE analysis: p-value binned by gene length")
 dev.off()
 
 ######################################################################################
