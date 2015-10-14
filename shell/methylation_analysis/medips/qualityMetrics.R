@@ -5,12 +5,14 @@ library(BSgenome.Hsapiens.UCSC.hg19)
 BSgenome="BSgenome.Hsapiens.UCSC.hg19"
 #remove duplicate reads
 uniq=TRUE
-#extend reads to 300 nt
-extend=200
+#extend reads
+extend=#extendReads
 #do not shift reads
 shift=0
 #set window size to 100nt
-ws=100
+ws=#windowSize
+#paired reads 
+paired=#pairedReads
 
 inBam <- "#bamFile"
 sample <- "#sample"

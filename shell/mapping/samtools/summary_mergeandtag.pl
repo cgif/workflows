@@ -16,6 +16,7 @@ my $metric_level="metricLevel";
 my $collect_metric="collectMetric";
 my $url = "http://$deployment_server/$1" if $summary_deployment =~ /html\/(.*)/;
 my $multisample = "multisample_no";
+my $make_bw = "makeBW";
 
 
 #create deployment directory for pdf files
@@ -222,7 +223,7 @@ my $metrics_path = "$project_dir_results/$date/multisample";
 my $html_path = "$project_dir_analysis/$date/multisample";
 
 #create merged pdf with metrics at different levels, deploy them to the Web server and print links on the summary page
-my ($metrics_name, $metrics_file, $counts_name, $counts_file, $read_groups, $cur_file, $libraries, $samples, $html_file, $lines, $png_file, $chart_name, $chart_file);
+my ($metrics_name, $metrics_file, $counts_name, $counts_file, $read_groups, $cur_file, $libraries, $samples, $html_file, $lines, $png_file, $chart_name, $chart_file, $normalized_chart);
 if ($metric_level =~ /RG/){
     print OUT "<HR><TABLE><TR><TD><FONT SIZE = '+1'>Read Group metrics";
     foreach my $category (qw(quality_by_cycle quality_distribution)){
@@ -403,11 +404,15 @@ if ($collect_metric =~ /RS/){
         print OUT "<P><FONT SIZE = '+1'><A HREF = '$url/metrics/$metrics_name.php'>RNA-Seq metrics</A>".
 					"<A HREF = '$url/metrics/$metrics_name.basesAlignment.png'> [Plot genomic distribution of aligned bases]</A>".
 					"<A HREF = '$url/metrics/$metrics_name.median5primeTo3primeBias.png'> [Plot 5' to 3' bias]</A><BR>".
-					"<A HREF = '$url/metrics/$counts_name.png'> [Plot chromosomal distribution]</A><BR>".
-					"<A HREF = '$url/metrics/$counts_name.normalized.png'> [Plot chromosomal distribution normalized by the total length of transcripts]</A><BR>".
-					"<A HREF = '$url/metrics/$counts_name.normalizedNoMTGL.png'> [Plot chromosomal distribution normalized by the total length of transcripts, MT and GL contigs removed]</A><BR>".
-					"</FONT><BR>";
+					"<A HREF = '$url/metrics/$counts_name.png'> [Plot chromosomal distribution]</A><BR>";
     }
+
+    $normalized_chart = "$metrics_path/$counts_name".".normalized.png";
+    if (-e $normalized_chart){
+	print OUT 			"<A HREF = '$url/metrics/$counts_name.normalized.png'> [Plot chromosomal distribution normalized by the total length of transcripts]</A><BR>".
+					"<A HREF = '$url/metrics/$counts_name.normalizedNoMTGL.png'> [Plot chromosomal distribution normalized by the total length of transcripts, MT and GL contigs removed]</A><BR>";
+    }
+
     $chart_name = "$project.$date.chartOutput.pdf";
     $chart_file = "$metrics_path/$chart_name";
     if (-s $chart_file){
@@ -415,6 +420,41 @@ if ($collect_metric =~ /RS/){
         print OUT "<P><FONT SIZE = '+1'><A HREF = '$url/metrics/$chart_name'>RNA integrity chart</A></FONT><BR>";
     }
 }
+
+#if you wish to create BigWig files and see the coverage profiles in UCSC browser
+if ("$make_bw" eq "TRUE"){
+
+	my ($random15, $enc_dir, $custom_tracs, $custom_tracs_URL, $bigWig, $bigWig_URL, $URL);
+
+	#create encrypted directory on eliot
+	$random15=`date | md5sum | head -c 15`;
+	$enc_dir="/data/www/html/report/data/$random15";
+	system("ssh $deployment_server mkdir $enc_dir > /dev/null 2>&1");
+	print "Created encripted directory $enc_dir on eliot\n";
+
+	$custom_tracs="$summary_results/custom_track.txt";
+	$custom_tracs_URL="$deployment_server/report/data/$random15/custom_track.txt";
+	open(TRACKS, ">$custom_tracs");
+	print TRACKS "browser position chr21\n";
+
+	foreach my $sample (keys %data){
+
+		$bigWig="$project_dir_results/$date/$sample/$sample.bw";
+		$bigWig_URL="$deployment_server/report/data/$random15/$sample.bw";
+		system("scp $bigWig $deployment_server:$enc_dir > /dev/null 2>&1");
+		print TRACKS "track type=bigWig name=$sample description=$sample,rpm visibility=full db=hg19 viewLimits=0:1 autoScale=off windowingFunction=mean smoothingWindow=10 bigDataUrl=http://$bigWig_URL\n";
+
+	}
+
+	system("scp $custom_tracs $deployment_server:$enc_dir");
+	$URL="http://$deployment_server/ucsc/cgi-bin/hgTracks?org=human&db=hg19&position=chr21&hgct_customText=http://$custom_tracs_URL";
+	print OUT "<HR>Coverage profiles can be open in <A HREF=$URL>UCSC browser</A>";
+
+	system("ssh $deployment_server chmod 0775 $enc_dir > /dev/null 2>&1");
+	system("ssh $deployment_server chmod 0664 $enc_dir/* > /dev/null 2>&1");
+
+}
+
 }
 
 print OUT "</BODY></HTML>";

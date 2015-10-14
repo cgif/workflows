@@ -70,8 +70,11 @@ if (filtering.stats == "mean") {
 }
 
 #plot counts rank vs p-value to assess filtering statistics
+#cap -log(p-value) to 20
+log = -log10(res$pval)
+log[log > 20] = 20
 png( file = paste( results.dir, "rank_vs_pval_plot.png", sep="/" ) )
-    plot(rank(rs)/length(rs), -log10(res$pval))
+    plot(rank(rs)/length(rs), log, ylab = "-log10(p-value)")
 dev.off()
 
 use = (rs > quantile(rs, probs=filtering.cutoff))
@@ -162,12 +165,15 @@ dev.off()
 #######################################################################################
 #boxplot p-value for DE analysis binned by GC-content or gene length
 #######################################################################################
+#cap -log(p-value) to 20
+log = -log10(resFilt$pval)
+log[log > 20] = 20
 png( file = paste( results.dir, "DEanalysis_gc_bias.png", sep="/" ) )
-    biasBoxplot(log(resFilt$pval), fData(data)[resFilt$id,]$gc, xlab = "Gene GC-content, %", ylab = "log(p-value)", main = "DE analysis: p-value binned by gene GC-content")
+    biasBoxplot(log, fData(data)[resFilt$id,]$gc, xlab = "Gene GC-content, %", ylab = "-log10(p-value)", main = "DE analysis: p-value binned by gene GC-content")
 dev.off()
 
 png( file = paste( results.dir, "DEanalysis_length_bias.png", sep="/" ) )
-    biasBoxplot(log(resFilt$pval), fData(data)[resFilt$id,]$length, xlab = "Gene length, bp", ylab = "log(p-value)", main = "DE analysis: p-value binned by gene length")
+    biasBoxplot(log, fData(data)[resFilt$id,]$length, xlab = "Gene length, bp", ylab = "-log10(p-value)", main = "DE analysis: p-value binned by gene length")
 dev.off()
 
 ######################################################################################

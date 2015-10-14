@@ -100,27 +100,18 @@ function submitJobs {
 	local sample=`basename $path_reads_directory`
 
         #find paired fastq files and run imsa analysis for each pair
-        for fastq_read1 in `ls --color=never $path_reads_directory/*.f*q* | grep $PATTERN_READ1`
-        do
+        for fastq_read1_path in `ls --color=never $path_reads_directory/*.f*q*.gz | grep $PATTERN_READ1`; do
 
-	        fastq_read1=`basename $fastq_read1`
+    			local fastq_read2_path=`echo $fastq_read1_path | perl -pe "s/$PATTERN_READ1/$PATTERN_READ2/"`
 
-                #find read2 mate file
-		for fastq in `ls --color=never $path_reads_directory/*.f*q* | grep $PATTERN_READ2`
-		do
-	
-		        fastq=`basename $fastq`
-    		        local fastq_replace=`echo $fastq | perl -pe "s/$PATTERN_READ2/$PATTERN_READ1/"`
+    			if [ -e $fastq_read2_path ]; then
 
-    		        if [ "$fastq_replace" = "$fastq_read1" ]; 
-    		        then
-
-				local fastq_read1_path=$path_reads_directory/$fastq_read1
-				local fastq_read2_path=$path_reads_directory/$fastq
+	        		fastq_read1=`basename $fastq_read1_path`
+	        		fastq_read2=`basename $fastq_read2_path`
 
 	                        #set up script and variables
 
-				local script_path_1=$path_scripts_dir/imsa.$sample.$PATTERN_READ1.sh
+				local script_path_1=$path_scripts_dir/imsa.$sample.$fastq_read1.sh
 				cp $BASEDIR/imsa.sh $script_path_1
 				chmod 770 $script_path_1
 
@@ -149,7 +140,7 @@ function submitJobs {
 				local job_id1=`qsub -o $log_output_path_1 $script_path_1`
 				echo $job_id1 >> $setup_log
 
-				local script_path_2=$path_scripts_dir/imsa.$sample.$PATTERN_READ2.sh
+				local script_path_2=$path_scripts_dir/imsa.$sample.$fastq_read2.sh
 				cp $BASEDIR/imsa.sh $script_path_2
 				chmod 770 $script_path_2
 
@@ -178,7 +169,7 @@ function submitJobs {
 				local job_id2=`qsub -o $log_output_path_2 $script_path_2`
 				echo $job_id2 >> $setup_log
 
-				local script_path=$path_scripts_dir/imsa.$sample.postprocess.sh
+				local script_path=$path_scripts_dir/post.$sample.$fastq_read1.sh
 				cp $BASEDIR/postprocess.sh $script_path
 				chmod 770 $script_path
 
@@ -208,11 +199,9 @@ function submitJobs {
 
 			else
 
-			        echo "No mate file found for $FASTQ_READ1. Skipped."   	
+			        echo "No mate file found for $fastq_read1_path. Skipped."   	
 
 		        fi
-
-	        done
 
         done
 }

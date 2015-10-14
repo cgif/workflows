@@ -14,7 +14,7 @@ BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
 DEPLOYMENT_BASE_DIR=/www/html/report
 
-USAGE="./qHTSeq -i path_to_input_directory -g path_to_gff_file -f feature_ID -s check_if_ss_library"
+USAGE="./qHTSeq -i path_to_input_directory -g path_to_gff_file -f feature_ID -s strandness"
 
 #python/cx1 is version 2.6.6
 PYTHON_VERSION=cx1
@@ -32,19 +32,19 @@ WALLTIME_HOURS_PER_RUN=72
 #default parameters
 PATH_ANNOTATION_GFF=$GROUPVOL_CGI/resources/annotations/bowtie2_indexed/Homo_sapiens.GRCh37.75.gff
 FEATURE=gene_id
-STRAND=F
+STRAND=no
 
 #COMMAND LINE ARGS
 ##################
 
 #parse command line args
-while getopts "i:g:f:sh" option; do
+while getopts "i:g:f:s:h" option; do
     case "$option" in
 	
 	i) PATH_INPUT_DIR="$OPTARG";;
 	g) PATH_ANNOTATION_GFF="$OPTARG";;
 	f) FEATURE="$OPTARG";;
-	s) STRAND=T;;
+	s) STRAND="$OPTARG";;
 	h) cat $USAGE;;
 	[?]) cat $USAGE;;
 
