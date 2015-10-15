@@ -241,7 +241,7 @@ for SAMPLE in `ls --color=never $INPUT_DIR`; do
 done
 
 #creating job script to run IMSA
-SCRIPT_PATH=$RUN_DIR/$TODAY/multisample/run/sum_imsa.$SAMPLE.sh
+SCRIPT_PATH=$RUN_DIR/$TODAY/multisample/run/sum_imsa.$PROJECT.sh
 cp $BASEDIR/analyse_contamination.sh $SCRIPT_PATH
 chmod 770 $SCRIPT_PATH
 
