@@ -1,0 +1,126 @@
+#!/bin/bash
+
+#
+# sets up directory structure and generates, configures and submits
+# scripts to extract fraction of reads from bam file
+# and to check for sample cross-contamination
+#
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+VERIFY_BAM_ID_VERSION=1.1.0
+SAMTOOLS_VERSION=1.2
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+GROUP_VOL=/project/tgu
+QUEUE=pqcgi
+
+VCF=/groupvol/cgi/resources/verifyBamID/Omni25_genotypes_1525_samples_v2.b37.PASS.ALL.sites.vcf
+TARGETED=FALSE
+
+USAGE="USAGE: qverifyBamID -i <input_dir> -n <project_name> -v <vcf_file> -t <targeted: TRUE or FALSE>"
+
+while getopts "i:n:v:t:h" option; do
+    case "$option" in
+	
+	i) INPUT_DIR="$OPTARG";;
+	n) PROJECT="$OPTARG";;
+	v) VCF="$OPTARG";;
+	t) TARGETED="$OPTARG";;
+	h) echo $USAGE;;
+	[?]) echo $USAGE;;
+
+    esac
+done
+
+#check if required arguments are missing
+if [ -z $INPUT_DIR ] || [ -z $PROJECT ]
+then
+
+    echo $USAGE
+    exit 1
+
+fi
+
+if [ $TARGETED == TRUE ] && [ VCF == /groupvol/cgi/resources/verifyBamID/Omni25_genotypes_1525_samples_v2.b37.PASS.ALL.sites.vcf ]
+then
+
+    echo "For targeted sequencing, it is important to sub-select markers that are included in the targeted region"
+    exit 1
+
+fi
+
+#create and set permissions for results and runs parent directories
+RESULTS_DIR=$GROUP_VOL/results/$PROJECT/verifyBamID
+mkdir -p $RESULTS_DIR/$TODAY/multisample
+chmod 770 $RESULTS_DIR/$TODAY/multisample
+
+RUN_DIR=$GROUP_VOL/runs/$PROJECT/verifyBamID
+mkdir -p $RUN_DIR/$TODAY/multisample
+chmod 770 $RUN_DIR/$TODAY/multisample
+
+VBID_DEPENDECIES="afterok"
+
+for SAMPLE in `ls --color=never $INPUT_DIR|grep -v multisample`; do
+
+	echo "`$NOW`"
+	echo "`$NOW`###############################"
+	echo "`$NOW`processing directory $SAMPLE..."
+	echo "`$NOW`###############################"
+
+	#create output dir path
+	mkdir -p $RESULTS_DIR/$TODAY/$SAMPLE
+	chmod 770 $RESULTS_DIR/$TODAY/$SAMPLE
+
+	mkdir -p $RUN_DIR/$TODAY/$SAMPLE
+	chmod 770 $RUN_DIR/$TODAY/$SAMPLE
+
+	BAM_FILE=$INPUT_DIR/$SAMPLE/$SAMPLE.bam
+	SAMPLE_RESULTS=$RESULTS_DIR/$TODAY/$SAMPLE
+ 
+	SCRIPT_PATH=$RUN_DIR/$TODAY/$SAMPLE/verifyBamID.$SAMPLE.sh
+	cp $BASEDIR/verifyBamID.sh $SCRIPT_PATH
+	chmod 770 $SCRIPT_PATH
+
+	sed -i -e "s/#verifyBamIDVersion/${VERIFY_BAM_ID_VERSION}/" $SCRIPT_PATH
+	sed -i -e "s/#samtoolsVersion/${SAMTOOLS_VERSION}/" $SCRIPT_PATH
+	sed -i -e "s/#bamPath/${BAM_FILE//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/#resultsDir/${SAMPLE_RESULTS//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/#vcfFile/${VCF//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/#targeted/${TARGETED}/" $SCRIPT_PATH
+
+	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
+	echo "`${NOW}`creating and submiting job script $SCRIPT_PATH "
+
+	JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+	echo "`${NOW}`job ID: $JOB_ID"
+
+	VBID_DEPENDECIES="$VBID_DEPENDECIES:$JOB_ID"
+
+done 
+
+#creating job script to run IMSA
+SCRIPT_PATH=$RUN_DIR/$TODAY/multisample/sum_verifyBamID.$PROJECT.sh
+cp $BASEDIR/verifyBamID_sum.sh $SCRIPT_PATH
+chmod 770 $SCRIPT_PATH
+
+INPUT_DIR=$RESULTS_DIR/$TODAY
+OUTPUT_FILE=$RESULTS_DIR/$TODAY/multisample/verifyBamID_summary.$PROJECT.xls
+
+sed -i -e "s/#input_dir/${INPUT_DIR//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#output_file/${OUTPUT_FILE//\//\\/}/" $SCRIPT_PATH
+
+LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+echo -n "" > $LOG_OUTPUT_PATH
+chmod 660 $LOG_OUTPUT_PATH
+
+echo "`${NOW}`"
+echo "`${NOW}`###################################"
+echo "`${NOW}`submitting summary job $SCRIPT_PATH "
+JOB_ID=`qsub -W depend=$VBID_DEPENDECIES -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+echo "`${NOW}`job ID: $JOB_ID"
+
+ 
