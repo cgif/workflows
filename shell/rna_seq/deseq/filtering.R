@@ -93,6 +93,8 @@ if (disp.mode == "maximum") {
     cdsFilt = estimateDispersions( cdsFilt, method="blind", sharingMode="fit-only", fitType="parametric")
 }
 
+write.table( fData( cdsFilt ), file = paste( results.dir, "dispersion.filt.txt", sep="/"), sep = "\t" )
+
 #plot dispersion
 png( file = paste( results.dir, "dispersion_plot.png", sep="/" ) )
     plotDispEsts( cdsFilt )

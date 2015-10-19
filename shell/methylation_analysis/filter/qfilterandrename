@@ -2,7 +2,7 @@
 
 # creates and submits scripts to remove 
 # duplicates and unmapped reads from BAM files 
-# as well as rename chromosomes to hg18 names
+# as well as rename chromosomes to hg19 names
 
 
 #CONFIGURATION
@@ -10,8 +10,9 @@
 
 GROUPVOL_TGU=/project/tgu
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+RENAME_CHROM=/groupvol/cgi/resources/reference/eukaryote/human/GRCh37_to_hg19.chrom_names.txt
 
-USAGE="USAGE: qfilterandrename -i <path_to_fastq_directory> -n <project_name>"
+USAGE="USAGE: qfilterandrename -i <bam_durectory> -n <project_name> -r <chrom_names>"
 
 SAMTOOLS_VERSION=0.1.18
 
@@ -24,10 +25,11 @@ TODAY=`date +%Y-%m-%d`
 QUEUE=pqcgi
 
 #parse command line args
-while getopts "i:n:h" option; do
+while getopts "i:n:r:h" option; do
 	case "$option" in
 		i) INPUT_DIR="$OPTARG";;
 		n) PROJECT="$OPTARG";;
+		r) RENAME_CHROM="$OPTARG";;
 	esac
 done
 
@@ -75,6 +77,7 @@ for SAMPLE in `ls --color=never $INPUT_DIR`; do
 		sed -i -e "s/#mergetagDir/${INPUT_DIR//\//\\/}/" $SCRIPT_PATH
 		sed -i -e "s/#filteredDir/${FILTERED_DIR//\//\\/}/" $SCRIPT_PATH
 		sed -i -e "s/#sample/${SAMPLE}/" $SCRIPT_PATH
+		sed -i -e "s/#renameChrom/${RENAME_CHROM//\//\\/}/" $SCRIPT_PATH
 
        	 	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
 		echo -n "" > $LOG_OUTPUT_PATH

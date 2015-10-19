@@ -568,7 +568,7 @@ then
 	samtools flagstat $TMPDIR/$OUTPUT_BAM_PREFIX.filtered.renamed.bam > $TMPDIR/$OUTPUT_BAM_PREFIX.filtered.renamed.flagstat
 
 	TOTAL=`cat $TMPDIR/$OUTPUT_BAM_PREFIX.filtered.renamed.flagstat|grep total|cut -f 1 -d ' '`
-	SCALE=`echo "scale=2;1000000/${TOTAL}" | bc`
+	SCALE=`echo "scale=10;1000000/${TOTAL}" | bc`
 
 	echo "`${NOW}` calculate coverage, multiply by scale factor $SCALE ($TOTAL reads)"
 	genomeCoverageBed -bg -split -scale $SCALE -ibam $TMPDIR/$OUTPUT_BAM_PREFIX.filtered.renamed.bam -g $TMPDIR/chrom.sizes > $TMPDIR/$OUTPUT_BAM_PREFIX.bedGraph
