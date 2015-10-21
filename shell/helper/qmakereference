@@ -1,0 +1,48 @@
+#!/bin/bash
+
+#
+# sets up directory structure and generates, configures and submits
+# scripts to run a BWA paired-end mappings on a set of fastq files
+#
+
+#CONFIGURATION
+##############
+
+#now
+NOW="date +%Y-%m-%d%t%T%t"
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+#returns absolute path to qfastqc directory, not changing your current directory
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+GROUP_VOL_TGU=/project/tgu
+
+QUEUE=pqcgi
+WALLTIME_HOURS_PER_RUN=24
+
+USAGE="$BASEDIR/qbwape.usage"
+
+#BWA
+####
+
+PATH_REFERENCE_DICT=$GROUP_VOL_CGI/resources/reference/dict
+PATH_PHIX_FASTA=$GROUP_VOL_CGI/resources/reference/fasta
+
+
+#COMMAND LINE ARGS
+################## 
+while getopts "i" option; do
+    case "$option" in
+	
+	i) PATH_REFERENCE_FASTA="$OPTARG";;
+	o) SEQUENCE_ORDER="$OPTARG";;
+	h) cat "$USAGE"; exit 0;;
+	[?]) cat "$USAGE"; exit 1;;
+
+esac
+done
+
+PATH_REFERENCE_INDEX=`echo PATH_REFERENCE_FASTA | perl -pe 's/\/fasta\/index
+
+/project/tgu/resources/reference/fasta/eukaryote/rnorvegicus/Rnor_5_0
