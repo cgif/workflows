@@ -122,12 +122,12 @@ fi
 #SAM format version
 if [ -e $PATH_REFERENCE_DICT ]
 then
-
-	#get first line of SAM header from BAM file
-	samtools view -H $TMP_PATH_ALN_BAM_PREFIX.bam | head -n1 > $TMPDIR/header.sam
+	
+	#get @HD line of SAM header form BAM file
+	samtools view -H $TMP_PATH_ALN_BAM_PREFIX.bam | grep '@HD' > $TMPDIR/header.sam
 
 	#append SN entries from reference dictionary (skipping first line of dictionary)
-	tail -n +2 $PATH_REFERENCE_DICT >> $TMPDIR/header.sam 
+	cat $PATH_REFERENCE_DICT | grep '@SQ' >> $TMPDIR/header.sam
 
 else
 
