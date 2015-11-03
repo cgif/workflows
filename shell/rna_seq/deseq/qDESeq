@@ -11,7 +11,6 @@ TODAY=`date +%Y-%m-%d`
 #returns absolute path to DESeq directory, not changing your current directory
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 
-GROUP_VOL_CGI=/groupvol/cgi
 GROUP_VOL_TGU=/project/tgu
 WALLTIME_HOURS_PER_RUN=72
 USAGE=$BASEDIR/qDESeq.usage
@@ -61,14 +60,6 @@ then
 fi
 
 #create and set permissions for analysis project parent directory
-mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT
-chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT
-
-mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME
-chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME
-
-mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY
-chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/$ANALYSIS_NAME/$TODAY
 
 mkdir -p $GROUP_VOL_TGU/runs/$PROJECT
 chmod 770 $GROUP_VOL_TGU/runs/$PROJECT
