@@ -144,11 +144,6 @@ png( file = paste( results.dir, "FC_plot.filt.png", sep="/" ) )
     plotMA( res )
 dev.off()
 
-#plot p-val histogram
-png( file = paste( results.dir, "pval_hist.png", sep="/" ) )
-    hist( res$pval, breaks=100 )
-dev.off()
-
 #########################################################################
 #sample clustering and PCA analysis
 #########################################################################

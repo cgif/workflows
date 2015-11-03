@@ -73,11 +73,6 @@ png( file = paste( results.dir, "FC_plot.png", sep="/" ) )
     plotMA( res )
 dev.off()
 
-#plot p-val histogram
-png( file = paste( results.dir, "pval_hist.png", sep="/" ) )
-    hist( res$pval, breaks=100 )
-dev.off()
-
 #######################################################################
 #pick up filtering parameters
 #######################################################################
@@ -86,8 +81,8 @@ filterChoices = data.frame(
     'geneID' = as.numeric(sub("[:alpha:]*", "", rownames(res))),
     'min' = rowMin(counts(cds)),
     'max' = rowMax(counts(cds)),
-    'sd' = rowSds(counts(cds))
 )
+
 theta = seq(from=0, to=0.8, by=0.02)
 rejChoices = sapply(filterChoices, function(f) filtered_R(alpha=0.1, filter=f, test=res$pval, theta=theta, method="BH"))
 myColours = brewer.pal(ncol(filterChoices), "Set1")

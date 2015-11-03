@@ -113,11 +113,6 @@ png( file = paste( results.dir, "FC_plot.png", sep="/" ) )
     plotMA( resFilt )
 dev.off()
 
-#plot p-val histogram
-png( file = paste( results.dir, "pval_hist.png", sep="/" ) )
-    hist( resFilt$pval, breaks=100 )
-dev.off()
-
 #make a table comparing the power of tests on original and filtered data
 resFiltForComparison = rep(+Inf, length(res$padj))
 resFiltForComparison[use] = resFilt$padj
