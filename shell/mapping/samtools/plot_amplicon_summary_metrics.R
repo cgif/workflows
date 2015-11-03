@@ -10,16 +10,6 @@ sample.status <- "#sampleStatus"
 date <- "#mergetagDate"
 project <- "#projectName"
 
-#######################
-## for testing
-#metrics.dir <- "/home/dkaspera/testing/scripts/amplicon_filtering/sample_filtering"
-#sample.interval.summary <- "aitman_taadx.2015-05-28.sample_interval_summary"
-#sample.status <- "aitman_taadx.samples.txt"   # table containing status, sampleID\status (0-negative control, 1 - sample)
-#date <- "2015-07-07"
-#project <- "aitman_taadx"
-#non_overlapping.interval.summary <- "aitman_taadx.2015-05-28.sample_interval_summary.copy" ## for testing only
-#######################
-
 coverage <- read.delim(paste(metrics.dir, "/", sample.interval.summary, sep=""), as.is=T, row.names=1)
 
 summary.samples <- data.frame(row.names = row.names(coverage))
@@ -27,23 +17,44 @@ summary.samples$median.cov <- apply(coverage,1,median)
 
 #now get status of the samples
 
-samples.status <- read.delim(sample.status, as.is=T, row.names=1, header = FALSE, col.names = c("sample", "status"))
+samples.status <- read.delim(sample.status, as.is=T, row.names=1, header = FALSE, col.names = c("sample", "status", "batch"))
 summary.samples <- merge(summary.samples, samples.status, by = "row.names")
 names(summary.samples)[names(summary.samples) == 'Row.names'] <- 'SampleID'
 
-#get maximum median coverage for blank control
+#generate list of samples to include and exclude
+samples.include <- NULL
+samples.exclude <- NULL
 
-max.blank <- max(summary.samples[summary.samples$status == 0, ][,"median.cov"])
+#for each batch
+for (cur.batch in unique(samples.status$batch) ) {
 
-cut.off <- 10*max.blank
+	#get maximum median coverage for blank control in the batch
+	max.blank <- NULL
+	max.blank <- max(summary.samples[ which(summary.samples$status == 0 & summary.samples$batch == cur.batch), ][,"median.cov"])
+	cut.off <- NULL
+	cut.off <- 10*max.blank
+
+	if (!exists('samples.include')) {
+		samples.include <- summary.samples[ which(summary.samples$median.cov > cut.off & summary.samples$batch == cur.batch), ]
+	} else {
+		samples.include <- rbind(samples.include, summary.samples[ which(summary.samples$median.cov > cut.off & summary.samples$batch == cur.batch), ])
+	}
+
+	if (!exists('samples.exclude')) {
+		samples.exclude <- summary.samples[ which(summary.samples$median.cov <= cut.off & summary.samples$batch == cur.batch), ]
+	}else{
+		samples.exclude <- rbind(samples.exclude, summary.samples[ which(summary.samples$median.cov <= cut.off & summary.samples$batch == cur.batch), ])
+	}
+
+}
 
 #generate list of samples to include and exclude
-samples.include <- subset(summary.samples, median.cov > cut.off)
-samples.include <- samples.include[order(samples.include$median.cov),]
+samples.include <- samples.include[order(samples.include$batch),]
 write.table(x = samples.include, file = paste(metrics.dir, "/", project, ".samples_include.tsv", sep = ""), row.names = FALSE, quote = FALSE)
-samples.exclude <- subset(summary.samples, median.cov <= cut.off)
-samples.exclude <- samples.exclude[order(samples.exclude$median.cov),]
+
+samples.exclude <- samples.exclude[order(samples.exclude$batch),]
 write.table(x = samples.exclude, file = paste(metrics.dir, "/", project, ".samples_exclude.tsv", sep = ""), row.names = FALSE, quote = FALSE)
+
 samples.include$date <- date
 samples.include$project <- project
 write.table(samples.include[,c("SampleID", "date", "project")], file = paste(metrics.dir, "/gatk2_samples.", project, ".tsv", sep = ""), row.names = FALSE, col.names = FALSE, quote = FALSE)
@@ -73,7 +84,7 @@ write.table(targets.exclude, file = paste(metrics.dir, "/", project, ".targets.e
 #plot target coverage
 
 plot.coverage <- function (metrics.dir, sample.interval.summary) {
-    coverage <- read.delim(paste(metrics.dir, "/", sample.interval.summary, sep=""), as.is=T, row.names=1)
+    coverage <- read.delim(paste(metrics.dir, "/", sample.interval.summary, sep=""), as.is=T, row.names=1, check.names=FALSE)
     
     #order samples by median amplicon coverage and add median values
     sample.order <- names(sort(apply(coverage,1,median), decreasing=T))
@@ -84,7 +95,6 @@ plot.coverage <- function (metrics.dir, sample.interval.summary) {
     coverage.sample.median$sample.median.cov <- apply(coverage.n,1,median)
 
     coverage.n.m <- cbind(coverage.sample.median, coverage.n)
-
     coverage.target.median <- t(as.data.frame(apply(coverage.n.m,2,median)))
     rownames(coverage.target.median) <- "target.median.cov"
 
@@ -108,11 +118,14 @@ plot.coverage <- function (metrics.dir, sample.interval.summary) {
     sample.order <- c("target.median.cov", sample.order) 
 
     png(paste(metrics.dir, "/", sample.interval.summary, ".png", sep=""), width, height)
-    png.plot <- ggplot(data = coverage.m.melt, aes(x = amplicon, y = sample)) + geom_tile(aes(fill = coverage), colour = "white") + scale_fill_brewer(palette = "YlGnBu") + theme(axis.text.x=element_text(angle=90))	+ scale_y_discrete(limits=sample.order) + scale_x_discrete(limits=target.order)
+    png.plot <- ggplot(data = coverage.m.melt, aes(x = amplicon, y = sample)) + geom_tile(aes(fill = coverage), colour = "white") + scale_fill_brewer(palette = "YlGnBu") + theme(axis.text.x=element_text(angle=90,vjust=0.5))	+ scale_y_discrete(limits=sample.order) + scale_x_discrete(limits=target.order)
     print(png.plot)
     dev.off()
 }
 
 plot.coverage(metrics.dir = metrics.dir, sample.interval.summary = sample.interval.summary )
 plot.coverage(metrics.dir, non_overlapping.interval.summary)
+
+
+
 
