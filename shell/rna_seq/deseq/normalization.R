@@ -165,7 +165,7 @@ if (disp.mode == "maximum") {
 }
 
 useBlind = (rowSums ( counts ( cdsBlind )) > 0)
-cdsBlind = cdsBlind[ use, ]
+cdsBlind = cdsBlind[ useBlind, ]
 vsd = varianceStabilizingTransformation( cdsBlind )
 
 colnames(exprs(vsd)) =  with(pData(vsd), paste(colnames(exprs(vsd)), condition, sep=":"))
