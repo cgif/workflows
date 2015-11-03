@@ -65,9 +65,7 @@ if (filtering.stats == "mean") {
     rs = rowMin(counts(cds))
 } else if (filtering.stats == "max") {
     rs = rowMax(counts(cds))
-} else if (filtering.stats == "sd") {
-    rs = rowSds(counts(cds))
-}
+} 
 
 #plot counts rank vs p-value to assess filtering statistics
 #cap -log(p-value) to 20

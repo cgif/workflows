@@ -37,7 +37,7 @@ DESCRIPTION
         -l 	Same as in qDESeq
 
 	-s 	Filtering statistics. Allowed values: 'max'(default), 
-		'min', 'mean' or 'sd'. 
+		'min' or 'mean'. 
 
 	-u 	Filtering cut-off. Default is 0.4. That means 40% of 
 		genes with the lowest mean (maximum, minimum or standard 
