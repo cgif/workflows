@@ -9,6 +9,13 @@ my $summary_results = "#summaryResults";
 my $deployment_server = "#deploymentServer";
 my $summary_deployment = "#summaryDeployment";
 
+my ($summary_deployment_path, $project, $date);
+if ($summary_deployment =~ /\/www\/html\/(.*\/(.*)\/HTSeq\/(.*))/){
+	$summary_deployment_path = $1;
+	$project = $2;
+	$date = $3;
+}
+
 #collect data from htseq output files for each sample
 my %sum = (); 
 
@@ -64,8 +71,11 @@ foreach my $sample (keys %sum){
     print OUT "\n";
 
 }
+print OUT "</TABLE>";
+print OUT "<HR><P><A HREF = '$project.$date.htseq.counts'>Counts table</A>";
 system("chmod 0660 $summary_results/index.html");
 
 #copy summary file on eliot 
 system("scp -r $summary_results/index.html $deployment_server:$summary_deployment/index.html");
-system("ssh $deployment_server chmod -R 664 $summary_deployment/index.html");
+system("scp -r $summary_results/$project.$date.htseq.counts $deployment_server:$summary_deployment/$project.$date.htseq.counts");
+system("ssh $deployment_server chmod -R 664 $summary_deployment/*");
