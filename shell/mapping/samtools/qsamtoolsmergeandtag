@@ -34,13 +34,13 @@ TODAY=`date +%Y-%m-%d`
 QUEUE=pqcgi
 
 #default parameters
-PATH_HEADER=$GROUPVOL_CGI/rawdata/documents/hs37d5_head
+
 PATH_BAIT_AMPLICON_INTERVALS=$GROUPVOL_CGI/analysis/ngs_tools/reference/target/SureSelect_All_Exon_50M_hg19.tab.intList
 PATH_TARGET_INTERVALS=$GROUPVOL_CGI/analysis/ngs_tools/reference/target/SureSelect_All_Exon_50M_hg19.tab.intList
 PATH_NON_OVERLAPPING_INTERVALS=none
 PATH_RIBOSOMAL_RNA_INTERVALS=$GROUPVOL_CGI/resources/annotations/GRCh37.75.ribosomal_rna.intList
 PATH_ANNOTATION_REFFLAT=$GROUPVOL_CGI/resources/annotations/Homo_sapiens.GRCh37.75.refFlat
-PATH_REFERENCE_FASTA=$GROUPVOL_CGI/resources/reference/eukaryote/human/hs37d5/hs37d5.fa
+PATH_REFERENCE_FASTA=$GROUPVOL_TGU/resources/reference/eukaryote/hsapiens/hs37d5/fasta/hs37d5.fa
 METRIC=NONE
 MARK_DUPLICATES=TRUE
 METRIC_LEVEL=S
@@ -52,7 +52,7 @@ MAKE_BW=FALSE
 ##################
 
 #parse command line args
-while getopts "i:r:d:s:m:b:t:l:p:a:f:q:c:w:h" option; do
+while getopts "i:r:d:s:m:b:t:l:p:a:f:q:c:wh" option; do
     case "$option" in
 	
 	i) PATH_INPUT_DIR="$OPTARG";;
@@ -68,7 +68,7 @@ while getopts "i:r:d:s:m:b:t:l:p:a:f:q:c:w:h" option; do
 	f) PATH_REFERENCE_FASTA="$OPTARG";;
 	q) METRIC_LEVEL="$OPTARG";;
 	c) SAMPLE_STATUS="$OPTARG";;
-	w) MAKE_BW="$OPTARG";;
+	w) MAKE_BW=TRUE;;
 	h) cat $USAGE; exit 0;;
 	[?]) cat $USAGE; exit 1;;
 
@@ -102,6 +102,35 @@ then
         echo "`$NOW`ERROR: reference sequence fasta file does not exist: $PATH_REFERENCE_FASTA"
         exit 1
 fi
+
+REFERENCE_NAME=`basename $PATH_REFERENCE_FASTA .gz`
+REFERENCE_NAME=`basename $REFERENCE_NAME .fa`
+
+#reference dictionary path
+PATH_REFERENCE_PARENTDIR=`dirname $PATH_REFERENCE_FASTA`
+PATH_REFERENCE_PARENTDIR=`dirname $PATH_REFERENCE_PARENTDIR`
+PATH_REFERENCE_DICT=$PATH_REFERENCE_PARENTDIR/dict/$REFERENCE_NAME.dict
+
+#UCSC assembly ID
+UCSC_ASSEMBLY_ID_PATH=$PATH_REFERENCE_PARENTDIR/fasta/$REFERENCE_NAME.ucsc
+UCSC_ASSEMBLY_ID=`head -n1 $UCSC_ASSEMBLY_ID_PATH`
+
+UCSC_ORGANISM_NAME=`tail -n +2 $UCSC_ASSEMBLY_ID_PATH`
+
+#check if SAM header variable set if not
+#set it to sequence dictionary
+if [[ -z "$PATH_HEADER" ]]
+then
+PATH_HEADER=$PATH_REFERENCE_DICT
+fi
+
+if [[ ! -f $PATH_REFERENCE_DICT ]]
+then
+        echo "`$NOW`ERROR: reference sequence dictionary file does not exist: $PATH_REFERENCE_DICT"
+        exit 1
+fi
+
+
 
 if [ "$MARK_DUPLICATES" != "TRUE" ] && \
    [ "$MARK_DUPLICATES" != "FALSE" ]
@@ -306,11 +335,11 @@ do
                                                      print "PU:$cols[8]\n"' \
                                           >> $PATH_RG_TAGS
 
-	        #submit clipRead job if required; if not just copy bam file to tmp directory
+	    #submit clipRead job if required; if not just copy bam file to tmp directory
 		CLIP_CYCLE=`echo "$READ_GROUP_RECORD" | perl -e '$_=<>; @cols=split(/\t/, $_); print $cols[10];'`
 		CLIP_READ=`echo "$READ_GROUP_RECORD" | perl -e '$_=<>; @cols=split(/\t/, $_); print $cols[11];'`
 
-                #get BAM file size
+        #get BAM file size
 		BAM_SIZE_KB=`du $BAM_INPUT | cut -f1`
 		if [ $BAM_SIZE_KB != 0 ]; then
 			BAM_SIZE_MB=$(( $BAM_SIZE_KB / 1024 ))
@@ -335,6 +364,7 @@ do
 		sed -i -e "s/#clipFile/${PATH_CLIP_READS//\//\\/}/" $SCRIPT_PATH
 		sed -i -e "s/#RGFile/${PATH_RG_TAGS//\//\\/}/" $SCRIPT_PATH
 		sed -i -e "s/#referenceFasta/${PATH_REFERENCE_FASTA//\//\\/}/" $SCRIPT_PATH
+		sed -i -e "s/#referenceDict/${PATH_REFERENCE_DICT//\//\\/}/" $SCRIPT_PATH
 		sed -i -e "s/#resultsDir/${PATH_CLIPREADS_DIR//\//\\/}/" $SCRIPT_PATH
 
 		LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
@@ -400,6 +430,7 @@ do
 	sed -i -e "s/ribosomalRnaIntervalsFile/${PATH_RIBOSOMAL_RNA_INTERVALS//\//\\/}/" $SCRIPT_PATH
 	sed -i -e "s/annotationRefFlat/${PATH_ANNOTATION_REFFLAT//\//\\/}/" $SCRIPT_PATH
 	sed -i -e "s/referenceSequence/${PATH_REFERENCE_FASTA//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/referenceDict/${PATH_REFERENCE_DICT//\//\\/}/" $SCRIPT_PATH
 	sed -i -e "s/calculateMetric/$METRIC/" $SCRIPT_PATH
 	sed -i -e "s/metricLevel/$METRIC_LEVEL/" $SCRIPT_PATH
 	sed -i -e "s/makeBw/$MAKE_BW/" $SCRIPT_PATH
@@ -722,6 +753,8 @@ sed -i -e "s/metricLevel/$METRIC_LEVEL/" $SCRIPT_PATH
 sed -i -e "s/collectMetric/$METRIC/" $SCRIPT_PATH
 sed -i -e "s/multisample_no/multisample_yes/" $SCRIPT_PATH
 sed -i -e "s/makeBW/$MAKE_BW/" $SCRIPT_PATH
+sed -i -e "s/ucscAssemblyID/$UCSC_ASSEMBLY_ID/" $SCRIPT_PATH
+sed -i -e "s/ucscOrganismName/$UCSC_ORGANISM_NAME/" $SCRIPT_PATH
 
 LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.pl/\.log/g'`
 echo -n "" > $LOG_OUTPUT_PATH

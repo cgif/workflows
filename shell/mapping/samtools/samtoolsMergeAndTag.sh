@@ -49,6 +49,7 @@ PATH_NON_OVERLAPPING_INTERVALS=nonOvelappingIntervalsFile
 PATH_RIBOSOMAL_RNA_INTERVALS=ribosomalRnaIntervalsFile
 PATH_ANNOTATION_REFFLAT=annotationRefFlat
 REFERENCE_SEQUENCE=referenceSequence
+REFERENCE_SEQUENCE_DICT=referenceDict
 
 CALCULATE_METRIC=calculateMetric
 MARK_DUPLICATES=markDuplicates
@@ -57,7 +58,7 @@ RG_LEVEL=`echo $METRIC_LEVEL | grep RG`
 L_LEVEL=`echo $METRIC_LEVEL | grep L`
 S_LEVEL=`echo $METRIC_LEVEL | grep S`
 MAKE_BW=makeBw
-
+UCSC_ASSEMBLY_ID=ucscAssemblyID
 
 echo "`${NOW}`-------------------------------------------------------------------------------------------------------"
 #merge header and read group info
@@ -129,7 +130,7 @@ echo "`${NOW}`total number of reads in all input BAM files: $TOTAL_NUM_READS"
 # elsewhere online.
 
 
-#for each library in the read group in file
+#for each library in the read group info file
 LIBRARY_MERGED_BAM=""
 for LIBRARY in `cut -f4 $TMP_PATH_RG_HEADER | uniq`
 do
@@ -561,7 +562,7 @@ then
 
 	echo "`${NOW}` generating bigWig file to see coverage profile in UCSC browser"
 
-	echo "`${NOW}` removing duplicates and unmapped reads and renaming chromosome names to hg19" 
+	echo "`${NOW}` removing duplicates and unmapped reads and renaming chromosome names according to UCSC naming conventions ('chr' prefix and MT = M)" 
 
 	samtools view -hF 1028 $TMP_PATH_OUT_BAM.sorted.dupmark.clean | perl -e 'while(<>) {if (/^\@SQ\tSN:(\d+|X|Y)/) { s/(.*\tSN:)(.*)/$1chr$2/; print } elsif (/^\@SQ\tSN:MT/) { s/(.*\tSN:)MT(.*)/$1chrM$2/; print } elsif (/^\@SQ/ && /SN:/) { next } elsif (/^@/) { print } else { @cols = split(/\t/); if ($cols[2] =~ /^\d+$|^X$|^Y$/) {$cols[2] = "chr$cols[2]"} elsif ($cols[2] =~ /^MT$/) {$cols[2] = "chrM"} else {next} $line = ""; foreach $col (@cols) { $line .= $col."\t"; } chop($line); print "$line" }}' | samtools view -bS - > $TMPDIR/$OUTPUT_BAM_PREFIX.filtered.renamed.bam
 	samtools index $TMPDIR/$OUTPUT_BAM_PREFIX.filtered.renamed.bam

@@ -3,7 +3,7 @@ USAGE
 
     qbwape -i <reads_fastq_directory_path> 
     	   -n <project_name>
-           -r <reference_fasta_path, default /groupvol/cgi/resources/reference/eukaryote/human/hs37d5/bwa_indexed/hs37d5.fa.gz>
+           -r <reference_fasta_path, default /project/tgu/resources/reference/eukaryote/hsapiens/hs37d5/fasta/hs37d5.fa>
            -t <read1_tag, default '_R1_'> 
            -p <read2_tag, default '_R2_'> 
            -m <keep multiple alignments>

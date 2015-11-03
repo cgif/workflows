@@ -27,7 +27,7 @@ READ_GROUP=#readGroup
 CLIP_FILE=#clipFile
 RG_FILE=#RGFile
 REFERENCE_FASTA=#referenceFasta
-REFERENCE_FASTA_DICT=`echo $REFERENCE_FASTA | perl -pe 's/\.fa/\.dict/g'`
+REFERENCE_FASTA_DICT=#referenceDict
 RESULTS_DIR=#resultsDir
 
 cp $INPUT_BAM $TMPDIR/original.bam
