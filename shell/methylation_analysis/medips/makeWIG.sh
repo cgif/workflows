@@ -22,12 +22,13 @@ CHROM_SIZES="#chromSizes"
 CONDITION="#condition"
 WINDOW=#windowSize
 ENC_DIR="#encDir"
+DEPLOYMENT_SERVER="#deploymentServer"
 
 #copy bam files into tmp space
 for SAMPLE in `sed 1d $SAMPLE_INFO | grep "$CONDITION" | cut -f1 | grep -vP "^$"`;do
 
 	echo "`${NOW}`copying bam file for sample $SAMPLE"
-	BAM_PATH=$INPUT_DIR/$SAMPLE/$SAMPLE.nondup.rename.filt.bam
+	BAM_PATH=$INPUT_DIR/$SAMPLE/$SAMPLE.hg19.bam
 	BAM_TMP=$TMPDIR/$SAMPLE.bam
 	cp $BAM_PATH $BAM_TMP
 
@@ -53,7 +54,7 @@ echo -n "" > $TMP_WIG
 for CHROM in `cut -f 1 $CHROM_SIZES`; do
 
 	echo "fixedStep chrom=$CHROM start=1 step=$WINDOW span=$WINDOW" >> $TMP_WIG
-	cat $TMP_PROFILE|sed -e 's/"//g'|awk -v CHROM=$CHROM '{if ($2 == CHROM) print}'|rev|cut -f 1 >> $TMP_WIG
+	cat $TMP_PROFILE|sed -e 's/"//g'|awk -v CHROM=$CHROM '{if ($2 == CHROM) print}'|rev|cut -f 1|rev >> $TMP_WIG
 
 done
 

@@ -18,7 +18,7 @@ GROUPVOL_TGU=/project/tgu
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
 DEPLOYMENT_BASE_DIR=/www/html/report
-EXTEND=100
+EXTEND=200
 PAIRED=TRUE
 WINDOW=200
 
@@ -95,7 +95,7 @@ for SAMPLE in `sed 1d $SAMPLE_INFO | cut -f1 | grep -vP "^$"`;do
 	cp $BASEDIR/qualityMetrics.R $R_SCRIPT_PATH
 	chmod 770 $R_SCRIPT_PATH
 
-	BAM_INPUT=$INPUT_DIR/$SAMPLE/$SAMPLE.nondup.rename.filt.bam
+	BAM_INPUT=$INPUT_DIR/$SAMPLE/$SAMPLE.hg19.bam
 
 	sed -i -e "s/#Rversion/${R_VERSION}/" $SCRIPT_PATH
 	sed -i -e "s/#inputBam/${BAM_INPUT//\//\\/}/" $SCRIPT_PATH

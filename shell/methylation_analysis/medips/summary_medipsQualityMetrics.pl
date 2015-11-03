@@ -50,7 +50,7 @@ foreach my $sample (@samples){
 
 	print OUT "<TR><TD COLSPAN = 5><HR></TABLE><TABLE CELLPADDING=5><TR>" if $sample_count % 5 == 0 && $sample_count > 0;
 	print OUT "<TD><FONT SIZE = +1><CENTER><B>$sample</B></CENTER>\n";
-	print OUT "<BR><CENTER>total reads $data{$sample}{'total'} M</CENTER>\n";
+	print OUT "<BR><CENTER>total read pairs $data{$sample}{'total'} M</CENTER>\n";
 	print OUT "<P><IMG WIGTH=300 HEIGHT=300 SRC=$sample.sat_plot.png>\n";
 	print OUT "<BR><CENTER>saturation* $data{$sample}{'est_cor'}</CENTER>\n";
 	print OUT "<P><IMG WIGTH=300 HEIGHT=300 SRC=$sample.seqcov_pie.png>\n";

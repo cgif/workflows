@@ -20,7 +20,7 @@ SAMPLES="#samples"
 for SAMPLE in $SAMPLES; do
 
 	echo "`${NOW}`copying bam file for sample $SAMPLE"
-	BAM_PATH=$INPUT_DIR/$SAMPLE/$SAMPLE.nondup.rename.filt.bam
+	BAM_PATH=$INPUT_DIR/$SAMPLE/$SAMPLE.hg19.bam
 	BAM_TMP=$TMPDIR/$SAMPLE.bam
 	cp $BAM_PATH $BAM_TMP
 
