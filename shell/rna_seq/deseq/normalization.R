@@ -30,7 +30,7 @@ if (htseq == "F") {
 
 } else if (htseq == "T") {
 
-    sampleTable = read.table(design.file)
+    sampleTable = read.table(design.file, header=TRUE)
     cds = newCountDataSetFromHTSeqCount(sampleTable, directory = counts.table)
     cds
 

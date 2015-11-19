@@ -10,30 +10,32 @@ USAGE
        	       -g <GO_terms_file>
        	       -c <gene_GC_content_file>
        	       -l <gene_length_file>
-
+	       -p <paired_samples>
 
 DESCRIPTION
 
-	-i	Absolute path to count data in the form of a rectangular 
-                table of integer values. The table cell in the i-th row 
-                and the j-th column of the table tells how many reads have 
-                been mapped to gene i in sample j. The count values must 
-                be RAW (not normalized) counts of sequencing reads. 
+	-i	Absolute path to count data. If you check -t option and wish to 
+		use separate HTSeq count table for each sample as an input provide 
+		here an absolute path to HTSeq directory.
 
-		If you check -t option and wish to use separate HTSeq count 
-		table for each sample as an input provide here an absolute 
-		path to HTSeq directory. 
+		Otherwise provide an absolute path to count data in the form of 
+		a rectangular table of integer values. The table cell in 
+		the i-th row and the j-th column of the table tells how many reads 
+		have been mapped to gene i in sample j. The count values must be RAW 
+		(not normalized) counts of sequencing reads. 
 
-	-f	Absolute path to tab-separated metadata file with list of 
-		samples and corresponding condition ('1' for control, '2' 
-		for patient with disease). 
+	-f	Absolute path to tab-separated metadata file. If you check -t option 
+		and wish to use separate HTSeq count table for each sample as an input 
+		the metadata file should contain three tab-separated columns with header: 
+		the sample names, the file paths and names relative to the input directory, 
+		and the condition ('1' for control, '2' for patient with disease). 
+		If you wish to run analysis for the paired samples you also have to add 
+		column for the pair name. Column names are fixed and should be: 
+		'sample_ID', 'path', 'condition' and 'pair'. 
 
-		If you check -t option and wish to use separate HTSeq count 
-		table for each sample as an input the metadata file should 
-		contain three tab-separated columns (no header): the sample 
-		names, the file paths and names relative to the input 
-		directory and the condition ('1' for control, '2' 
-		for patient with disease). 
+		If you wish to start from ready-to-use table your metadata file 
+		should consist of a list of samples with corresponding condition 
+		('1' for control, '2' for patient with disease).
 
        	-t    	Check this option to start analysis from separate HTSeq 
 		count table for each sample. 
@@ -73,6 +75,14 @@ DESCRIPTION
 		fitting, and then ignored. This should be used if there are 
 		no or very few replicates.
 
+	-s 	Filtering statistics. Allowed values: 'max'(default), 
+		'min' or 'mean'. 
+
+	-u 	Filtering cut-off. Default is 0 that means DESeq calculate test 
+		statistics for the entire set of genes. Cut-off of 0.4 means that 
+		40% of genes with the lowest mean (maximum or minimum) of counts 
+		for all samples will be filtered.
+
 	-a 	Absolute path to GFF file containing features, default is 
 		/groupvol/cgi/resources/annotations/bowtie2_indexed/Homo_sapiens.GRCh37.75.gff downloaded from Ensembl.
 
@@ -86,5 +96,8 @@ DESCRIPTION
 
 	-l 	Absolute path to gene length tab-delimited file with two columns: 
 		gene id, gene length. Default is /groupvol/cgi/resources/annotations/Homo_sapiens.GRCh37.75.gene_length.txt 
+
+	-p	Analyse paired samples. Allowed values: FALSE(default) or TRUE. 
+		Fourth column providing pair information should be added to the metadata file.
 
       	-h 	Display help and exit. 

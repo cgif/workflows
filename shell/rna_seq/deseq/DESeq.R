@@ -8,6 +8,7 @@ results.dir = "#resultsDir"
 counts.table = "#countsTable"
 design.file = "#designFile"
 htseq = "#htSeq"
+paired = "#paired"
 disp.mode = "#dispertionMode"
 GCcont.file = "#CGcontent"
 length.file = "#geneLength"
@@ -28,7 +29,7 @@ if (htseq == "F") {
 
 } else if (htseq == "T") {
 
-    sampleTable = read.table(design.file)
+    sampleTable = read.table(design.file, header=TRUE)
     cds = newCountDataSetFromHTSeqCount(sampleTable, directory = counts.table)
     cds
 
@@ -43,14 +44,28 @@ cds
 #estimate size factor and dispersion
 #########################################################################
 cds = estimateSizeFactors( cds )
-write.table(counts( cds, normalized=TRUE ) , file = paste( results.dir, "counts.norm.txt", sep="/"), sep = "\t")
+write.table(counts( cds, normalized=TRUE ) , file = paste( results.dir, "counts.norm.tsv", sep="/"), sep = "\t")
 
-if (disp.mode == "maximum") {
-    cds = estimateDispersions( cds, method="pooled", sharingMode="maximum", fitType="parametric")
-} else if (disp.mode == "gene") {
-    cds = estimateDispersions( cds,  method="pooled", sharingMode="gene-est-only", fitType="parametric")
-} else if (disp.mode == "fit") {
-    cds = estimateDispersions( cds, method="blind", sharingMode="fit-only", fitType="parametric")
+if (paired == "FALSE"){
+
+    if (disp.mode == "maximum") {
+    	cds = estimateDispersions( cds, method="pooled", sharingMode="maximum", fitType="parametric")
+    } else if (disp.mode == "gene") {
+    	cds = estimateDispersions( cds,  method="pooled", sharingMode="gene-est-only", fitType="parametric")
+    } else if (disp.mode == "fit") {
+    	cds = estimateDispersions( cds, method="blind", sharingMode="fit-only", fitType="parametric")
+    }
+
+} else {
+
+    if (disp.mode == "maximum") {
+    	cds = estimateDispersions( cds, method="pooled-CR", sharingMode="maximum", fitType="parametric")
+    } else if (disp.mode == "gene") {
+    	cds = estimateDispersions( cds,  method="pooled-CR", sharingMode="gene-est-only", fitType="parametric")
+    } else if (disp.mode == "fit") {
+    	cds = estimateDispersions( cds, method="blind", sharingMode="fit-only", fitType="parametric")
+    }
+
 }
 
 #plot dispersion
@@ -61,12 +76,30 @@ dev.off()
 #########################################################################
 #calculate differential expression 
 #########################################################################
-res = nbinomTest( cds, "1", "2" )
-write.table( res[ order(res$pval), ], file = paste( results.dir, "nbinom.txt", sep="/"), sep = "\t" )
+if (paired == "FALSE"){
+
+    res = nbinomTest( cds, "1", "2" )
+
+}else{
+
+    fit1 = fitNbinomGLMs( cds, count ~ pair + condition )
+    fit0 = fitNbinomGLMs( cds, count ~ pair  )
+
+    pvalsGLM = nbinomGLMTest( fit1, fit0 )
+    padjGLM = p.adjust( pvalsGLM, method="BH" )
+
+    set1 = sampleTable$sample_ID[sampleTable$condition == "1"]
+    set2 = sampleTable$sample_ID[sampleTable$condition == "2"]
+
+    res = data.frame(id = rownames(fit1), baseMean = rowMeans(counts(cds)), baseMeanA = rowMeans(counts(cds[,set1])), baseMeanB = rowMeans(counts(cds[,set2])), foldChange = 2 ^ fit1$condition, log2FoldChange = fit1$condition, pval = pvalsGLM, padj = padjGLM)
+
+}
+
+write.table( res[ order(res$pval), ], file = paste( results.dir, "nbinom.tsv", sep="/"), sep = "\t" )
 
 #select set of differentially expressed genes at FDR = 10% 
 resSig = res[ res$padj < 0.1, ]
-write.table( resSig[ order(resSig$pval), ], file = paste( results.dir, "nbinom.sig.txt", sep="/"), sep = "\t" )
+write.table( resSig[ order(resSig$pval), ], file = paste( results.dir, "nbinom.sig.tsv", sep="/"), sep = "\t" )
 
 #plot fold change
 png( file = paste( results.dir, "FC_plot.png", sep="/" ) )
@@ -78,9 +111,8 @@ dev.off()
 #######################################################################
 filterChoices = data.frame(
     'mean' = rowMeans(counts(cds)),
-    'geneID' = as.numeric(sub("[:alpha:]*", "", rownames(res))),
     'min' = rowMin(counts(cds)),
-    'max' = rowMax(counts(cds)),
+    'max' = rowMax(counts(cds))
 )
 
 theta = seq(from=0, to=0.8, by=0.02)
