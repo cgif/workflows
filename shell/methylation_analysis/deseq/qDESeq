@@ -11,28 +11,33 @@ TODAY=`date +%Y-%m-%d`
 #returns absolute path to DESeq directory, not changing your current directory
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 
+R_VERSION=3.0.1
+BEDTOOLS_VERSION=2.13.3 
+
 GROUP_VOL_TGU=/project/tgu
+DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
+DEPLOYMENT_BASE_DIR=/www/html/report
 WALLTIME_HOURS_PER_RUN=72
 USAGE=$BASEDIR/qDESeq.usage
 ANALYSIS_NAME=DESeq
-HTSEQ=F
-DISPERSION=maximum
-SUBFOLDER=""
-
+FILTERING_CUTOFF=0
+FILTERING_STATS=max
+GENE_ANN=/groupvol/cgi/resources/annotations/eukaryote/human/GRCh37/hg19.ENSv75.gene.bed
+PROMOTER_ANN=/groupvol/cgi/resources/annotations/eukaryote/human/GRCh37/hg19.ENSv75.promoter.bed
 
 #COMMAND LINE ARGS
 ####################
-while getopts "i:f:tn:o:d:s:u:h" option; do
+while getopts "i:f:n:o:s:u:g:p:h" option; do
     case "$option" in
 	
 	i) COUNTS_TABLE="$OPTARG";;
 	f) DESIGN_FILE="$OPTARG";;
-	t) HTSEQ=T;;
         n) PROJECT="$OPTARG";;
 	o) SUBFOLDER="$OPTARG";;
-	d) DISPERSION="$OPTARG";;
 	s) FILTERING_STATS="$OPTARG";;
 	u) FILTERING_CUTOFF="$OPTARG";;
+	g) GENE_ANN="$OPTARG";;
+	p) PROMOTER_ANN="$OPTARG";;
 	h) cat $USAGE;;
 	[?]) cat $USAGE;;
 
@@ -41,26 +46,18 @@ done
 
 if [ -z $COUNTS_TABLE ] || \
    [ -z $DESIGN_FILE ] || \
-   [ -z $PROJECT ]
+   [ -z $PROJECT ] || \
+   [ -z $SUBFOLDER ]
     then
     cat $USAGE
     exit 1
 fi
 
-if [ $DISPERSION != 'maximum' ] && [ $DISPERSION != 'gene' ] && [ $DISPERSION != 'fit' ]
-then
-    echo "Wrong choice of dispertion mode."
-    exit 1
-fi
-
-if [ $FILTERING_STATS != 'max' ] && [ $FILTERING_STATS != 'min' ] && [ $FILTERING_STATS != 'mean' ] && [ $FILTERING_STATS != '' ]
-then
-    echo "Wrong choice of dispertion modefiltering statistics."
-    exit 1
-fi
+#calculate the max size of gap window for merging differentially methylated bins
+COUNTS_DIR=`cat $DESIGN_FILE | cut -f 2 | tail -n 1 | sed 's/\n//'`
+WINDOW=`cat $COUNTS_TABLE/$COUNTS_DIR | cut -f 1 | head -n 1 | perl -e 'while(<>){@data=split(/\t/,$_); if(/(\S+):(\d+)-(\d+)/){$window = $3 - $2; $window++; print "$window"}}'`
 
 #create and set permissions for analysis project parent directory
-
 mkdir -p $GROUP_VOL_TGU/runs/$PROJECT
 chmod 770 $GROUP_VOL_TGU/runs/$PROJECT
 
@@ -80,69 +77,68 @@ chmod 770 $GROUP_VOL_TGU/results/$PROJECT/$ANALYSIS_NAME
 mkdir -p $GROUP_VOL_TGU/results/$PROJECT/$ANALYSIS_NAME/$TODAY
 chmod 770 $GROUP_VOL_TGU/results/$PROJECT/$ANALYSIS_NAME/$TODAY
 
-if [ $FILTERING_STATS == '' ]
+if [ $FILTERING_CUTOFF != 0 ]
 then 
-
-	RESULTS_DIR=$GROUP_VOL_TGU/results/$PROJECT/$ANALYSIS_NAME/$TODAY/$SUBFOLDER
-	mkdir -p $RESULTS_DIR
-	chmod 770 $RESULTS_DIR
-
-	SCRIPTS_DIR=$GROUP_VOL_TGU/runs/$PROJECT/$ANALYSIS_NAME/$TODAY/$SUBFOLDER
-	mkdir -p $SCRIPTS_DIR
-	chmod 770 $SCRIPTS_DIR
-
-	#create and edit scripts for running DESeq
-	SHELL_SCRIPT_PATH=$SCRIPTS_DIR/DESeq.sh
-	cp $BASEDIR/DESeq.sh $SHELL_SCRIPT_PATH
-	chmod 770 $SHELL_SCRIPT_PATH
 	
-	R_SCRIPT_PATH=$SCRIPTS_DIR/DESeq.R
-	cp $BASEDIR/DESeq.R $R_SCRIPT_PATH
-	chmod 770 $R_SCRIPT_PATH
-
-else 
-  
-	SCRIPTS_DIR="$GROUP_VOL_TGU/runs/$PROJECT/$ANALYSIS_NAME/$TODAY/$SUBFOLDER"."$FILTERING_STATS"."$FILTERING_CUTOFF"."filt"
-	mkdir -p $SCRIPTS_DIR
-	chmod 770 $SCRIPTS_DIR
-
-	RESULTS_DIR="$GROUP_VOL_TGU/results/$PROJECT/$ANALYSIS_NAME/$TODAY/$SUBFOLDER"."$FILTERING_STATS"."$FILTERING_CUTOFF"."filt"
-	mkdir -p $RESULTS_DIR
-	chmod 770 $RESULTS_DIR
-
-	#create and edit scripts for running DESeq
-	SHELL_SCRIPT_PATH=$SCRIPTS_DIR/filtering.sh
-	cp $BASEDIR/filtering.sh $SHELL_SCRIPT_PATH
-	chmod 770 $SHELL_SCRIPT_PATH
-
-	R_SCRIPT_PATH=$SCRIPTS_DIR/filtering.R
-	cp $BASEDIR/filtering.R $R_SCRIPT_PATH
-	chmod 770 $R_SCRIPT_PATH
+  	SUBFOLDER=$SUBFOLDER"."$FILTERING_STATS"."$FILTERING_CUTOFF".filt"
 
 fi
 
+SCRIPTS_DIR="$GROUP_VOL_TGU/runs/$PROJECT/$ANALYSIS_NAME/$TODAY/$SUBFOLDER"
+mkdir -p $SCRIPTS_DIR
+chmod 770 $SCRIPTS_DIR
+
+RESULTS_DIR="$GROUP_VOL_TGU/results/$PROJECT/$ANALYSIS_NAME/$TODAY/$SUBFOLDER"
+mkdir -p $RESULTS_DIR
+chmod 770 $RESULTS_DIR
+
+#create directory on eliot
+SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/diffMeth/$TODAY/$SUBFOLDER
+ssh $DEPLOYMENT_SERVER "mkdir -p $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
+ssh $DEPLOYMENT_SERVER "chmod 775 $DEPLOYMENT_BASE_DIR/project/$PROJECT/diffMeth" > /dev/null 2>&1
+ssh $DEPLOYMENT_SERVER "chmod 775 $DEPLOYMENT_BASE_DIR/project/$PROJECT/diffMeth/$TODAY" > /dev/null 2>&1
+ssh $DEPLOYMENT_SERVER "chmod 775 $DEPLOYMENT_BASE_DIR/project/$PROJECT/diffMeth/$TODAY/$SUBFOLDER" > /dev/null 2>&1
+
+#create and edit scripts for running DESeq
+SHELL_SCRIPT_PATH=$SCRIPTS_DIR/DESeq.sh
+cp $BASEDIR/DESeq.sh $SHELL_SCRIPT_PATH
+chmod 770 $SHELL_SCRIPT_PATH
+
+if [ $FILTERING_CUTOFF == 0 ]
+then 
+
+	R_TEMPLATE=$BASEDIR/DESeq.R
+	R_SCRIPT_PATH=$SCRIPTS_DIR/DESeq.R
+
+else 
+	
+	R_TEMPLATE=$BASEDIR/filtering.R
+	R_SCRIPT_PATH=$SCRIPTS_DIR/filtering.R
+
+fi
+
+cp $R_TEMPLATE $R_SCRIPT_PATH
+chmod 770 $R_SCRIPT_PATH
+
 sed -i -e "s/#walltimeHours/$WALLTIME_HOURS_PER_RUN/" $SHELL_SCRIPT_PATH
+sed -i -e "s/#rVersion/$R_VERSION/" $SHELL_SCRIPT_PATH
+sed -i -e "s/#bedtoolsVersion/$BEDTOOLS_VERSION/" $SHELL_SCRIPT_PATH
 sed -i -e "s/#rScript/${R_SCRIPT_PATH//\//\\/}/" $SHELL_SCRIPT_PATH
 sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $SHELL_SCRIPT_PATH
+sed -i -e "s/#window/${WINDOW//\//\\/}/" $SHELL_SCRIPT_PATH
+sed -i -e "s/#geneAnn/${GENE_ANN//\//\\/}/" $SHELL_SCRIPT_PATH
+sed -i -e "s/#promoterAnn/${PROMOTER_ANN//\//\\/}/" $SHELL_SCRIPT_PATH
+sed -i -e "s/#deploymentServer/${DEPLOYMENT_SERVER//\//\\/}/" $SHELL_SCRIPT_PATH
+sed -i -e "s/#summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SHELL_SCRIPT_PATH
 
-sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $R_SCRIPT_PATH
 sed -i -e "s/#countsTable/${COUNTS_TABLE//\//\\/}/" $R_SCRIPT_PATH
 sed -i -e "s/#designFile/${DESIGN_FILE//\//\\/}/" $R_SCRIPT_PATH
-sed -i -e "s/#htSeq/$HTSEQ/" $R_SCRIPT_PATH
-sed -i -e "s/#dispertionMode/$DISPERSION/" $R_SCRIPT_PATH
+sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $R_SCRIPT_PATH
 sed -i -e "s/#filteringStats/$FILTERING_STATS/" $R_SCRIPT_PATH
 sed -i -e "s/#filteringCutoff/$FILTERING_CUTOFF/" $R_SCRIPT_PATH
-
 
 #submit job
 LOG_PATH=`echo $SHELL_SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
 echo "`$NOW`$SHELL_SCRIPT_PATH"
 JOB_ID=`qsub -o $LOG_PATH -q pqcgi $SHELL_SCRIPT_PATH`
 echo "$JOB_ID"
-
-
-
-
-
-
-

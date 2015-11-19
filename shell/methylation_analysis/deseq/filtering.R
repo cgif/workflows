@@ -4,35 +4,18 @@ library("RColorBrewer")
 library("gplots")
 library("genefilter")
 
-results.dir = "#resultsDir"
 counts.table = "#countsTable"
 design.file = "#designFile"
-htseq = "#htSeq"
-disp.mode = "#dispertionMode"
 filtering.stats= "#filteringStats"
 filtering.cutoff= #filteringCutoff
+results.dir = "#resultsDir"
 
 #########################################################################
 #generate new data set
 #########################################################################
-if (htseq == "F") {
-
-    countTable = read.table( counts.table, header=TRUE, row.names=1 )
-    head(countTable)
-    conditionTable = read.table( design.file, header=TRUE, row.names=1 )
-    conditionTable
-    conditionTableSync = data.frame( row.names = colnames(countTable), condition = conditionTable[colnames(countTable),] )
-    conditionTableSync
-    cds = newCountDataSet( countTable, conditionTableSync$condition )
-    cds
-
-} else if (htseq == "T") {
-
-    sampleTable = read.table(design.file)
-    cds = newCountDataSetFromHTSeqCount(sampleTable, directory = counts.table)
-    cds
-
-}
+sampleTable = read.table(design.file, header = TRUE)
+cds = newCountDataSetFromHTSeqCount(sampleTable, directory = counts.table)
+cds
 
 #remove lines with all 0 counts
 use = (rowSums ( counts ( cds )) > 0)
@@ -43,14 +26,9 @@ cds
 #estimate size factor, dispersion and run binomial test for original data
 ########################################################################
 cds = estimateSizeFactors( cds )
+write.table(counts( cds, normalized=TRUE ) , file = paste( results.dir, "counts.norm.tsv", sep="/"), sep = "\t")
 
-if (disp.mode == "maximum") {
-    cds = estimateDispersions( cds, method="pooled", sharingMode="maximum", fitType="parametric")
-} else if (disp.mode == "gene") {
-    cds = estimateDispersions( cds,  method="pooled", sharingMode="gene-est-only", fitType="parametric")
-} else if (disp.mode == "fit") {
-    cds = estimateDispersions( cds, method="blind", sharingMode="fit-only", fitType="parametric")
-}
+cds = estimateDispersions( cds,  method="pooled", sharingMode="gene-est-only", fitType="local")
 
 res = nbinomTest( cds, "1", "2" )
 
@@ -81,13 +59,7 @@ cdsFilt
 #estimate dispersion and run binomial test for filtered data
 ########################################################################
 
-if (disp.mode == "maximum") {
-    cdsFilt = estimateDispersions( cdsFilt, method="pooled", sharingMode="maximum", fitType="parametric")
-} else if (disp.mode == "gene") {
-    cdsFilt = estimateDispersions( cdsFilt,  method="pooled", sharingMode="gene-est-only", fitType="parametric")
-} else if (disp.mode == "fit") {
-    cdsFilt = estimateDispersions( cdsFilt, method="blind", sharingMode="fit-only", fitType="parametric")
-}
+cdsFilt = estimateDispersions( cdsFilt,  method="pooled", sharingMode="gene-est-only", fitType="local")
 
 #plot dispersion
 png( file = paste( results.dir, "dispersion_plot.png", sep="/" ) )
@@ -96,11 +68,11 @@ dev.off()
 
 #calculate differential expression
 resFilt = nbinomTest( cdsFilt, "1", "2" )
-write.table( resFilt[ order(resFilt$pval), ], file = paste( results.dir, "nbinom.filt.txt", sep="/"), sep = "\t" )
+write.table( resFilt[ order(resFilt$pval), ], file = paste( results.dir, "nbinom.tsv", sep="/"), sep = "\t" )
 
 #select set of differentially expressed genes at FDR = 10% 
 resFiltSig = resFilt[ resFilt$padj < 0.1, ]
-write.table( resFiltSig[ order(resFiltSig$pval), ], file = paste( results.dir, "nbinom.filt.sig.txt", sep="/"), sep = "\t" )
+write.table( resFiltSig[ order(resFiltSig$pval), ], file = paste( results.dir, "nbinom.sig.tsv", sep="/"), sep = "\t" )
 
 #plot fold change
 png( file = paste( results.dir, "FC_plot.png", sep="/" ) )
