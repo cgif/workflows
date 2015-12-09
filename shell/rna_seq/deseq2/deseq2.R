@@ -85,5 +85,3 @@ geom_point(size=3) +
 xlab(paste0("PC1: ",percentVar[1],"% variance")) +
 ylab(paste0("PC2: ",percentVar[2],"% variance"))
 dev.off()
-
-savehistory(file="deseq_test_latest.R")
