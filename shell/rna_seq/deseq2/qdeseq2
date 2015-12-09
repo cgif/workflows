@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# sets up directory structure and configures scripts for DESeq run
+# sets up directory structure and configures scripts for deseq2 run
 
 #CONFIGURATION
 ###################
@@ -8,7 +8,7 @@
 #today
 TODAY=`date +%Y-%m-%d`
 
-#returns absolute path to DESeq directory, not changing your current directory
+#returns absolute path to deseq2 directory, not changing your current directory
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 
 R_VERSION=3.0.1

@@ -1,4 +1,3 @@
-library("pasilla")
 library("DESeq2")
 library("pheatmap")
 library("ggplot2")
@@ -10,30 +9,24 @@ metadata.file = "#metadataFile"
 paired = "#paired"
 
 #########################################################################
-#read count data from htseq output and create sampleTable
+#read count data from matrix and create dds
 #########################################################################
-directory <- system.file("extdata", package="pasilla", mustWork=TRUE)
-sampleFiles <- grep("treated",list.files(directory),value=TRUE)
-sampleCondition <- sub("(.*treated).*","\\1",sampleFiles)
 
-
-sampleTable <- data.frame(sampleName = sampleFiles,
-fileName = sampleFiles,
-condition = sampleCondition)
 #sampleTable = read.table(metadata.file, header=TRUE)
 
-ddsHTSeq <- DESeqDataSetFromHTSeqCount(sampleTable = sampleTable,
-directory = directory,
-design= ~ condition)
-dds<-ddsHTSeq
+#ddsHTSeq <- DESeqDataSetFromHTSeqCount(sampleTable = sampleTable,
+#directory = directory,
+#design= ~ condition)
+
+dds<-DESeqDataSetFromMatrix(countData = counts.table, colData = metadata.file, design = ~condition)
 
 #pre-filtering removing genes/rows with 0 or 1 reads
 dds <- dds[ rowSums(counts(dds)) > 1, ]
-dds$condition <- relevel(dds$condition, ref="untreated")
-dds$condition <- droplevels(dds$condition)
+#dds$condition <- relevel(dds$condition, ref="untreated")
+#dds$condition <- droplevels(dds$condition)
 
 
-#differential expression analysis using 'DESeq' function
+#differential expression analysis using 'DESeq' function, contrasts?
 dds <- DESeq(dds)
 res <- results(dds)
 
