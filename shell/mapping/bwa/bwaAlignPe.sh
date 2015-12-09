@@ -4,8 +4,8 @@
 # script to run BWA alignment for paired end short reads
 #
 
-#PBS -l walltime=#walltimeHours:00:00
-#PBS -l select=1:ncpus=#threads:mem=7800mb:tmpspace=50gb
+#PBS -l walltime=walltimeHours:00:00
+#PBS -l select=1:ncpus=threads:mem=7800mb:tmpspace=50gb
 
 #PBS -m ea
 #PBS -M cgi@imperial.ac.uk
@@ -23,34 +23,29 @@ NOW="date +%Y-%m-%d%t%T%t"
 TODAY=`date +%Y-%m-%d`
 
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+GROUP_VOL_CGI=/groupvol/cgi
 
 #bwa aln number of threads
-THREADS=#threads
+THREADS=threads
 
 #bwa data directory
-PATH_OUTPUT_DIR=#pathOutputDir
+PATH_OUTPUT_DIR=pathOutputDir
 
 #path to reference genome fasta file without gzip extension
-PATH_REFERENCE_FASTA_NO_EXT=#pathReferenceFastaNoExt
-
-#path reference fasta name
-REFERENCE_FASTA_NAME=`basename $PATH_REFERENCE_FASTA_NO_EXT`
+PATH_REFERENCE_FASTA_NO_EXT=pathReferenceFastaNoExt
 
 #path to reference genome sequence dictionary
-PATH_REFERENCE_DICT=#pathReferenceDict
-
-#path to reference index
-PATH_REFERENCE_INDEX_DIR=#pathReferenceIdxDir
+PATH_REFERENCE_SEQ_DICT=#pathReferenceSeqDict
 
 #path to reads fastq file without gzip extension
-PATH_READS_FASTQ1_NO_EXT=#pathReadsFastqRead1NoExt
-PATH_READS_FASTQ2_NO_EXT=#pathReadsFastqRead2NoExt
+PATH_READS_FASTQ1_NO_EXT=pathReadsFastqRead1NoExt
+PATH_READS_FASTQ2_NO_EXT=pathReadsFastqRead2NoExt
 
 #output prefix
-OUTPUT_PREFIX=#outputPrefix
+OUTPUT_PREFIX=outputPrefix
 
 #keep multiple alignment hits
-MULT_READS=#multReads
+MULT_READS=multReads
 
 #path to alignment output file
  
@@ -63,9 +58,9 @@ TMP_PATH_ALN_BAM_PREFIX=$TMPDIR/tmp_aln.unsorted
 #copy reference sequence data
 #fasta file is not needed for bwa as it uses the pac file
 echo "`${NOW}`copying reference to temporary scratch space..."
-for EXT in amb ann bwt pac sa
+for POSTFIX in amb ann bwt pac sa
 do
-  cp $PATH_REFERENCE_INDEX_DIR/$REFERENCE_FASTA_NAME.$EXT $TMP_PATH_REFERENCE_FASTA_NO_EXT.$EXT
+  cp ${PATH_REFERENCE_FASTA_NO_EXT}.${POSTFIX} ${TMP_PATH_REFERENCE_FASTA_NO_EXT}.${POSTFIX}
 done;
 
 #copy read data to temporary file paths
@@ -120,14 +115,13 @@ fi
 #make SAM header
 
 #SAM format version
-if [ -e $PATH_REFERENCE_DICT ]
+if [ -e $PATH_REFERENCE_SEQ_DICT ]
 then
-	
-	#get @HD line of SAM header form BAM file
-	samtools view -H $TMP_PATH_ALN_BAM_PREFIX.bam | grep '@HD' > $TMPDIR/header.sam
 
-	#append SN entries from reference dictionary (skipping first line of dictionary)
-	cat $PATH_REFERENCE_DICT | grep '@SQ' >> $TMPDIR/header.sam
+	samtools view -H $TMP_PATH_ALN_BAM_PREFIX.bam | head -n1 > $TMPDIR/header.sam
+
+	#reference dictionary
+	cat $PATH_REFERENCE_SEQ_DICT >> $TMPDIR/header.sam 
 
 else
 
