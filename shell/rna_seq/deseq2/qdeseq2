@@ -63,12 +63,6 @@ if [ -z $COUNTS_TABLE ] || \
     exit 1
 fi
 
-if [ $DISPERSION != 'maximum' ] && [ $DISPERSION != 'gene' ] && [ $DISPERSION != 'fit' ]
-then
-    echo "Wrong choice of dispertion mode."
-    exit 1
-fi
-
 #create and set permissions for analysis project parent directory
 mkdir -p $GROUP_VOL_TGU/runs/$PROJECT
 chmod 770 $GROUP_VOL_TGU/runs/$PROJECT
@@ -89,10 +83,6 @@ chmod 770 $GROUP_VOL_TGU/results/$PROJECT/$ANALYSIS_NAME
 mkdir -p $GROUP_VOL_TGU/results/$PROJECT/$ANALYSIS_NAME/$TODAY
 chmod 770 $GROUP_VOL_TGU/results/$PROJECT/$ANALYSIS_NAME/$TODAY
 
-if [ $FILTERING_CUTOFF != 0 ]
-then 
-  	SUBFOLDER=$SUBFOLDER"."$FILTERING_STATS"."$FILTERING_CUTOFF".filt"
-fi
 
 SCRIPTS_DIR=$GROUP_VOL_TGU/runs/$PROJECT/$ANALYSIS_NAME/$TODAY/$SUBFOLDER
 mkdir -p $SCRIPTS_DIR
@@ -114,6 +104,10 @@ SHELL_SCRIPT_PATH=$SCRIPTS_DIR/deseq2.sh
 cp $BASEDIR/deseq2.sh $SHELL_SCRIPT_PATH
 chmod 770 $SHELL_SCRIPT_PATH
 
+R_SCRIPT_PATH=$SCRIPTS_DIR/deseq2.R
+cp $BASEDIR/deseq2.R $R_SCRIPT_PATH
+chmod 770 $R_SCRIPT_PATH
+
 sed -i -e "s/#walltimeHours/$WALLTIME_HOURS_PER_RUN/" $SHELL_SCRIPT_PATH
 sed -i -e "s/#rVersion/$R_VERSION/" $SHELL_SCRIPT_PATH
 sed -i -e "s/#rScript/${R_SCRIPT_PATH//\//\\/}/" $SHELL_SCRIPT_PATH
@@ -123,10 +117,6 @@ sed -i -e "s/#goPath/${GO_PATH//\//\\/}/" $SHELL_SCRIPT_PATH
 sed -i -e "s/#deploymentServer/${DEPLOYMENT_SERVER//\//\\/}/" $SHELL_SCRIPT_PATH
 sed -i -e "s/#summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SHELL_SCRIPT_PATH
 
-
-R_SCRIPT_PATH=$SCRIPTS_DIR/deseq2.R
-cp $BASEDIR/deseq2.R $R_SCRIPT_PATH
-chmod 770 $R_SCRIPT_PATH
 
 sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $R_SCRIPT_PATH
 sed -i -e "s/#designFile/${METADATA_FILE//\//\\/}/" $R_SCRIPT_PATH

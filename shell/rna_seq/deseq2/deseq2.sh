@@ -56,7 +56,7 @@ cat $RESULT_DIR/nbinom.tsv|cut -f 2|tr -d '"'|grep ENSG > $RESULT_DIR/DAVID_bg.I
 
 #deploy files on eliot
 printf "<HTML>" > $RESULT_DIR/index.html
-printf "<HEAD><TITLE>DESeq - differential gene expression</TITLE></HEAD>" >> $RESULT_DIR/index.html
+printf "<HEAD><TITLE>deseq2 - differential gene expression</TITLE></HEAD>" >> $RESULT_DIR/index.html
 printf "<BODY>" >> $RESULT_DIR/index.html
 printf "<P><TABLE CELLPADDING=5>" >> $RESULT_DIR/index.html
 printf "<TR><TD><A HREF = counts.norm.tsv>counts.norm.tsv</A><TD>table of normalized counts for each sample for each sample" >> $RESULT_DIR/index.html
@@ -64,7 +64,7 @@ printf "<TR><TD><A HREF = counts.norm.tsv>counts.norm.tsv</A><TD>table of normal
 printf "<TR><TD><A HREF = dispersion_plot.png>dispersion_plot.png<TD>empirical (black dots) and fitted (red line) dispersion values plotted against the mean of the normalized counts" >> $RESULT_DIR/index.html
 printf "<TR><TD><A HREF = FC_plot.png>FC_plot.png<TD>scatterplot of normalized mean versus log2 fold change (red dots for DE genes with adjusted p-value below 0.1)" >> $RESULT_DIR/index.html
 
-if [ $ANALYSYS == "DESeq.R" ]
+if [ $ANALYSYS == "deseq2.R" ]
 then
 	printf "<TR><TD><A HREF = PCA.png>PCA.png<TD>PCA plot for 1000 most highly expressed genes" >> $RESULT_DIR/index.html
 	printf "<TR><TD><A HREF = vst_heatmap.png>vst_heatmap.png<TD>heatmap of count table for 1000 most highly expressed genes" >> $RESULT_DIR/index.html

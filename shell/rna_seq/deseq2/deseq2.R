@@ -4,6 +4,10 @@ library("pheatmap")
 library("ggplot2")
 library("RColorBrewer")
 
+results.dir = "#resultsDir"
+counts.table = "#countsTable"
+metadata.file = "#metadataFile"
+paired = "#paired"
 
 #########################################################################
 #read count data from htseq output and create sampleTable
@@ -16,7 +20,7 @@ sampleCondition <- sub("(.*treated).*","\\1",sampleFiles)
 sampleTable <- data.frame(sampleName = sampleFiles,
 fileName = sampleFiles,
 condition = sampleCondition)
-#sampleTable = read.table(design.file, header=TRUE)
+#sampleTable = read.table(metadata.file, header=TRUE)
 
 ddsHTSeq <- DESeqDataSetFromHTSeqCount(sampleTable = sampleTable,
 directory = directory,
