@@ -16,10 +16,10 @@ module load R/#rVersion
 
 RESULT_DIR=#resultsDir
 R_SCRIPT=#rScript 
-export GFF_PATH=#gffPath
-export GO_PATH=#goPath
-DEPLOYMENT_SERVER=#deploymentServer
-SUMMARY_DEPLOYMENT=#summaryDeployment
+#export GFF_PATH=#gffPath
+#export GO_PATH=#goPath
+#DEPLOYMENT_SERVER=#deploymentServer
+#SUMMARY_DEPLOYMENT=#summaryDeployment
 ANALYSYS=`basename $R_SCRIPT`
 
 #run R script
