@@ -13,7 +13,6 @@ paired = "#paired"
 #########################################################################
 
 #sampleTable = read.table(metadata.file, header=TRUE)
-
 #ddsHTSeq <- DESeqDataSetFromHTSeqCount(sampleTable = sampleTable,
 #directory = directory,
 #design= ~ condition)
@@ -22,6 +21,8 @@ dds<-DESeqDataSetFromMatrix(countData = counts.table, colData = metadata.file, d
 
 #pre-filtering removing genes/rows with 0 or 1 reads
 dds <- dds[ rowSums(counts(dds)) > 1, ]
+
+#relevel
 #dds$condition <- relevel(dds$condition, ref="untreated")
 #dds$condition <- droplevels(dds$condition)
 
@@ -46,7 +47,7 @@ vsd <- varianceStabilizingTransformation(dds)
 
 #heatmap of count matrix
 
-select <- order(rowMeans(counts(dds,normalized=TRUE)),decreasing=TRUE)[1:20]
+select <- order(rowMeans(counts(dds,normalized=TRUE)),decreasing=TRUE)[1:1000]
 df <- as.data.frame(colData(dds)["condition"])
 pdf("countmatrix_heatmap.pdf")
 pheatmap(assay(vsd)[select,], cluster_rows=FALSE, show_rownames=FALSE,
@@ -67,10 +68,7 @@ col=colors)
 dev.off()
 
 #principal component plot of the samples
-
-print(plotPCA(vsd, intgroup=c("condition"), ntop = 1000))
-
-data <- plotPCA(vsd, intgroup=c("condition"), returnData=TRUE)
+data <- plotPCA(vsd, intgroup=c("condition"), returnData=TRUE, ntop = 1000)
 percentVar <- round(100 * attr(data, "percentVar"))
 pdf("pca_samples.pdf")
 ggplot(data, aes(PC1, PC2, color=condition)) +

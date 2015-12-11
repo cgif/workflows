@@ -26,6 +26,7 @@ ANALYSYS=`basename $R_SCRIPT`
 R CMD BATCH --no-save --no-restore $R_SCRIPT ${R_SCRIPT}.log
 
 #retrive annotation for DE genes
+:'
 perl -e 'print "gene_name\tgene_id\tgene_biotype\tfold_change\tadj_pval\tGO_term\n";' > $RESULT_DIR/nbinom.sig.ann.tsv
 perl -e 'while(<>){
 
@@ -75,13 +76,14 @@ else
 	printf "<TR><TD><A HREF = rank_vs_pval_plot.png>rank_vs_pval_plot.png<TD>scatterplot of genes ranked by filtering statistics vs its log10(p-value) for differential expression" >> $RESULT_DIR/index.html
 fi
 printf "<TR><TD>" >> $RESULT_DIR/index.html
-
-printf "<TR><TD><A HREF = input_gc_bias.png>input_gc_bias.png<TD>lowess regression plot of gene-level counts vs gene GC-content for groups of samples. In the absence of sequencing bias regression line should be horizontal. Genome-wise distribution of genes binned by their GC-content is shown as histogram." >> $RESULT_DIR/index.html
-printf "<TR><TD><A HREF = input_length_bias.png>input_length_bias.png<TD>lowess regression plot of gene-level counts vs gene length for groups of samples. In the absence of sequencing bias regression line should follow the dotted blue line (gene counts ~ gene length ). Genome-wise distribution of genes binned by their length is shown as histogram." >> $RESULT_DIR/index.html
-printf "<TR><TD><A HREF = DEanalysis_gc_bias.png>DEanalysis_gc_bias.png<TD>boxplot of p-values for DE genes binned by their GC-content" >> $RESULT_DIR/index.html
-printf "<TR><TD><A HREF = DEanalysis_length_bias.png>DEanalysis_length_bias.png<TD>boxplot of p-values for DE genes binned by their length" >> $RESULT_DIR/index.html
-printf "<TR><TD><A HREF = DEgenes_gc_bias.png>DEgenes_gc_bias.png<TD>plot number of significant DE genes binned by their GC-content. In the absence of discovery bias percentage of significant DE genes across all GC-content bins should be constant." >> $RESULT_DIR/index.html
-printf "<TR><TD><A HREF = DEgenes_length_bias.png>DEgenes_length_bias.png<TD>plot number of significant DE genes binned by their length. In the absence of discovery bias percentage of significant DE genes across all gene length bins should be constant." >> $RESULT_DIR/index.html
+'
+#printf "<TR><TD><A HREF = input_gc_bias.png>input_gc_bias.png<TD>lowess regression plot of gene-level counts vs gene GC-content for groups of samples. In the absence of sequencing bias regression line should be horizontal. Genome-wise distribution of genes binned by their GC-content is shown as histogram." >> $RESULT_DIR/index.html
+#printf "<TR><TD><A HREF = input_length_bias.png>input_length_bias.png<TD>lowess regression plot of gene-level counts vs gene length for groups of samples. In the absence of sequencing bias regression line should follow the dotted blue line (gene counts ~ gene length ). Genome-wise distribution of genes binned by their length is shown as histogram." >> $RESULT_DIR/index.html
+#printf "<TR><TD><A HREF = DEanalysis_gc_bias.png>DEanalysis_gc_bias.png<TD>boxplot of p-values for DE genes binned by their GC-content" >> $RESULT_DIR/index.html
+#printf "<TR><TD><A HREF = DEanalysis_length_bias.png>DEanalysis_length_bias.png<TD>boxplot of p-values for DE genes binned by their length" >> $RESULT_DIR/index.html
+#printf "<TR><TD><A HREF = DEgenes_gc_bias.png>DEgenes_gc_bias.png<TD>plot number of significant DE genes binned by their GC-content. In the absence of discovery bias percentage of significant DE genes across all GC-content bins should be constant." >> $RESULT_DIR/index.html
+#printf "<TR><TD><A HREF = DEgenes_length_bias.png>DEgenes_length_bias.png<TD>plot number of significant DE genes binned by their length. In the absence of discovery bias percentage of significant DE genes across all gene length bins should be constant." >> $RESULT_DIR/index.html
+:'
 printf "<TR><TD>" >> $RESULT_DIR/index.html
 
 printf "<TR><TD><A HREF = nbinom.tsv>nbinom.tsv<TD>list of all genes with DESeq results sorted by p-value" >> $RESULT_DIR/index.html
@@ -92,4 +94,4 @@ printf "<TR><TD><A HREF = DAVID_bg.ID>DAVID_bg.ID<TD>list of Ensembl genes to us
 
 scp $RESULT_DIR/* $DEPLOYMENT_SERVER:$SUMMARY_DEPLOYMENT
 ssh $DEPLOYMENT_SERVER chmod 0664 $SUMMARY_DEPLOYMENT/*
-chmod 0660 $RESULT_DIR/*
+chmod 0660 $RESULT_DIR/*'
