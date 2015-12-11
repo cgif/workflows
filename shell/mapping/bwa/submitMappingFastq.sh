@@ -19,18 +19,6 @@ NOW="date +%Y-%m-%d%t%T%t"
 #today
 TODAY=`date +%Y-%m-%d`
 
-#DATA_VOL_IGF=/project/tgu
-#PATH_SAMPLE_SHEET_REFORMATTED=/project/tgu/runs/seqrun/150724_SN172_0481_BC7D1MACXX-TEST4/bcl2fastq/2015-11-20/BC7D1MACXX-TEST4.csv
-#PATH_PROJECT_TAG_DIR=/project/tgu/rawdata/bam_test
-#SEQ_RUN_DATE=2015-07-24
-#SEQ_RUN_NAME=150724_SN172_0481_BC7D1MACXX-TEST4
-#PROJECT_TAG=bam_test
-#BWA_SCRIPTS_DIR=/home/mcosso/git.mdev/workflows/shell/mapping/bwa
-#DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
-#DEPLOYMENT_BASE_DIR=/www/html/report
-#QUEUE=pqcgi
-
-
 #set up script
 DATA_VOL_IGF=#mdataVolIgf
 PATH_SAMPLE_SHEET_REFORMATTED=#mpathSampleSheetReformatted
@@ -167,14 +155,16 @@ do
         	chmod 770 $mapping_script_path
 
         	#set variables 
-        	sed -i -e "s/walltimeHours/$WALLTIME_HOURS_PER_RUN_BWA/" $mapping_script_path
-        	sed -i -e "s/threads/$THREADS_PER_RUN_BWA/" $mapping_script_path
-        	sed -i -e "s/outputPrefix/$output_prefix/" $mapping_script_path
-        	sed -i -e "s/multReads/$MULT_READS/" $mapping_script_path
-        	sed -i -e "s/pathOutputDir/${path_mapping_dir//\//\\/}/" $mapping_script_path
-        	sed -i -e "s/pathReferenceFastaNoExt/${path_reference_fasta_no_ext//\//\\/}/" $mapping_script_path
-        	sed -i -e "s/pathReadsFastqRead1NoExt/${path_reads_fastq_read1_split//\//\\/}/" $mapping_script_path
-        	sed -i -e "s/pathReadsFastqRead2NoExt/${path_reads_fastq_read2_split//\//\\/}/" $mapping_script_path
+        	sed -i -e "s/#walltimeHours/$WALLTIME_HOURS_PER_RUN_BWA/" $mapping_script_path
+        	sed -i -e "s/#threads/$THREADS_PER_RUN_BWA/" $mapping_script_path
+        	sed -i -e "s/#outputPrefix/$output_prefix/" $mapping_script_path
+        	sed -i -e "s/#multReads/$MULT_READS/" $mapping_script_path
+        	sed -i -e "s/#pathOutputDir/${path_mapping_dir//\//\\/}/" $mapping_script_path
+        	sed -i -e "s/#pathReferenceFastaNoExt/${path_reference_fasta_no_ext//\//\\/}/" $mapping_script_path
+        	sed -i -e "s/#pathReadsFastqRead1NoExt/${path_reads_fastq_read1_split//\//\\/}/" $mapping_script_path
+        	sed -i -e "s/#pathReadsFastqRead2NoExt/${path_reads_fastq_read2_split//\//\\/}/" $mapping_script_path
+        	sed -i -e "s/#pathReferenceDict/${path_reference_dict//\//\\/}/" $mapping_script_path
+        	sed -i -e "s/#pathReferenceIdxDir/${path_reference_dict_dir//\//\\/}/" $mapping_script_path
 
         	#submit job and save job ID to dependency variable 
         	log_output_path=`echo $mapping_script_path | perl -pe 's/\.sh/\.log/g'`
