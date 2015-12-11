@@ -31,8 +31,9 @@ THREADS_PER_RUN=#threadsPerRun
 PATH_SCRIPTS_DIR=#pathScriptsDir
 PATH_RESULTS_DIR=#pathResultsDir
 PATH_MAPPING_DIR=#pathMappingDir
-PATH_REFERENCE_FASTA_NO_EXT=#pathReferenceFastaNoExt
-PATH_REFERENCE_DICT=#pathReferenceSeqDict
+PATH_REFERENCE_FASTA_NO_EXT=#pathReferenceFastaNoExtension
+PATH_REFERENCE_DICT=#pathReferenceDictionary
+PATH_REFERENCE_INDEX_DIR=#pathReferenceIdxDirectory
 REFERENCE_FASTA_NAME=`basename $PATH_REFERENCE_FASTA_NO_EXT .fa`
 PATH_RUN_DIR=#pathRunDir
 TODAY=#today
@@ -81,14 +82,16 @@ do
 	chmod 770 $SCRIPT_PATH
 
 	#set variables 
-	sed -i -e "s/walltimeHours/$WALLTIME_HOURS_PER_RUN/" $SCRIPT_PATH  
-	sed -i -e "s/threads/$THREADS_PER_RUN/" $SCRIPT_PATH
-	sed -i -e "s/outputPrefix/$OUTPUT_PREFIX/" $SCRIPT_PATH
-	sed -i -e "s/multReads/$MULT_READS/" $SCRIPT_PATH
-	sed -i -e "s/pathOutputDir/${PATH_MAPPING_DIR//\//\\/}/" $SCRIPT_PATH
-	sed -i -e "s/pathReferenceFastaNoExt/${PATH_REFERENCE_FASTA_NO_EXT//\//\\/}/" $SCRIPT_PATH
-	sed -i -e "s/pathReadsFastqRead1NoExt/${PATH_READS_FASTQ_READ1_SPLIT//\//\\/}/" $SCRIPT_PATH
-	sed -i -e "s/pathReadsFastqRead2NoExt/${PATH_READS_FASTQ_READ2_SPLIT//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/#walltimeHours/$WALLTIME_HOURS_PER_RUN/" $SCRIPT_PATH  
+	sed -i -e "s/#threads/$THREADS_PER_RUN/" $SCRIPT_PATH
+	sed -i -e "s/#outputPrefix/$OUTPUT_PREFIX/" $SCRIPT_PATH
+	sed -i -e "s/#multReads/$MULT_READS/" $SCRIPT_PATH
+	sed -i -e "s/#pathOutputDir/${PATH_MAPPING_DIR//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/#pathReferenceFastaNoExt/${PATH_REFERENCE_FASTA_NO_EXT//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/#pathReferenceDict/${PATH_REFERENCE_DICT//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/#pathReferenceIdxDir/${PATH_REFERENCE_INDEX_DIR//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/#pathReadsFastqRead1NoExt/${PATH_READS_FASTQ_READ1_SPLIT//\//\\/}/" $SCRIPT_PATH
+	sed -i -e "s/#pathReadsFastqRead2NoExt/${PATH_READS_FASTQ_READ2_SPLIT//\//\\/}/" $SCRIPT_PATH
 
 	#submit job and save job ID to dependency variable 
 	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`

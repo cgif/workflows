@@ -3,10 +3,12 @@ USAGE
 
     qbwape -i <reads_fastq_directory_path> 
     	   -n <project_name>
-           -r <reference_fasta_path, default /groupvol/cgi/resources/reference/eukaryote/human/hs37d5/bwa_indexed/hs37d5.fa.gz>
+           -r <reference_fasta_path, default /project/tgu/resources/reference/eukaryote/hsapiens/hs37d5/fasta/hs37d5.fa>
            -t <read1_tag, default '_R1_'> 
            -p <read2_tag, default '_R2_'> 
            -m <keep multiple alignments>
+	   -c <produce CRAM files if checked>
+	   -s <allow single read alignment if checked>
                 
 	
 DESCRIPTION
@@ -32,7 +34,9 @@ DESCRIPTION
 	-m	Keeps multiple primary alignments for different parts of a query sequence. 
 		Shorter split hits are marked as secondary (BWA mem -M option) and can be removed with samtools.
 
-	-c	Generate CRAM files.
+	-c	Generate CRAM files if checked.
+
+	-s 	Allow single read alignment if checked, default is paired-reads.
 
 	-h	Display help and exit.
 
