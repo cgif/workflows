@@ -17,7 +17,9 @@ paired = "#paired"
 #directory = directory,
 #design= ~ condition)
 
-dds<-DESeqDataSetFromMatrix(countData = counts.table, colData = metadata.file, design = ~condition)
+countData<-read.table(counts.table, header = TRUE, row.names = 1)
+colData<-read.table(metadata.file, header = TRUE, row.names = 1)
+dds<-DESeqDataSetFromMatrix(countData = countData, colData = colData, design = ~condition)
 
 #pre-filtering removing genes/rows with 0 or 1 reads
 dds <- dds[ rowSums(counts(dds)) > 1, ]

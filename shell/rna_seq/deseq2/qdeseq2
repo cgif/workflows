@@ -11,7 +11,7 @@ TODAY=`date +%Y-%m-%d`
 #returns absolute path to deseq2 directory, not changing your current directory
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 
-R_VERSION=3.0.1
+R_VERSION=3.2.0
 
 GROUP_VOL_TGU=/project/tgu
 #DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
@@ -37,7 +37,7 @@ while getopts "i:m:n:o:a:g:c:l:ph" option; do
     case "$option" in
 	
 	i) COUNTS_TABLE="$OPTARG";;
-	f) METADATA_FILE="$OPTARG";;
+	m) METADATA_FILE="$OPTARG";;
 #	t) HTSEQ="TRUE";;
         n) PROJECT="$OPTARG";;
 	o) SUBFOLDER="$OPTARG";;
@@ -56,7 +56,7 @@ esac
 done
 
 if [ -z $COUNTS_TABLE ] || \
-   [ -z $METADATA_FILE ] || \
+   #[ -z $METADATA_FILE ] || \
    [ -z $PROJECT ]
     then
     cat $USAGE
@@ -115,7 +115,7 @@ sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $SHELL_SCRIPT_PATH
 #sed -i -e "s/#gffPath/${GFF_PATH//\//\\/}/" $SHELL_SCRIPT_PATH
 #sed -i -e "s/#goPath/${GO_PATH//\//\\/}/" $SHELL_SCRIPT_PATH
 #sed -i -e "s/#deploymentServer/${DEPLOYMENT_SERVER//\//\\/}/" $SHELL_SCRIPT_PATH
-#sed -i -e "s/#summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SHELL_SCRIPT_PATH
+#sed -i -e "s/#summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SHELL_SCRIPT_cd PATH
 
 
 sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $R_SCRIPT_PATH
