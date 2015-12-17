@@ -95,20 +95,20 @@ fi
 #ichmod -rM inherit /igf/Zone/home/$customer_username
 
 # creates the deploy structure
-imkdir -p /igfZone/home/$customer_username/$PROJECT_TAG/bam/$SEQ_RUN_DATE
+imkdir -p /igfZone/home/$customer_username/$PROJECT_TAG/cram/$SEQ_RUN_DATE
 
-#ichmod -rM own igf /igfZone/home/$customer_username/$PROJECT_TAG/bam/$SEQ_RUN_DATE
-#ichmod -rM inherit /igf/Zone/home/$customer_username/$PROJECT_TAG/bam/$SEQ_RUN_DATE
+#ichmod -rM own igf /igfZone/home/$customer_username/$PROJECT_TAG/cram/$SEQ_RUN_DATE
+#ichmod -rM inherit /igf/Zone/home/$customer_username/$PROJECT_TAG/cram/$SEQ_RUN_DATE
 echo "$NOW attaching meta-data run_name to run_date collection ..."
-imeta add -C /igfZone/home/$customer_username/$PROJECT_TAG/bam/$SEQ_RUN_DATE run_name $SEQ_RUN_NAME
+imeta add -C /igfZone/home/$customer_username/$PROJECT_TAG/cram/$SEQ_RUN_DATE run_name $SEQ_RUN_NAME
 
 echo "$NOW storing file in irods .... checksum"
-iput -k -fP -R eliotResc $PATH_TO_DESTINATION/$SEQ_RUN_DATE.tar.gz  /igfZone/home/$customer_username/$PROJECT_TAG/bam/$SEQ_RUN_DATE
+iput -k -fP -R eliotResc $PATH_TO_DESTINATION/$SEQ_RUN_DATE.tar.gz  /igfZone/home/$customer_username/$PROJECT_TAG/cram/$SEQ_RUN_DATE
 
 #set expire date
-isysmeta mod /igfZone/home/$customer_username/$PROJECT_TAG/bam/$SEQ_RUN_DATE/$SEQ_RUN_DATE.tar.gz '+30d'
-imeta add -d /igfZone/home/$customer_username/$PROJECT_TAG/bam/$SEQ_RUN_DATE/$SEQ_RUN_DATE.tar.gz "$TODAY - bam - $PROJECT_TAG" $customer_username $HIGHTLIGHT
-imeta add -d /igfZone/home/$customer_username/$PROJECT_TAG/bam/$SEQ_RUN_DATE/$SEQ_RUN_DATE.tar.gz retention "30" "days"
+isysmeta mod /igfZone/home/$customer_username/$PROJECT_TAG/cram/$SEQ_RUN_DATE/$SEQ_RUN_DATE.tar.gz '+30d'
+imeta add -d /igfZone/home/$customer_username/$PROJECT_TAG/cram/$SEQ_RUN_DATE/$SEQ_RUN_DATE.tar.gz "$TODAY - cram - $PROJECT_TAG" $customer_username $HIGHTLIGHT
+imeta add -d /igfZone/home/$customer_username/$PROJECT_TAG/cram/$SEQ_RUN_DATE/$SEQ_RUN_DATE.tar.gz retention "30" "days"
 
 ichmod -rM read $customer_username /igfZone/home/$customer_username/
 
