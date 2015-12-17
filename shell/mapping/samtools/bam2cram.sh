@@ -57,10 +57,19 @@ samtools view -@ $THREADS -T $TMPDIR/$REFERENCE_FASTA_NAME -C -o $TMPDIR/tmp.cra
 
 echo "`${NOW}`done" 
 
+echo "`${NOW}`creating md5 checksum..."
+md5sum $TMPDIR/tmp.cram > $TMPDIR/tmp.cram.md5
+
+
 echo "`${NOW}`listing the files in temporary folder for debugging"
 echo "`ls -l $TMPDIR`"
 
 echo "`${NOW}`copying CRAM to $PATH_OUTPUT_CRAM" 
 cp $TMPDIR/tmp.cram $PATH_OUTPUT_CRAM
 chmod 660 $PATH_OUTPUT_CRAM
+
+echo "`${NOW}`creating md5 checksum..."
+cd $PATH_OUTPUT_CRAM_DIR
+md5sum $CRAM_NAME.cram > $CRAM_NAME.cram.md5
+chmod 640 $PATH_OUTPUT_CRAM.md5
 
