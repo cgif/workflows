@@ -21,8 +21,9 @@ for line in inFile:
 	start = line[1]
 	end = line[2]
 	peak_info = line[3]
-	gffLine = chrom + '\t' + 'bed2gff' + '\t' + 'feature' + '\t' + str(start) + '\t' + str(end) + '\t'+ '0' + '\t' + '+' + '\t' + '.' + '\t' + 'ID, group'count+=1; 'peak_name', peak_info
-	outFile.write(gffLine + '\n')
+	gffLine = chrom + '\t' + 'bed2gff' + '\t' + 'feature' + '\t' + str(start) + '\t' + str(end) + '\t'+ '0' + '\t' + '+' + '\t' + '.' + '\t' + 'ID' + ' ' + 'group' + str(count) + '; ' + 'peak_name' + ' ' + peak_info.replace(';',',') + '\n'
+	count += 1
+	outFile.write(''.join(gffLine))
 
 inFile.close()
 outFile.close()  
