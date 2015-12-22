@@ -4,6 +4,7 @@ USAGE
                -m <metadata>
                -n <project_name>
 	       -o <results_subfolder>
+	       -t <analysis_type>
  	       [-a <gff_file>, default /project/tgu/resources/annotations/bowtie2_indexed/Homo_sapiens.GRCh37.75.gff]
        	       [-g <GO_terms_file>, default /project/tgu/resources/annotations/Homo_sapiens.GRCh37.75.GOterms.txt]
        	       [-c <gene_GC_content_file>, /project/tgu/annotations/Homo_sapiens.GRCh37.75.gene_GCcontent.txt]
@@ -40,6 +41,8 @@ DESCRIPTION
 	-o      Result/scripts sub-folder (optional). DESeq outputs will be 
 		placed to /groupvol/cgi/results/PROJECT/DESeq/DATE/SUBFOLDER. 
 		Can be used if you run a few DESeq analysis at the same date.
+
+	-t      calls the 'deseq2_<analysistype>.R' script required for the specific analysis, values - rnaseq and chipseq 
 
 	-a 	Absolute path to GFF file containing features, default is 
 		/groupvol/cgi/resources/annotations/bowtie2_indexed/Homo_sapiens.GRCh37.75.gff downloaded from Ensembl.

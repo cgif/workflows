@@ -33,7 +33,7 @@ PAIRED=FALSE
 
 #COMMAND LINE ARGS
 ####################
-while getopts "i:m:n:o:a:g:c:l:ph" option; do
+while getopts "i:m:n:o:t:a:g:c:l:ph" option; do
     case "$option" in
 	
 	i) COUNTS_TABLE="$OPTARG";;
@@ -41,6 +41,7 @@ while getopts "i:m:n:o:a:g:c:l:ph" option; do
 #	t) HTSEQ="TRUE";;
         n) PROJECT="$OPTARG";;
 	o) SUBFOLDER="$OPTARG";;
+	t) ANALYSIS_TYPE="$OPTARG";;
 #	d) DISPERSION="$OPTARG";;
 #	s) FILTERING_STATS="$OPTARG";;
 #	u) FILTERING_CUTOFF="$OPTARG";;
@@ -104,8 +105,8 @@ SHELL_SCRIPT_PATH=$SCRIPTS_DIR/deseq2.sh
 cp $BASEDIR/deseq2.sh $SHELL_SCRIPT_PATH
 chmod 770 $SHELL_SCRIPT_PATH
 
-R_SCRIPT_PATH=$SCRIPTS_DIR/deseq2.R
-cp $BASEDIR/deseq2.R $R_SCRIPT_PATH
+R_SCRIPT_PATH=$SCRIPTS_DIR/deseq2_$ANALYSIS_TYPE.R
+cp $BASEDIR/deseq2_$ANALYSIS_TYPE.R $R_SCRIPT_PATH
 chmod 770 $R_SCRIPT_PATH
 
 sed -i -e "s/#walltimeHours/$WALLTIME_HOURS_PER_RUN/" $SHELL_SCRIPT_PATH
@@ -117,9 +118,8 @@ sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $SHELL_SCRIPT_PATH
 #sed -i -e "s/#deploymentServer/${DEPLOYMENT_SERVER//\//\\/}/" $SHELL_SCRIPT_PATH
 #sed -i -e "s/#summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SHELL_SCRIPT_cd PATH
 
-
 sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $R_SCRIPT_PATH
-sed -i -e "s/#designFile/${METADATA_FILE//\//\\/}/" $R_SCRIPT_PATH
+sed -i -e "s/#metadataFile/${METADATA_FILE//\//\\/}/" $R_SCRIPT_PATH
 sed -i -e "s/#countsTable/${COUNTS_TABLE//\//\\/}/" $R_SCRIPT_PATH
 sed -i -e "s/#paired/$PAIRED/" $R_SCRIPT_PATH
 #sed -i -e "s/#dispertionMode/$DISPERSION/" $R_SCRIPT_PATH
