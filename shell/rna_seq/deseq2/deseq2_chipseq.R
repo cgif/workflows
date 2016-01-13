@@ -31,6 +31,9 @@ dds <- dds[ rowSums(counts(dds)) > 1, ]
 
 #differential expression analysis using 'DESeq' function
 dds <- DESeq(dds)
+#get normalized counts and write to file
+normalizedCounts<-as.data.frame(counts(dds, normalized = TRUE))
+write.table(normalizedCounts, file = paste(results.dir, "normalizedCounts.tsv", sep="/"), sep = "\t", row.names = TRUE, col.names = NA)
 res <- results(dds)
 
 #plot fold change
@@ -41,8 +44,8 @@ dev.off()
 #export results
 resOrdered <- res[order(res$padj),]
 resSig <- subset(resOrdered, padj < 0.1)
-write.table(resOrdered, file = paste(results.dir, "results.tsv", sep="/"), sep = "\t", row.names = TRUE, col.names = NA)
-write.table(resSig, file = paste(results.dir, "results_sig.tsv", sep="/"), sep = "\t", row.names = TRUE, col.names = NA)
+write.table(resOrdered, file = paste(results.dir, "resultsOrdered.tsv", sep="/"), sep = "\t", row.names = TRUE, col.names = NA)
+write.table(resSig, file = paste(results.dir, "resultsSig.tsv", sep="/"), sep = "\t", row.names = TRUE, col.names = NA)
 
 #data transformation and visualization
 #rld <- rlog(dds)
