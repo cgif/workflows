@@ -37,7 +37,7 @@ BOWTIE_VERSION=2.1.0
 JAVA_VERSION=jdk-7u25
 PICARD_VERSION=1.85
 
-PATH_REFERENCE_FASTA=/groupvol/cgi/resources/reference/eukaryote/human/GRCh37/bowtie2_indexed/GRCh37.fa
+PATH_REFERENCE_FASTA=/project/tgu/resources/reference/eukaryote/hsapiens/GRCh37/bowtie2_indexed/GRCh37.fa
 PATH_ANNOTATION_GFF=/groupvol/cgi/resources/annotations/bowtie2_indexed/Homo_sapiens.GRCh37.75.gff
 PATTERN_READ1='_R1_'
 PATTERN_READ2='_R2_'
