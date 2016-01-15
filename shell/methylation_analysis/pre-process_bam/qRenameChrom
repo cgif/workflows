@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # creates and submits scripts to remove 
-# duplicates and unmapped reads from BAM files 
+# duplicated and unmapped reads from BAM files 
 # as well as rename chromosomes to hg19 names
 
 
@@ -69,8 +69,8 @@ for SAMPLE in `ls --color=never $INPUT_DIR`; do
 		chmod 770 $GROUPVOL_TGU/runs/$PROJECT/filtered_bam/$TODAY/$SAMPLE
 
 		#creating job script from template
-		SCRIPT_PATH=$GROUPVOL_TGU/runs/$PROJECT/filtered_bam/$TODAY/$SAMPLE/filterandrename.$SAMPLE.sh
-		cp $BASEDIR/filterandrename.sh $SCRIPT_PATH
+		SCRIPT_PATH=$GROUPVOL_TGU/runs/$PROJECT/filtered_bam/$TODAY/$SAMPLE/renameChrom.$SAMPLE.sh
+		cp $BASEDIR/renameChrom.sh $SCRIPT_PATH
 		chmod 770 $SCRIPT_PATH
 
 		sed -i -e "s/#samtoolsVersion/${SAMTOOLS_VERSION//\//\\/}/" $SCRIPT_PATH

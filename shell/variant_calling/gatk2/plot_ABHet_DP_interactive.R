@@ -77,12 +77,17 @@ f.neglog <- function(p) -sum(log(dmixture.p(x,p)))
 #define starting parameters
 
 start.params <- c(0.5, 0.5, 0.08, 11, 59) # best for mixture with gamma (aitman_taadx project)
+#you can calculate starting parameters for gamma distribution with method of moments
+#scale = sample variance/ sample mean
+#shape = sample mean / scale
 
 #run MLE
+#IT'S NOT ALWAYS IMPROVE FIT
 mle.fit <- optim(start.params, f.neglog)
 mle.fit$par
 
 #Kolmogorov-Smirnoff test
+#test p-value should be ABOVE 0.1 otherwise fit is poor
 ks.test(x, "pmixture.p", mle.fit$par)
 
 #inspect interactively

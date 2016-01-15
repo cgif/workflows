@@ -1,0 +1,137 @@
+#!/bin/bash
+
+# sets up directory structure and configures scripts for deseq2 run
+
+#CONFIGURATION
+###################
+
+#today
+TODAY=`date +%Y-%m-%d`
+
+#returns absolute path to deseq2 directory, not changing your current directory
+BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
+
+R_VERSION=3.2.0
+
+GROUP_VOL_TGU=/project/tgu
+#DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
+#DEPLOYMENT_BASE_DIR=/www/html/report
+WALLTIME_HOURS_PER_RUN=72
+USAGE=$BASEDIR/qdeseq2.usage
+ANALYSIS_NAME=deseq2
+#HTSEQ=FALSE
+SUBFOLDER=""
+#DISPERSION=maximum
+#FILTERING_CUTOFF=0
+#FILTERING_STATS=max
+#GFF_PATH="/groupvol/cgi/resources/annotations/bowtie2_indexed/Homo_sapiens.GRCh37.75.gff"
+#GO_PATH="/groupvol/cgi/resources/annotations/Homo_sapiens.GRCh37.75.GOterms.txt"
+#GENE_GCCONT="/groupvol/cgi/resources/annotations/Homo_sapiens.GRCh37.75.gene_GCcontent.txt"
+#GENE_LENGTH="/groupvol/cgi/resources/annotations/Homo_sapiens.GRCh37.75.gene_length.txt"
+PAIRED=FALSE
+
+
+#COMMAND LINE ARGS
+####################
+while getopts "i:m:n:o:t:a:g:c:l:ph" option; do
+    case "$option" in
+	
+	i) COUNTS_TABLE="$OPTARG";;
+	m) METADATA_FILE="$OPTARG";;
+#	t) HTSEQ="TRUE";;
+        n) PROJECT="$OPTARG";;
+	o) SUBFOLDER="$OPTARG";;
+	t) ANALYSIS_TYPE="$OPTARG";;
+#	d) DISPERSION="$OPTARG";;
+#	s) FILTERING_STATS="$OPTARG";;
+#	u) FILTERING_CUTOFF="$OPTARG";;
+#	a) GFF_PATH="$OPTARG";;
+#	g) GO_PATH="$OPTARG";;
+#	c) GENE_GCCONT="$OPTARG";;
+#	l) GENE_LENGTH="$OPTARG";;
+	p) PAIRED="TRUE";;
+	h) cat $USAGE;;
+	[?]) cat $USAGE;;
+
+esac
+done
+
+if [ -z $COUNTS_TABLE ] || \
+   #[ -z $METADATA_FILE ] || \
+   [ -z $PROJECT ]
+    then
+    cat $USAGE
+    exit 1
+fi
+
+#create and set permissions for analysis project parent directory
+mkdir -p $GROUP_VOL_TGU/runs/$PROJECT
+chmod 770 $GROUP_VOL_TGU/runs/$PROJECT
+
+mkdir -p $GROUP_VOL_TGU/runs/$PROJECT/$ANALYSIS_NAME
+chmod 770 $GROUP_VOL_TGU/runs/$PROJECT/$ANALYSIS_NAME
+
+mkdir -p $GROUP_VOL_TGU/runs/$PROJECT/$ANALYSIS_NAME/$TODAY
+chmod 770 $GROUP_VOL_TGU/runs/$PROJECT/$ANALYSIS_NAME/$TODAY
+
+#create and set permissions for results project parent directory
+mkdir -p $GROUP_VOL_TGU/results/$PROJECT
+chmod 770 $GROUP_VOL_TGU/results/$PROJECT
+
+mkdir -p $GROUP_VOL_TGU/results/$PROJECT/$ANALYSIS_NAME
+chmod 770 $GROUP_VOL_TGU/results/$PROJECT/$ANALYSIS_NAME
+
+mkdir -p $GROUP_VOL_TGU/results/$PROJECT/$ANALYSIS_NAME/$TODAY
+chmod 770 $GROUP_VOL_TGU/results/$PROJECT/$ANALYSIS_NAME/$TODAY
+
+
+SCRIPTS_DIR=$GROUP_VOL_TGU/runs/$PROJECT/$ANALYSIS_NAME/$TODAY/$SUBFOLDER
+mkdir -p $SCRIPTS_DIR
+chmod 770 $SCRIPTS_DIR
+
+RESULTS_DIR=$GROUP_VOL_TGU/results/$PROJECT/$ANALYSIS_NAME/$TODAY/$SUBFOLDER
+mkdir -p $RESULTS_DIR
+chmod 770 $RESULTS_DIR
+
+#create directory on eliot
+#SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/$ANALYSIS_NAME/$TODAY/$SUBFOLDER
+#ssh $DEPLOYMENT_SERVER "mkdir -p $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
+#ssh $DEPLOYMENT_SERVER "chmod 775 $DEPLOYMENT_BASE_DIR/project/$PROJECT/$ANALYSIS_NAME" > /dev/null 2>&1
+#ssh $DEPLOYMENT_SERVER "chmod 775 $DEPLOYMENT_BASE_DIR/project/$PROJECT/$ANALYSIS_NAME/$TODAY" > /dev/null 2>&1
+#ssh $DEPLOYMENT_SERVER "chmod 775 $DEPLOYMENT_BASE_DIR/project/$PROJECT/$ANALYSIS_NAME/$TODAY/$SUBFOLDER" > /dev/null 2>&1
+
+#create and edit scripts for running deseq2
+SHELL_SCRIPT_PATH=$SCRIPTS_DIR/deseq2.sh
+cp $BASEDIR/deseq2.sh $SHELL_SCRIPT_PATH
+chmod 770 $SHELL_SCRIPT_PATH
+
+R_SCRIPT_PATH=$SCRIPTS_DIR/deseq2_$ANALYSIS_TYPE.R
+cp $BASEDIR/deseq2_$ANALYSIS_TYPE.R $R_SCRIPT_PATH
+chmod 770 $R_SCRIPT_PATH
+
+sed -i -e "s/#walltimeHours/$WALLTIME_HOURS_PER_RUN/" $SHELL_SCRIPT_PATH
+sed -i -e "s/#rVersion/$R_VERSION/" $SHELL_SCRIPT_PATH
+sed -i -e "s/#rScript/${R_SCRIPT_PATH//\//\\/}/" $SHELL_SCRIPT_PATH
+sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $SHELL_SCRIPT_PATH
+#sed -i -e "s/#gffPath/${GFF_PATH//\//\\/}/" $SHELL_SCRIPT_PATH
+#sed -i -e "s/#goPath/${GO_PATH//\//\\/}/" $SHELL_SCRIPT_PATH
+#sed -i -e "s/#deploymentServer/${DEPLOYMENT_SERVER//\//\\/}/" $SHELL_SCRIPT_PATH
+#sed -i -e "s/#summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SHELL_SCRIPT_cd PATH
+
+sed -i -e "s/#resultsDir/${RESULTS_DIR//\//\\/}/" $R_SCRIPT_PATH
+sed -i -e "s/#metadataFile/${METADATA_FILE//\//\\/}/" $R_SCRIPT_PATH
+sed -i -e "s/#countsTable/${COUNTS_TABLE//\//\\/}/" $R_SCRIPT_PATH
+sed -i -e "s/#paired/$PAIRED/" $R_SCRIPT_PATH
+#sed -i -e "s/#dispertionMode/$DISPERSION/" $R_SCRIPT_PATH
+#sed -i -e "s/#htSeq/$HTSEQ/" $R_SCRIPT_PATH
+#sed -i -e "s/#filteringStats/${FILTERING_STATS//\//\\/}/" $R_SCRIPT_PATH
+#sed -i -e "s/#filteringCutoff/${FILTERING_CUTOFF//\//\\/}/" $R_SCRIPT_PATH
+#sed -i -e "s/#CGcontent/${GENE_GCCONT//\//\\/}/" $R_SCRIPT_PATH
+#sed -i -e "s/#geneLength/${GENE_LENGTH//\//\\/}/" $R_SCRIPT_PATH
+
+#submit job
+LOG_PATH=`echo $SHELL_SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+echo "`$NOW`$SHELL_SCRIPT_PATH"
+JOB_ID=`qsub -o $LOG_PATH -q pqcgi $SHELL_SCRIPT_PATH`
+echo "$JOB_ID"
+

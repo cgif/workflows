@@ -33,11 +33,6 @@ FASTQ_READ1=#fastqRead1
 FASTQ_READ2=#fastqRead2
 SINGLE_READS=#singleReads
 
-#check if single- or paired-end reads
-if [ ! -e $PATH_READS_DIRECTORY/$FASTQ_READ2 ]
-then
-	SINGLE_READS=T
-fi
 
 #QC output directory
 PATH_QC_REPORT_DIR=#pathQcReportDir

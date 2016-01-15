@@ -16,8 +16,8 @@ DEPLOYMENT_BASE_DIR=/www/html/report
 
 USAGE="./qHTSeq -i path_to_input_directory -g path_to_gff_file -f feature_ID -s strandness"
 
-#python/cx1 is version 2.6.6
-PYTHON_VERSION=cx1
+
+PYTHON_VERSION=2.7.3
 SAMTOOLS_VERSION=0.1.18
 
 #now

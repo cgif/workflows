@@ -8,6 +8,7 @@ results.dir = "#resultsDir"
 counts.table = "#countsTable"
 design.file = "#designFile"
 htseq = "#htSeq"
+paired = "#paired"
 disp.mode = "#dispertionMode"
 filtering.stats= "#filteringStats"
 filtering.cutoff= #filteringCutoff
@@ -30,7 +31,7 @@ if (htseq == "F") {
 
 } else if (htseq == "T") {
 
-    sampleTable = read.table(design.file)
+    sampleTable = read.table(design.file, header=TRUE)
     cds = newCountDataSetFromHTSeqCount(sampleTable, directory = counts.table)
     cds
 
@@ -45,16 +46,42 @@ cds
 #estimate size factor, dispersion and run binomial test for original data
 ########################################################################
 cds = estimateSizeFactors( cds )
+write.table(counts( cds, normalized=TRUE ) , file = paste( results.dir, "counts.norm.tsv", sep="/"), sep = "\t")
 
-if (disp.mode == "maximum") {
-    cds = estimateDispersions( cds, method="pooled", sharingMode="maximum", fitType="parametric")
-} else if (disp.mode == "gene") {
-    cds = estimateDispersions( cds,  method="pooled", sharingMode="gene-est-only", fitType="parametric")
-} else if (disp.mode == "fit") {
-    cds = estimateDispersions( cds, method="blind", sharingMode="fit-only", fitType="parametric")
+if (paired == "FALSE"){
+
+    if (disp.mode == "maximum") {
+    	cds = estimateDispersions( cds, method="pooled", sharingMode="maximum", fitType="parametric")
+    } else if (disp.mode == "gene") {
+    	cds = estimateDispersions( cds,  method="pooled", sharingMode="gene-est-only", fitType="parametric")
+    } else if (disp.mode == "fit") {
+    	cds = estimateDispersions( cds, method="blind", sharingMode="fit-only", fitType="parametric")
+    }
+
+    res = nbinomTest( cds, "1", "2" )
+
+} else {
+
+    if (disp.mode == "maximum") {
+    	cds = estimateDispersions( cds, method="pooled-CR", sharingMode="maximum", fitType="parametric")
+    } else if (disp.mode == "gene") {
+    	cds = estimateDispersions( cds,  method="pooled-CR", sharingMode="gene-est-only", fitType="parametric")
+    } else if (disp.mode == "fit") {
+    	cds = estimateDispersions( cds, method="blind", sharingMode="fit-only", fitType="parametric")
+    }
+
+    fit1 = fitNbinomGLMs( cds, count ~ pair + condition )
+    fit0 = fitNbinomGLMs( cds, count ~ pair  )
+
+    pvalsGLM = nbinomGLMTest( fit1, fit0 )
+    padjGLM = p.adjust( pvalsGLM, method="BH" )
+
+    set1 = sampleTable$sample_ID[sampleTable$condition == "1"]
+    set2 = sampleTable$sample_ID[sampleTable$condition == "2"]
+
+    res = data.frame(id = rownames(fit1), baseMean = rowMeans(counts(cds)), baseMeanA = rowMeans(counts(cds[,set1])), baseMeanB = rowMeans(counts(cds[,set2])), foldChange = 2 ^ fit1$condition, log2FoldChange = fit1$condition, pval = pvalsGLM, padj = padjGLM)
+
 }
-
-res = nbinomTest( cds, "1", "2" )
 
 #########################################################################
 #filter genes according to filtering statistics and cutoff 
@@ -65,9 +92,7 @@ if (filtering.stats == "mean") {
     rs = rowMin(counts(cds))
 } else if (filtering.stats == "max") {
     rs = rowMax(counts(cds))
-} else if (filtering.stats == "sd") {
-    rs = rowSds(counts(cds))
-}
+} 
 
 #plot counts rank vs p-value to assess filtering statistics
 #cap -log(p-value) to 20
@@ -85,37 +110,55 @@ cdsFilt
 #estimate dispersion and run binomial test for filtered data
 ########################################################################
 
-if (disp.mode == "maximum") {
-    cdsFilt = estimateDispersions( cdsFilt, method="pooled", sharingMode="maximum", fitType="parametric")
-} else if (disp.mode == "gene") {
-    cdsFilt = estimateDispersions( cdsFilt,  method="pooled", sharingMode="gene-est-only", fitType="parametric")
-} else if (disp.mode == "fit") {
-    cdsFilt = estimateDispersions( cdsFilt, method="blind", sharingMode="fit-only", fitType="parametric")
-}
+if (paired == "FALSE"){
 
-write.table( fData( cdsFilt ), file = paste( results.dir, "dispersion.filt.txt", sep="/"), sep = "\t" )
+    if (disp.mode == "maximum") {
+    	cdsFilt = estimateDispersions( cdsFilt, method="pooled", sharingMode="maximum", fitType="parametric")
+    } else if (disp.mode == "gene") {
+    	cdsFilt = estimateDispersions( cdsFilt,  method="pooled", sharingMode="gene-est-only", fitType="parametric")
+    } else if (disp.mode == "fit") {
+    	cdsFilt = estimateDispersions( cdsFilt, method="blind", sharingMode="fit-only", fitType="parametric")
+    }
+
+    resFilt = nbinomTest( cdsFilt, "1", "2" )
+
+} else {
+
+    if (disp.mode == "maximum") {
+    	cdsFilt = estimateDispersions( cdsFilt, method="pooled-CR", sharingMode="maximum", fitType="parametric")
+    } else if (disp.mode == "gene") {
+    	cdsFilt = estimateDispersions( cdsFilt,  method="pooled-CR", sharingMode="gene-est-only", fitType="parametric")
+    } else if (disp.mode == "fit") {
+    	cdsFilt = estimateDispersions( cdsFilt, method="blind", sharingMode="fit-only", fitType="parametric")
+    }
+
+    fit1 = fitNbinomGLMs( cdsFilt, count ~ pair + condition )
+    fit0 = fitNbinomGLMs( cdsFilt, count ~ pair  )
+
+    pvalsGLM = nbinomGLMTest( fit1, fit0 )
+    padjGLM = p.adjust( pvalsGLM, method="BH" )
+
+    set1 = sampleTable$sample_ID[sampleTable$condition == "1"]
+    set2 = sampleTable$sample_ID[sampleTable$condition == "2"]
+
+    resFilt = data.frame(id = rownames(fit1), baseMean = rowMeans(counts(cdsFilt)), baseMeanA = rowMeans(counts(cdsFilt[,set1])), baseMeanB = rowMeans(counts(cdsFilt[,set2])), foldChange = 2 ^ fit1$condition, log2FoldChange = fit1$condition, pval = pvalsGLM, padj = padjGLM)
+
+}
 
 #plot dispersion
 png( file = paste( results.dir, "dispersion_plot.png", sep="/" ) )
     plotDispEsts( cdsFilt )
 dev.off()
 
-#calculate differential expression
-resFilt = nbinomTest( cdsFilt, "1", "2" )
-write.table( resFilt[ order(resFilt$pval), ], file = paste( results.dir, "nbinom.filt.txt", sep="/"), sep = "\t" )
+write.table( resFilt[ order(resFilt$pval), ], file = paste( results.dir, "nbinom.tsv", sep="/"), sep = "\t" )
 
 #select set of differentially expressed genes at FDR = 10% 
 resFiltSig = resFilt[ resFilt$padj < 0.1, ]
-write.table( resFiltSig[ order(resFiltSig$pval), ], file = paste( results.dir, "nbinom.filt.sig.txt", sep="/"), sep = "\t" )
+write.table( resFiltSig[ order(resFiltSig$pval), ], file = paste( results.dir, "nbinom.sig.tsv", sep="/"), sep = "\t" )
 
 #plot fold change
 png( file = paste( results.dir, "FC_plot.png", sep="/" ) )
     plotMA( resFilt )
-dev.off()
-
-#plot p-val histogram
-png( file = paste( results.dir, "pval_hist.png", sep="/" ) )
-    hist( resFilt$pval, breaks=100 )
 dev.off()
 
 #make a table comparing the power of tests on original and filtered data

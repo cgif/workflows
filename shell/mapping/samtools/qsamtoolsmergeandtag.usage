@@ -121,8 +121,12 @@ DESCRIPTION
 	-q	The level at which to accumulate metrics. RG - read group, L - library, S - sample. 
 		More than one level can be specified in a coma-separated list.
 
-	-c	Absolute path to sample status file, required for amplicon sequencing. File 
-		format SampleID\tstatus\n (0-negative control, 1 - sample), no header line
+	-c	Absolute path to sample status file, required for amplicon sequencing. 
+		qsamtoolsmergeandtag will automatically create a list of samples to be 
+		submitted to gatk2. Water controls will be excluded from this list as 
+		well as samples with the median target coverage less than 10 times higher 
+		than the highest median target coverage for water controls from the same batch.
+		File format SampleID\tstatus\n (0-negative control, 1 - sample), no header line
 
 	-w 	Produce customer tracks with coverage profiles in UCSC genome browser if TRUE, default is FALSE
 

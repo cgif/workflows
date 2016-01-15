@@ -30,7 +30,7 @@ if (htseq == "F") {
 
 } else if (htseq == "T") {
 
-    sampleTable = read.table(design.file)
+    sampleTable = read.table(design.file, header=TRUE)
     cds = newCountDataSetFromHTSeqCount(sampleTable, directory = counts.table)
     cds
 
@@ -50,9 +50,7 @@ if (filtering.stats == "mean") {
     rs = rowMin(geneLevelData)
 } else if (filtering.stats == "max") {
     rs = rowMax(geneLevelData)
-} else if (filtering.stats == "sd") {
-    rs = rowSds(geneLevelData)
-}
+} 
 
 use = (rs > quantile(rs, probs=filtering.cutoff))
 geneLevelData = geneLevelData[ use, ]
@@ -144,11 +142,6 @@ png( file = paste( results.dir, "FC_plot.filt.png", sep="/" ) )
     plotMA( res )
 dev.off()
 
-#plot p-val histogram
-png( file = paste( results.dir, "pval_hist.png", sep="/" ) )
-    hist( res$pval, breaks=100 )
-dev.off()
-
 #########################################################################
 #sample clustering and PCA analysis
 #########################################################################
@@ -165,12 +158,12 @@ if (disp.mode == "maximum") {
 }
 
 useBlind = (rowSums ( counts ( cdsBlind )) > 0)
-cdsBlind = cdsBlind[ use, ]
+cdsBlind = cdsBlind[ useBlind, ]
 vsd = varianceStabilizingTransformation( cdsBlind )
 
 colnames(exprs(vsd)) =  with(pData(vsd), paste(colnames(exprs(vsd)), condition, sep=":"))
 hmcol = colorRampPalette(brewer.pal(9, "GnBu"))(100)
-select = order(rowMeans(counts(cds)), decreasing=TRUE)[1:10000]
+select = order(rowMeans(counts(cds)), decreasing=TRUE)[1:1000]
 
 png( file = paste( results.dir, "vst_heatmap.png", sep="/" ) )
     heatmap.2(exprs(vsd)[select,], col = hmcol, trace="none", margin=c(10, 6))
@@ -186,7 +179,7 @@ dev.off()
 
 #plot PCA results
 png( file = paste( results.dir, "PCA.png", sep="/" ) )
-    print(plotPCA(vsd, intgroup=c("condition"), ntop = 10000))
+    print(plotPCA(vsd, intgroup=c("condition"), ntop = 1000))
 dev.off()
 
 #######################################################################################

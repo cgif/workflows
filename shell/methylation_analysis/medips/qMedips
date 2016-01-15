@@ -4,11 +4,15 @@
 #calculate MEDIPS methylation profiles for each condition 
 #and corresponding BigWig files to open in UCSC browser
 
-USAGE="qMakesets -i <input_dir> -n <project_name> -r <sample_info> -l <extension_length> -p <TRUE_for_paired> -w <window_size>"
+#also creates counts table
+#to be used as input to DESeq  
+
+USAGE="qMedips -i <input_dir> -n <project_name> -r <sample_info> -l <extension_length> -p <TRUE_for_paired> -w <window_size>"
 
 NOW="date +%Y-%m-%d%t%T%t"
 
 TODAY=`date +%Y-%m-%d`
+#TODAY=2015-10-26
 
 R_VERSION=3.0.1
 
@@ -54,9 +58,6 @@ chmod 770 $GROUPVOL_TGU/results/$PROJECT/medips/$TODAY
 mkdir -p $GROUPVOL_TGU/results/$PROJECT/medips/$TODAY/WIG
 chmod 770 $GROUPVOL_TGU/results/$PROJECT/medips/$TODAY/WIG
 
-mkdir -p $GROUPVOL_TGU/results/$PROJECT/medips/$TODAY/DM
-chmod 770 $GROUPVOL_TGU/results/$PROJECT/medips/$TODAY/DM
-
 mkdir -p $GROUPVOL_TGU/runs/$PROJECT/medips
 chmod 770 $GROUPVOL_TGU/runs/$PROJECT/medips
 
@@ -80,7 +81,7 @@ ssh $DEPLOYMENT_SERVER "chmod 775 $ENC_DIR" > /dev/null 2>&1
 echo "Encripted directory $ENC_DIR"
 
 #round chromosome sizes to fit with medips profiles
-cat $CHROM_SIZES | perl -e '$window = shift; while(<>){chomp(); if (/(\S+)\t(\d+)/) {$chrom=$1; $size=$2; $fold=int($size/$window); $size=$fold*$window; print "$chrom\t$size\n";}}' $WINDOW > $MEDIPS_RUNS_DIR/hg19.chrom.sizes
+cat $CHROM_SIZES | perl -e '$window = shift; while(<>){chomp(); if (/(\S+)\t(\d+)/) {$chrom=$1; $size=$2; $fold=int($size/$window); $size=($fold+1)*$window; print "$chrom\t$size\n";}}' $WINDOW > $MEDIPS_RUNS_DIR/hg19.chrom.sizes
 CHROM_SIZES=$MEDIPS_RUNS_DIR/hg19.chrom.sizes
 
 MEDIPS_DEPENDECIES="afterany"
@@ -107,6 +108,7 @@ for CONDITION in `sed 1d $SAMPLE_INFO | cut -f2 | grep -vP "^$" | sort | uniq `;
 	sed -i -e "s/#chromSizes/${CHROM_SIZES//\//\\/}/" $SCRIPT_PATH
 	sed -i -e "s/#condition/${CONDITION}/" $SCRIPT_PATH
 	sed -i -e "s/#windowSize/${WINDOW}/" $SCRIPT_PATH
+	sed -i -e "s/#deploymentServer/${DEPLOYMENT_SERVER}/" $SCRIPT_PATH
 
 	sed -i -e "s/#sampleInfo/${SAMPLE_INFO//\//\\/}/" $R_SCRIPT_PATH
 	sed -i -e "s/#medipsDir/${MEDIPS_RESULTS_DIR//\//\\/}/" $R_SCRIPT_PATH
@@ -127,61 +129,12 @@ for CONDITION in `sed 1d $SAMPLE_INFO | cut -f2 | grep -vP "^$" | sort | uniq `;
 
 done
 
-
-#find regions of differential methylation
-for CONDITION1 in `sed 1d $SAMPLE_INFO | cut -f2 | grep -vP "^$" | sort | uniq | grep -vi input`;do
-
-	for CONDITION2 in `sed 1d $SAMPLE_INFO | cut -f2 | grep -vP "^$" | sort | uniq | grep -vi input`;do
-
-		if [ $CONDITION1 != $CONDITION2 ]; then
-
-			#create script to submit R script 
-			SCRIPT_PATH=$GROUPVOL_TGU/runs/$PROJECT/medips/$TODAY/$PROJECT.$CONDITION1.$CONDITION2.diffMeth.sh
-			cp $BASEDIR/diffMeth.sh $SCRIPT_PATH
-			chmod 770 $SCRIPT_PATH
-
-			#create R script 
-			R_SCRIPT_PATH=$GROUPVOL_TGU/runs/$PROJECT/medips/$TODAY/$PROJECT.$CONDITION1.$CONDITION2.diffMeth.R
-			cp $BASEDIR/diffMeth.R $R_SCRIPT_PATH
-			chmod 770 $R_SCRIPT_PATH
-
-			sed -i -e "s/#Rversion/${R_VERSION}/" $SCRIPT_PATH
-			sed -i -e "s/#inputBam/${INPUT_DIR//\//\\/}/" $SCRIPT_PATH
-			sed -i -e "s/#sampleInfo/${SAMPLE_INFO//\//\\/}/" $SCRIPT_PATH
-			sed -i -e "s/#Rscript/${R_SCRIPT_PATH//\//\\/}/" $SCRIPT_PATH
-			sed -i -e "s/#condition1/${CONDITION1}/" $SCRIPT_PATH
-			sed -i -e "s/#condition2/${CONDITION2}/" $SCRIPT_PATH
-
-			sed -i -e "s/#sampleInfo/${SAMPLE_INFO//\//\\/}/" $R_SCRIPT_PATH
-			sed -i -e "s/#medipsDir/${MEDIPS_RESULTS_DIR//\//\\/}/" $R_SCRIPT_PATH
-			sed -i -e "s/#extendReads/${EXTEND}/" $R_SCRIPT_PATH
-			sed -i -e "s/#pairedReads/${PAIRED}/" $R_SCRIPT_PATH
-			sed -i -e "s/#windowSize/${WINDOW}/" $R_SCRIPT_PATH
-			sed -i -e "s/#condition1/${CONDITION1}/" $R_SCRIPT_PATH
-			sed -i -e "s/#condition2/${CONDITION2}/" $R_SCRIPT_PATH
-
-			LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
-			echo -n "" > $LOG_OUTPUT_PATH
-			chmod 660 $LOG_OUTPUT_PATH
-
-			echo "`${NOW}`submitting job script $SCRIPT_PATH "
-			JOB_ID=`qsub -q pqcgi -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
-			echo "`${NOW}`job ID: $JOB_ID"
-
-			MEDIPS_DEPENDECIES="$MEDIPS_DEPENDECIES:$JOB_ID"
-
-		fi
-
-	done
-
-done
-
 #submit summary script
 #if job is completed and log file is created in the run directory
 #script displays plots and quality metrics on eliot
 
-SUMMARY_SCRIPT_PATH=$GROUPVOL_TGU/runs/$PROJECT/medips-QC/$TODAY/$PROJECT.summary_medipsDiffMeth.pl
-cp $BASEDIR/summary_medipsDiffMeth.pl $SUMMARY_SCRIPT_PATH
+SUMMARY_SCRIPT_PATH=$GROUPVOL_TGU/runs/$PROJECT/medips/$TODAY/$PROJECT.summary_medipsWIG.pl
+cp $BASEDIR/summary_medipsWIG.pl $SUMMARY_SCRIPT_PATH
 chmod 770 $SUMMARY_SCRIPT_PATH
 
 sed -i -e "s/#medipsResultsDir/${MEDIPS_RESULTS_DIR//\//\\/}/" $SUMMARY_SCRIPT_PATH
@@ -198,6 +151,26 @@ chmod 660 $SUMMARY_LOG_OUTPUT_PATH
 echo "`$NOW`submitting summary script: $SUMMARY_SCRIPT_PATH"
 SUM_JOB_ID=`qsub -q $QUEUE -o $SUMMARY_LOG_OUTPUT_PATH -j oe -W depend=$MEDIPS_DEPENDECIES -M cgi@imperial.ac.uk $SUMMARY_SCRIPT_PATH` 
 echo "`$NOW`job ID: $SUM_JOB_ID"
+
+
+#create counts table to be used as input to DESeq  
+SCRIPT_PATH=$GROUPVOL_TGU/runs/$PROJECT/medips/$TODAY/$PROJECT.makeCountsTable.sh
+cp $BASEDIR/makeCountsTable.sh $SCRIPT_PATH
+chmod 770 $SCRIPT_PATH
+
+sed -i -e "s/#medipsDir/${MEDIPS_RESULTS_DIR//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#sampleInfo/${SAMPLE_INFO//\//\\/}/" $SCRIPT_PATH
+sed -i -e "s/#project/${PROJECT//\//\\/}/" $SCRIPT_PATH
+
+LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
+echo -n "" > $LOG_OUTPUT_PATH
+chmod 660 $LOG_OUTPUT_PATH
+
+echo "`${NOW}`submitting job script $SCRIPT_PATH "
+JOB_ID=`qsub -q pqcgi -W depend=$MEDIPS_DEPENDECIES -o $LOG_OUTPUT_PATH $SCRIPT_PATH`
+echo "`${NOW}`job ID: $JOB_ID"
+
+
 
 
 
