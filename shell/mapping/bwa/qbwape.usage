@@ -23,7 +23,7 @@ DESCRIPTION
 
 	-r	Absolute path to the BWA indexed reference
                 sequence fasta file,
-                default /groupvol/cgi/resources/reference/eukaryote/human/hs37d5/bwa_indexed/hs37d5.fa.gz.
+                default /project/tgu/resources/reference/eukaryote/hsapiens/hs37d5/fasta/hs37d5.fa
 
 	-t	The tag of the fastq file containing read1
 		sequences, default is  _R1_.

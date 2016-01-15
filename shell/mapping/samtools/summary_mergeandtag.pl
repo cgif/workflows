@@ -19,6 +19,7 @@ my $multisample = "multisample_no";
 my $make_bw = "makeBW";
 my $ucsc_assembly_id= "ucscAssemblyId";
 my $ucsc_organism_name= "ucscOrganismName";
+my $coverage_bw_browser_position = "chr1:1-10,000"
 
 #create deployment directory for pdf files
 system("ssh $deployment_server mkdir $summary_deployment/pdf > /dev/null 2>&1");
@@ -434,21 +435,21 @@ if ("$make_bw" eq "TRUE"){
 	print "Created encripted directory $enc_dir on eliot\n";
 
 	$custom_tracs="$summary_results/custom_track.txt";
-	$custom_tracs_URL="$deployment_server/report/data/$random15/custom_track.txt";
+	$custom_tracs_URL="$deployment_server/report/data/$random15/$project.mergetag.$date.txt";
 	open(TRACKS, ">$custom_tracs");
-	print TRACKS "browser position chr21\n";
+	print TRACKS "browser position $coverage_bw_browser_position\n";
 
 	foreach my $sample (keys %data){
 
 		$bigWig="$project_dir_results/$date/$sample/$sample.bw";
 		$bigWig_URL="$deployment_server/report/data/$random15/$sample.bw";
 		system("scp $bigWig $deployment_server:$enc_dir > /dev/null 2>&1");
-		print TRACKS "track type=bigWig name=$sample description=$sample,rpm visibility=full db=$ucsc_assembly_id viewLimits=0:1 autoScale=off windowingFunction=mean smoothingWindow=10 bigDataUrl=http://$bigWig_URL\n";
+		print TRACKS "track type=bigWig name=\"$sample\" description=\"$sample - coverage [reads per million mapped reads]\" visibility=full db=$ucsc_assembly_id viewLimits=0:1 autoScale=off windowingFunction=mean smoothingWindow=10 bigDataUrl=http://$bigWig_URL\n";
 
 	}
 
 	system("scp $custom_tracs $deployment_server:$enc_dir");
-	$URL="http://$deployment_server/ucsc/cgi-bin/hgTracks?org=$ucsc_organism_name&db=$ucsc_assembly_id&position=chr1&hgct_customText=http://$custom_tracs_URL";
+	$URL="http://$deployment_server/ucsc/cgi-bin/hgTracks?org=$ucsc_organism_name&db=$ucsc_assembly_id&hgct_customText=http://$custom_tracs_URL";
 	print OUT "<HR>Coverage profiles can be open in <A HREF=$URL>UCSC browser</A>";
 
 	system("ssh $deployment_server chmod 0775 $enc_dir > /dev/null 2>&1");

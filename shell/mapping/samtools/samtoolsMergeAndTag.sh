@@ -58,20 +58,16 @@ RG_LEVEL=`echo $METRIC_LEVEL | grep RG`
 L_LEVEL=`echo $METRIC_LEVEL | grep L`
 S_LEVEL=`echo $METRIC_LEVEL | grep S`
 MAKE_BW=makeBw
-UCSC_ASSEMBLY_ID=ucscAssemblyID
 
 echo "`${NOW}`-------------------------------------------------------------------------------------------------------"
 #merge header and read group info
 echo "`${NOW}`copying read group info to temp space..."
 cp $READ_GROUP_INFO $TMP_PATH_RG_HEADER
 
-echo "`${NOW}`copying reference sequence file to temp space..."
+echo "`${NOW}`copying reference sequence fasta, fasta index and dictionary to temp space..."
 cp $REFERENCE_SEQUENCE $TMPDIR/tmp_reference.fa
 cp $REFERENCE_SEQUENCE.fai $TMPDIR/tmp_reference.fa.fai
-
-REFERENCE_SEQUENCE_PATH=`dirname $REFERENCE_SEQUENCE`
-REFERENCE_SEQUENCE_BASENAME=`basename $REFERENCE_SEQUENCE .fa`
-cp $REFERENCE_SEQUENCE_PATH/$REFERENCE_SEQUENCE_BASENAME.dict $TMPDIR/tmp_reference.dict
+cp $REFERENCE_SEQUENCE_DICT $TMPDIR/tmp_reference.dict
 
 # Copy BAM files to merge to tmp space.
 # The destination file name will be the

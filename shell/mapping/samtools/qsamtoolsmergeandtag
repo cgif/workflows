@@ -434,6 +434,8 @@ do
 	sed -i -e "s/calculateMetric/$METRIC/" $SCRIPT_PATH
 	sed -i -e "s/metricLevel/$METRIC_LEVEL/" $SCRIPT_PATH
 	sed -i -e "s/makeBw/$MAKE_BW/" $SCRIPT_PATH
+	sed -i -e "s/ucscAssemblyID/$UCSC_ASSEMBLY_ID/" $SCRIPT_PATH
+    sed -i -e "s/ucscOrganismName/$UCSC_ORGANISM_NAME/" $SCRIPT_PATH
 
 	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh$/\.log/g'`
 	echo -n "" > $LOG_OUTPUT_PATH
@@ -467,6 +469,8 @@ do
         	sed -i -e "s/markDuplicates/$MARK_DUPLICATES/" $SCRIPT_PATH
 		sed -i -e "s/metricLevel/$METRIC_LEVEL/" $SCRIPT_PATH
 		sed -i -e "s/collectMetric/$METRIC/" $SCRIPT_PATH
+		sed -i -e "s/ucscAssemblyID/$UCSC_ASSEMBLY_ID/" $SCRIPT_PATH
+sed -i -e "s/ucscOrganismName/$UCSC_ORGANISM_NAME/" $SCRIPT_PATH
 
         	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.pl/\.log/g'`
 		echo -n "" > $LOG_OUTPUT_PATH
