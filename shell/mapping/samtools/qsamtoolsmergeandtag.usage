@@ -2,26 +2,21 @@
 USAGE
 
 	qsamtoolsmergeandtag -i <path_to_reads_bam_directory> 
-                             -r <path_to_read_group_info_file>
-                            [-d <mark_duplicates TRUE|FALSE, default is TRUE>]
-                            [-s <path_to_sam_header,
-                                 default /groupvol/cgi/rawdata/documents/hs37d5_head>, THIS OPTION IS NOT SUPPORTED>]
-                            [-m <metrics_to_collect HS|TP|RS, default is NONE >]
-                            [-b <path_to_bait_or_amplicon_interval_list_file for HS/TP metrics, 
-                                default for HS metrics /groupvol/cgi/analysis/ngs_tools/reference/target/SureSelect_All_Exon_50M_hg19.tab.intList>]
-                            [-t <path_to_target_interval_list_file for HS/TP metrics, 
-                                default for HS metrics /groupvol/cgi/analysis/ngs_tools/reference/target/SureSelect_All_Exon_50M_hg19.tab.intList>]
-							[-l <path to interval list for non-overlapping amplicon intervals>, can only be used for amplicon sequencing,
-								default "none"]
-                            [-p <path_to_ribosomal_rna_interval_list_file for RS metrics,
-                                default /groupvol/cgi/analysis/ngs_tools/reference/ribosomal_rna/hs37d5.ribosomal_rna.intList>]
-                            [-a <path_to_anotation_flat_file for RS metrics,
-                                default /groupvol/cgi/resources/annotations/Homo_sapiens.GRCh37.74.refFlat>]
-                            [-f <path_to_reference_sequence_fasta_file,
-                                default /groupvol/cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.fa>]
-                            [-q <level_at_which_to_accumulate_metrics RG|L|S, default S>]
-			    [-c <sample status file for amplicon sequencing>]
-			    [-w <produce customer tracks with coverage profiles in UCSC genome browser if TRUE, default is FALSE>]
+                         -r <path_to_read_group_info_file>
+                        [-o <organism, default is hsapiens]
+                        [-y <assembly_name, default is GRCh37]
+                        [-d <mark_duplicates TRUE|FALSE, default is TRUE>]
+                        [-s <path_to_sam_header, THIS OPTION IS CURRENTLY NOT SUPPORTED>]
+                        [-m <metrics_to_collect HS|TP|RS, default is NONE >]
+                        [-b <path_to_bait_or_amplicon_interval_list_file for HS/TP metrics, default for HS metrics /project/tgu/resources/reference/hsapiens/GRCh37/target/agilent_sureselect_human_all_exon_v5_utr.probes.intList>]
+                        [-t <path_to_target_interval_list_file for HS/TP metrics, default for HS metrics /project/tgu/resources/reference/hsapiens/GRCh37/target/agilent_sureselect_human_all_exon_v5_utr.targets.intList>]
+                        [-l <path to interval list for non-overlapping amplicon intervals>, can only be used for amplicon sequencing, default "none"]
+                        [-p <path_to_ribosomal_rna_interval_list_file for RS metrics, default /project/tgu/resources/reference/hsapiens/GRCh37/annotation/GRCh37.rrna.intList>]
+                        [-a <path_to_anotation_flat_file for RS metrics, default /project/tgu/resources/reference/hsapiens/GRCh37/annotation/GRCh37.genes.refFlat>]
+                        [-f <path_to_reference_sequence_fasta_file, default /project/tgu/resources/reference/hsapiens/GRCh37/fasta/GRCh37.fa>]
+                        [-q <qc_metrics_accumulation_level RG|L|S, default S>]
+                        [-c <sample status file for amplicon sequencing>]
+                        [-w <produce coverage bigwig tracks for UCSC genome browser if TRUE, default is FALSE>]
 
 
 DESCRIPTION
@@ -86,11 +81,15 @@ DESCRIPTION
 												column in both paired-reads (1,2) or just 
 												a single read (e.g. 1)
 
+	-o  the reference organism
+	
+	-y  the reference assembly name
+
 	-d	Mark PCR duplicates (default is TRUE)
         
 	-s	Absolut path to SAM header to be used in the merged BAM file.
 		!!!THIS OPTION IS NOT SUPPORTED!!! 
-		At the present header dictionary is collected from the last BAM file 
+		At present header dictionary is collected from the last BAM file 
 		to be merged in the library and the RG header entries are appended.  
 
 	-m	The metrics to collect from the merged BAM file with Picard tools.

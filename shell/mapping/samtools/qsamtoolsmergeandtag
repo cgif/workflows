@@ -34,28 +34,25 @@ TODAY=`date +%Y-%m-%d`
 QUEUE=pqcgi
 
 #default parameters
-
-PATH_BAIT_AMPLICON_INTERVALS=$GROUPVOL_CGI/analysis/ngs_tools/reference/target/SureSelect_All_Exon_50M_hg19.tab.intList
-PATH_TARGET_INTERVALS=$GROUPVOL_CGI/analysis/ngs_tools/reference/target/SureSelect_All_Exon_50M_hg19.tab.intList
-PATH_NON_OVERLAPPING_INTERVALS=none
-PATH_RIBOSOMAL_RNA_INTERVALS=$GROUPVOL_CGI/resources/annotations/GRCh37.75.ribosomal_rna.intList
-PATH_ANNOTATION_REFFLAT=$GROUPVOL_CGI/resources/annotations/Homo_sapiens.GRCh37.75.refFlat
-PATH_REFERENCE_FASTA=$GROUPVOL_TGU/resources/reference/eukaryote/hsapiens/hs37d5/fasta/hs37d5.fa
+ORGANISM=hsapiens
+ASSEMBLY=GRCh37
 METRIC=NONE
 MARK_DUPLICATES=TRUE
 METRIC_LEVEL=S
 SAMPLE_STATUS=none
 MAKE_BW=FALSE
-
+PATH_NON_OVERLAPPING_INTERVALS=none
 
 #COMMAND LINE ARGS
 ##################
 
 #parse command line args
-while getopts "i:r:d:s:m:b:t:l:p:a:f:q:c:wh" option; do
+while getopts "i:o:y:r:d:s:m:b:t:l:p:a:f:q:c:wh" option; do
     case "$option" in
 	
 	i) PATH_INPUT_DIR="$OPTARG";;
+	o) PATH_READ_GROUP_INFO="$OPTARG";;
+	y) PATH_READ_GROUP_INFO="$OPTARG";;
 	r) PATH_READ_GROUP_INFO="$OPTARG";;
 	d) MARK_DUPLICATES="$OPTARG";;
 	s) PATH_HEADER="$OPTARG";;
@@ -74,6 +71,32 @@ while getopts "i:r:d:s:m:b:t:l:p:a:f:q:c:wh" option; do
 
 esac
 done
+
+#set default values
+if [ -z $PATH_BAIT_AMPLICON_INTERVALS ]
+then
+	PATH_BAIT_AMPLICON_INTERVALS=$GROUPVOL_TGU/resources/reference/$ORGANISM/$ASSEMBLY/target/agilent_sureselect_human_all_exon_v5_utr.probes.intList
+fi
+
+if [ -z $PATH_TARGET_INTERVALS ]
+then
+	PATH_TARGET_INTERVALS=$GROUPVOL_TGU/resources/reference/$ORGANISM/$ASSEMBLY/target/agilent_sureselect_human_all_exon_v5_utr.targets.intList
+fi
+
+if [ -z $PATH_RIBOSOMAL_RNA_INTERVALS ]
+then
+	PATH_RIBOSOMAL_RNA_INTERVALS=$GROUPVOL_TGU/resources/reference/$ORGANISM/$ASSEMBLY/annotation/$ASSEMBLY.rrna.intList
+fi
+
+if [ -z $PATH_ANNOTATION_REFFLAT ]
+then
+	PATH_ANNOTATION_REFFLAT=$GROUPVOL_TGU/resources/reference/$ORGANISM/$ASSEMBLY/annotation/$ASSEMBLY.genes.refFlat
+fi
+
+if [ -z $PATH_REFERENCE_FASTA ]
+then
+	PATH_REFERENCE_FASTA=$GROUPVOL_TGU/resources/reference/eukaryote/$ORGANISM/$ASSEMBLY/fasta/$ASSEMBLY.fa
+fi
 
 # check for presence of required input parameters
 if [ -z $PATH_INPUT_DIR ] || \
