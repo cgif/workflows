@@ -30,22 +30,24 @@ dds <- dds[ rowSums(counts(dds)) > 1, ]
 
 
 #differential expression analysis using 'DESeq' function
-dds <- DESeq(dds)
+dds <- DESeq(dds, betaPrior=FALSE))
 #get normalized counts and write to file
 normalizedCounts<-as.data.frame(counts(dds, normalized = TRUE))
-write.table(normalizedCounts, file = paste(results.dir, "normalizedCounts.tsv", sep="/"), sep = "\t", row.names = TRUE, col.names = NA)
+write.table(normalizedCounts, file = paste(results.dir, "normalizedCounts.tsv", sep="/"), sep = "\t", row.names = TRUE, col.names = NA, quote = FALSE)
 res <- results(dds)
+#res<-results(dds,addMLE=TRUE)
 
 #plot fold change
 pdf(file = paste( results.dir, "FC_plot.pdf", sep="/" ))
-plotMA(res, main="DESeq2", ylim=c(-2,2))
+plotMA(res, main="DESeq2", ylim=c(-4,4))
+#plotMA(res, MLE=TRUE, main="DESeq2", ylim=c(-2,2))
 dev.off()
 
 #export results
-resOrdered <- res[order(res$padj),]
-resSig <- subset(resOrdered, padj < 0.1)
-write.table(resOrdered, file = paste(results.dir, "resultsOrdered.tsv", sep="/"), sep = "\t", row.names = TRUE, col.names = NA)
-write.table(resSig, file = paste(results.dir, "resultsSig.tsv", sep="/"), sep = "\t", row.names = TRUE, col.names = NA)
+resOrdered <- res[order(res$pvalue),]
+resSig <- subset(resOrdered, pvalue < 0.05)
+write.table(resOrdered, file = paste(results.dir, "resultsOrdered.tsv", sep="/"), sep = "\t",col.names = NA, quote = FALSE)
+write.table(resSig, file = paste(results.dir, "resultsSig.tsv", sep="/"), sep = "\t",col.names = NA, quote = FALSE)
 
 #data transformation and visualization
 #rld <- rlog(dds)
