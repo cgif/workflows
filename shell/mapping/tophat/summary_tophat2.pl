@@ -92,7 +92,7 @@ open (OUT, ">$summary_results/index.html");
 print OUT "<HTML>";
 print OUT "<TABLE CELLPADDING=5><TR>";
 print OUT "<TH><CENTER>Sample";
-print OUT "<TH><CENTER>Fastq files";
+print OUT "<TH><CENTER>BAM files";
 print OUT "<TH><CENTER>Mate files";
 print OUT "<TH><CENTER>Alignment";
 print OUT "<TH><CENTER>Input reads";

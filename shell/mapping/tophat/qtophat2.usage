@@ -2,8 +2,10 @@ USAGE
 
 	qtophat2 -i <reads_fastq_directory_path> 
    		 -n <project_name>
-           	[-r <reference_fasta_file, default /project/tgu/resources/reference/eukaryote/hsapiens/GRCh37/bowtie2_indexed/GRCh37.fa>]
-		[-a <transcriptome_GFF_file, default /groupvol/cgi/resources/annotations/bowtie2_indexed/Homo_sapiens.GRCh37.75.gff>]
+           	[-r <reference_fasta_file, default /project/tgu/resources/reference/hsapiens/GRCh37/fasta/GRCh37.fa>]
+		[-a <transcriptome_GFF_file, default /project/tgu/resources/reference/hsapiens/GRCh37/annotation/GRCh37.transcripts.gff>]
+		[-s <species, default hsapiens>]
+		[-b <assembly, default GRCh37>]
            	[-t <read1_tag, default '_R1_'>]
            	[-p <read2_tag, default '_R2_'>]
            	[-m <report_multiple_alignments, default FALSE>]
@@ -21,13 +23,18 @@ DESCRIPTION
 
 	-n	Project name.
 
-	-r	Absolute path to the Bowtie indexed reference
-		sequence fasta file,
-		default /project/tgu/resources/reference/eukaryote/hsapiens/GRCh37/bowtie2_indexed/GRCh37.fa
+	-r	Absolute path to the Bowtie indexed reference sequence fasta file,
+		default /project/tgu/resources/reference/hsapiens/GRCh37/fasta/GRCh37.fa
 
 	-a	Absolute path to the Bowtie indexed 
 		GTF 2.2 or GFF3 file of known transcripts
-		default /groupvol/cgi/resources/annotations/bowtie2_indexed/Homo_sapiens.GRCh37.75.gff
+		default /project/tgu/resources/reference/hsapiens/GRCh37/annotation/GRCh37.transcripts.gff
+
+	-s	Species [mmusculus|phix|hsapiens|rnorvegicus]
+		default hsapiens
+
+	-b	Assembly
+		default GRCh37
 
 	-t	The tag of the fastq file containing read1
 		sequences, default is  _R1_.

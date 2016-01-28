@@ -36,23 +36,31 @@ SAMTOOLS_VERSION=0.1.19
 BOWTIE_VERSION=2.1.0
 JAVA_VERSION=jdk-7u25
 PICARD_VERSION=1.85
-
-PATH_REFERENCE_FASTA=/project/tgu/resources/reference/eukaryote/hsapiens/GRCh37/bowtie2_indexed/GRCh37.fa
-PATH_ANNOTATION_GFF=/groupvol/cgi/resources/annotations/bowtie2_indexed/Homo_sapiens.GRCh37.75.gff
 PATTERN_READ1='_R1_'
 PATTERN_READ2='_R2_'
 MULT_READS=F
 EDIT_DIST0=F
 LIBRARY_TYPE=NONE
 
+SPECIES=hsapiens
+ASSEMBLY=GRCh37
+PATH_REFERENCE_FASTA=/project/tgu/resources/reference/$SPECIES/$ASSEMBLY/fasta/$ASSEMBLY.fa
+PATH_BOWTIE2_INDEX=/project/tgu/resources/reference/$SPECIES/$ASSEMBLY/index/bowtie2/$ASSEMBLY
+PATH_ANNOTATION_GFF=/project/tgu/resources/reference/$SPECIES/$ASSEMBLY/annotation/$ASSEMBLY.transcripts.gff
+PATH_DICTIONARY=/project/tgu/resources/reference/$SPECIES/$ASSEMBLY/dict/$ASSEMBLY.dict
+
 #COMMAND LINE ARGS
 ##################
-while getopts "i:r:a:t:p:n:l:hmd" option; do
+while getopts "i:r:a:s:b:I:D:t:p:n:l:hmd" option; do
     case "$option" in
 	
 	i) INPUT_PATH="$OPTARG";;
+	s) SPECIES="$OPTARG";;
+	b) ASSEMBLY="$OPTARG";;
 	r) PATH_REFERENCE_FASTA="$OPTARG";;
 	a) PATH_ANNOTATION_GFF="$OPTARG";;
+	I) PATH_BOWTIE2_INDEX="$OPTARG";;
+	D) PATH_DICTIONARY="$OPTARG";;
 	t) PATTERN_READ1="$OPTARG";;
 	p) PATTERN_READ2="$OPTARG";;
 	n) PROJECT="$OPTARG";;
@@ -66,8 +74,12 @@ esac
 done
 
 if [ -z $INPUT_PATH ] || \
+    [ -z $SPECIES ] || \
+    [ -z $ASSEMBLY ] || \
     [ -z $PATH_REFERENCE_FASTA ] || \
     [ -z $PATH_ANNOTATION_GFF ] || \
+    [ -z $PATH_BOWTIE2_INDEX ] || \
+    [ -z $PATH_DICTIONARY ] || \
     [ -z $PATTERN_READ1 ] || \
     [ -z $PATTERN_READ2 ] || \
     [ -z $PROJECT ]
@@ -86,23 +98,31 @@ function submitJobs {
         local path_reads_directory=$1
 	local path_reference_fasta=$2
 	local path_annotation_gff=$3
-	local path_scripts_dir=$4
-	local path_results_dir=$5
-	local pattern_read1=$6
-	local pattern_read2=$7
-	local threads_per_run=$8
-	local walltime_hours_per_run=$9
-	local mult_reads=${10}
-	local edit_dist0=${11}
-	local summary_script_path=${12}
-	local library_type=${13}
+	local species=$4
+	local assembly=$5
+	local path_bowtie2_index=$6
+	local path_dictionary=$7
+	local path_scripts_dir=$8
+	local path_results_dir=$9
+	local pattern_read1=${10}
+	local pattern_read2=${11}
+	local threads_per_run=${12}
+	local walltime_hours_per_run=${13}
+	local mult_reads=${14}
+	local edit_dist0=${15}
+	local summary_script_path=${16}
+	local library_type=${17}
       
 	local setup_log=$path_scripts_dir/setup.log
 	local job_id_list=$path_scripts_dir/job_id.list
 	echo -n "" > $job_id_list
 	chmod 660 $job_id_list
 
-	for fastq_read1 in `ls --color=never $path_reads_directory/*.f*q* | grep $pattern_read1`
+	PATH_REFERENCE_FASTA=/project/tgu/resources/reference/$species/$assembly/fasta/$assembly.fa
+	PATH_BOWTIE2_INDEX=/project/tgu/resources/reference/$species/$assembly/index/bowtie2/$assembly.fa
+	PATH_ANNOTATION_GFF=/project/tgu/resources/reference/$species/$assembly/annotation/$assembly.transcripts.gff
+	PATH_DICTIONARY=/project/tgu/resources/reference/$species/$assembly/dict/$assembly.dict
+	for fastq_read1 in `ls --color=never $path_reads_directory/*.f*q*.gz | grep $pattern_read1`
 	do
  
 	        local fastq_read1=`basename $fastq_read1`
@@ -123,7 +143,7 @@ function submitJobs {
 		echo "`$NOW`setting up $ANALYSIS_NAME run" >> $setup_log
 		echo "`$NOW`read directory: $path_reads_directory" >> $setup_log
 		echo "`$NOW`fastq file 1: $fastq_read1" >> $setup_log
-		echo "`$NOW`fastq file 2: $fastq_read1" >> $setup_log
+		echo "`$NOW`fastq file 2: $fastq_read2" >> $setup_log
 		echo "`$NOW`reference file: $path_reference_fasta" >> $setup_log
 		echo "`$NOW`annotation file: $path_annotation_gff" >> $setup_log
 		echo "`$NOW`script directory: $path_scripts_dir" >> $setup_log
@@ -147,8 +167,10 @@ function submitJobs {
 		sed -i -e "s/#editDist0/$edit_dist0/" $script_path
 		sed -i -e "s/#libraryType/$library_type/" $script_path
 		sed -i -e "s/#pathOutputDir/${path_results_dir//\//\\/}/" $script_path
-		sed -i -e "s/#pathReferenceFastaNoExt/${path_reference_fasta_no_ext//\//\\/}/" $script_path
+		sed -i -e "s/#pathReferenceFasta/${path_reference_fasta//\//\\/}/" $script_path
 		sed -i -e "s/#pathAnnotation/${path_annotation_gff//\//\\/}/" $script_path
+		sed -i -e "s/#pathBowtie2Index/${path_bowtie2_index//\//\\/}/" $script_path
+		sed -i -e "s/#pathDictionary/${path_dictionary//\//\\/}/" $script_path
 		sed -i -e "s/#pathReadsDirectory/${path_reads_directory//\//\\/}/" $script_path
 		sed -i -e "s/#read1/$fastq_read1/" $script_path
 		sed -i -e "s/#read2/$fastq_read2/" $script_path
@@ -257,7 +279,7 @@ then
 		then
 
 	                #count fastq files in directory		
-		        FASTQ_COUNT=`ls --color=never $FASTQ_DIR/*.f*q* | wc -l`
+		        FASTQ_COUNT=`ls --color=never $FASTQ_DIR/*.f*q*.gz | wc -l`
 
 			if [ $FASTQ_COUNT -gt 0 ]
 			then
@@ -281,6 +303,10 @@ then
 				submitJobs $FASTQ_DIR \
 			                   $PATH_REFERENCE_FASTA \
 			                   $PATH_ANNOTATION_GFF \
+			                   $SPECIES \
+			                   $ASSEMBLY \
+			                   $PATH_BOWTIE2_INDEX \
+			                   $PATH_DICTIONARY \
 			                   $PATH_RUN_DIR \
 			                   $PATH_OUT_DIR \
 			                   $PATTERN_READ1 \

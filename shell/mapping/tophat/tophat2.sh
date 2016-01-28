@@ -31,24 +31,37 @@ TODAY=`date +%Y-%m-%d`
 THREADS=#threads
 
 #path to reference genome fasta file without gzip extension
-PATH_REFERENCE_FASTA_NO_EXT=#pathReferenceFastaNoExt
-REFERENCE_FASTA_BASENAME=`basename $PATH_REFERENCE_FASTA_NO_EXT`
+PATH_REFERENCE_FASTA=#pathReferenceFasta
+PATH_ANNOTATION_GFF=#pathAnnotation
+PATH_BOWTIE2_INDEX=#pathBowtie2Index
+PATH_DICTIONARY=#pathDictionary
+
+path_reference_fasta_no_ext=${PATH_REFERENCE_FASTA%.*}
+REFERENCE_FASTA_BASENAME=`basename $path_reference_fasta_no_ext`
+echo $"REFERENCE_FASTA_BASENAME= $REFERENCE_FASTA_BASENAME"
 
 echo "`${NOW}`copying reference and indices to temporary scratch space..."
-cp $PATH_REFERENCE_FASTA_NO_EXT.fa $TMPDIR/
-cp $PATH_REFERENCE_FASTA_NO_EXT.*.bt2 $TMPDIR/
-cp $PATH_REFERENCE_FASTA_NO_EXT.dict $TMPDIR/
+cp $PATH_REFERENCE_FASTA $TMPDIR/
+cp $PATH_BOWTIE2_INDEX*.bt2 $TMPDIR/
+cp $PATH_DICTIONARY $TMPDIR/
+cp $PATH_ANNOTATION_GFF $TMPDIR/
+
+echo "ECCOLO"
+ls $TMPDIR
 
 #path to annotation file index
 PATH_ANNOTATION_GFF=#pathAnnotation
+echo "PATH_ANNOTATION_GFF $PATH_ANNOTATION_GFF"
 PATH_ANNOTATION_NO_EXT=${PATH_ANNOTATION_GFF%.*}
+echo "PATH_ANNOTATION_NO_EXT $PATH_ANNOTATION_NO_EXT"
 ANNOTATION_BASENAME=`basename $PATH_ANNOTATION_NO_EXT`
+echo "ANNOTATION_BASENAME  $ANNOTATION_BASENAME"
 
-echo "`${NOW}`copying annotation to temporary scratch space..."
-cp $PATH_ANNOTATION_NO_EXT.gff $TMPDIR/
-cp $PATH_ANNOTATION_NO_EXT.fa* $TMPDIR/
-cp $PATH_ANNOTATION_NO_EXT.ver $TMPDIR/
-cp $PATH_ANNOTATION_NO_EXT.*.bt2 $TMPDIR/
+#echo "`${NOW}`copying annotation to temporary scratch space..."
+#cp $PATH_ANNOTATION_NO_EXT.gff $TMPDIR/
+#cp $PATH_ANNOTATION_NO_EXT.fa* $TMPDIR/
+#cp $PATH_ANNOTATION_NO_EXT.ver $TMPDIR/
+#cp $PATH_ANNOTATION_NO_EXT.*.bt2 $TMPDIR/
 
 #path to reads fastq file
 PATH_READS_DIRECTORY=#pathReadsDirectory
@@ -65,14 +78,17 @@ PATH_OUTPUT_DIR=#pathOutputDir
 MULT_READS=#multReads
 EDIT_DIST0=#editDist0
 LIBRARY_TYPE=#libraryType
+SINGLE_READS="F"
              
 echo "`${NOW}`copying reads to temporary scratch space..."
 #check if mate file exists
 if [ ! -f $PATH_READS_DIRECTORY/$FASTQ_READ2 ]
 then
 
-    echo "`{$NOW}`No mate file found. Skipped."   	
-    exit 1
+    #echo "`{$NOW}`No mate file found. Skipped."   	
+    echo "`{$NOW}` Single read run."   	
+    SINGLE_READS="T"
+    #exit 1
 
 fi
 
@@ -86,36 +102,38 @@ FASTQ_READ1_NO_EXT=${FASTQ_READ1%.*}
 echo "`${NOW}`$FASTQ_READ1_NO_EXT"
 gzip -c -d $PATH_READS_DIRECTORY/$FASTQ_READ1 | sed "s/^$/$STRING/g" > $TMPDIR/$FASTQ_READ1_NO_EXT
 
-FASTQ_READ2_NO_EXT=${FASTQ_READ2%.*}
-echo "`${NOW}`$FASTQ_READ2_NO_EXT"
-gzip -c -d $PATH_READS_DIRECTORY/$FASTQ_READ2 | sed "s/^$/$STRING/g" > $TMPDIR/$FASTQ_READ2_NO_EXT
-
 COUNT_READS1=`wc -l $TMPDIR/$FASTQ_READ1_NO_EXT|cut -f 1 -d ' '`
-COUNT_READS2=`wc -l $TMPDIR/$FASTQ_READ2_NO_EXT|cut -f 1 -d ' '`
 
-#check if number of lines is the same in mate files
-if [ "$COUNT_READS1" != "$COUNT_READS2" ]
-then
+if [[ "$SINGLE_READS" == "F" ]]; then
+	FASTQ_READ2_NO_EXT=${FASTQ_READ2%.*}
+	echo "`${NOW}`$FASTQ_READ2_NO_EXT"
+	gzip -c -d $PATH_READS_DIRECTORY/$FASTQ_READ2 | sed "s/^$/$STRING/g" > $TMPDIR/$FASTQ_READ2_NO_EXT
 
-    echo "`${NOW}`Unequal number of lines in the mate files. Skipped." 
-    exit 1
+	COUNT_READS2=`wc -l $TMPDIR/$FASTQ_READ2_NO_EXT|cut -f 1 -d ' '`
 
+	#check if number of lines is the same in mate files
+	if [ "$COUNT_READS1" != "$COUNT_READS2" ]
+	then
+
+	    echo "`${NOW}`Unequal number of lines in the mate files. Skipped." 
+	    exit 1
+
+	fi
+
+	INSTRUMENT=`head -n 1 $TMPDIR/$FASTQ_READ1_NO_EXT|awk -F ':' '{print $1}'`
+	grep "$INSTRUMENT" $TMPDIR/$FASTQ_READ1_NO_EXT|cut -f 1 -d ' ' > $TMPDIR/R1.names
+	grep "$INSTRUMENT" $TMPDIR/$FASTQ_READ2_NO_EXT|cut -f 1 -d ' ' > $TMPDIR/R2.names
+	SYNC=`diff R1.names R2.names|head -n 1`
+
+	#check if mate files are sincronized
+	if [ ! -z $SYNC ]
+	then
+
+	    echo "`${NOW}`Mate files are not syncronized. Skipped." 
+	    exit 1
+
+	fi
 fi
-
-INSTRUMENT=`head -n 1 $TMPDIR/$FASTQ_READ1_NO_EXT|awk -F ':' '{print $1}'`
-grep "$INSTRUMENT" $TMPDIR/$FASTQ_READ1_NO_EXT|cut -f 1 -d ' ' > $TMPDIR/R1.names
-grep "$INSTRUMENT" $TMPDIR/$FASTQ_READ2_NO_EXT|cut -f 1 -d ' ' > $TMPDIR/R2.names
-SYNC=`diff R1.names R2.names|head -n 1`
-
-#check if mate files are sincronized
-if [ ! -z $SYNC ]
-then
-
-    echo "`${NOW}`Mate files are not syncronized. Skipped." 
-    exit 1
-
-fi
-
 #######################
 #run TopHat alignment #
 #######################
@@ -143,7 +161,11 @@ then
 fi 
 
 echo "`${NOW}`running tophat alignment"
-tophat $SECONDARY_ALIGNMENT_ARG $EDIT_DIST0_ARG $LIBRARY_TYPE_ARG -p $THREADS --transcriptome-index=$TMPDIR/$ANNOTATION_BASENAME $TMPDIR/$REFERENCE_FASTA_BASENAME $TMPDIR/$FASTQ_READ1_NO_EXT $TMPDIR/$FASTQ_READ2_NO_EXT
+if [[ "$SINGLE_READS" == "F" ]]; then
+	tophat $SECONDARY_ALIGNMENT_ARG $EDIT_DIST0_ARG $LIBRARY_TYPE_ARG -p $THREADS --transcriptome-index=$TMPDIR/$ANNOTATION_BASENAME $TMPDIR/$REFERENCE_FASTA_BASENAME $TMPDIR/$FASTQ_READ1_NO_EXT $TMPDIR/$FASTQ_READ2_NO_EXT
+else
+	tophat $SECONDARY_ALIGNMENT_ARG $EDIT_DIST0_ARG $LIBRARY_TYPE_ARG -p $THREADS --transcriptome-index=$TMPDIR/$ANNOTATION_BASENAME $TMPDIR/$REFERENCE_FASTA_BASENAME $TMPDIR/$FASTQ_READ1_NO_EXT 
+fi
 
 echo "`${NOW}`merging accepted_hits.bam and unmapped.bam"
 
