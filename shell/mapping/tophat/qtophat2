@@ -119,7 +119,7 @@ function submitJobs {
 	chmod 660 $job_id_list
 
 	PATH_REFERENCE_FASTA=/project/tgu/resources/reference/$species/$assembly/fasta/$assembly.fa
-	PATH_BOWTIE2_INDEX=/project/tgu/resources/reference/$species/$assembly/index/bowtie2/$assembly.fa
+	PATH_BOWTIE2_INDEX=/project/tgu/resources/reference/$species/$assembly/index/bowtie2/$assembly
 	PATH_ANNOTATION_GFF=/project/tgu/resources/reference/$species/$assembly/annotation/$assembly.transcripts.gff
 	PATH_DICTIONARY=/project/tgu/resources/reference/$species/$assembly/dict/$assembly.dict
 	for fastq_read1 in `ls --color=never $path_reads_directory/*.f*q*.gz | grep $pattern_read1`

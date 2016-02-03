@@ -46,10 +46,11 @@ PATH_NON_OVERLAPPING_INTERVALS=none
 ##################
 
 #parse command line args
-while getopts "i:o:y:r:d:s:m:b:t:l:p:a:f:q:c:wh" option; do
+while getopts "i:n:o:y:r:d:s:m:b:t:l:p:a:f:q:c:wh" option; do
     case "$option" in
 	
 	i) PATH_INPUT_DIR="$OPTARG";;
+	n) PROJECT_NAME="$OPTARG";;
 	o) PATH_READ_GROUP_INFO="$OPTARG";;
 	y) PATH_READ_GROUP_INFO="$OPTARG";;
 	r) PATH_READ_GROUP_INFO="$OPTARG";;
@@ -237,8 +238,8 @@ if [[ "$METRIC" != "NONE" ]]; then
 fi
 
 #parse project name from input directory
-PROJECT=`echo $PATH_INPUT_DIR | perl -e 'while(<>){ chop(); @tokens=split(/\//); $retval=@tokens[@tokens-2]; print $retval;  }'`
-
+#PROJECT=`echo $PATH_INPUT_DIR | perl -e 'while(<>){ chop(); @tokens=split(/\//); $retval=@tokens[@tokens-2]; print $retval;  }'`
+PROJECT=$PROJECT_NAME
 PATH_OUT_DIR_PREFIX=$GROUPVOL_TGU/results/$PROJECT/mergetag
 mkdir -p $PATH_OUT_DIR_PREFIX
 chmod 770 $PATH_OUT_DIR_PREFIX
