@@ -571,7 +571,7 @@ then
 	genomeCoverageBed -bg -split -scale $SCALE -ibam $TMPDIR/$OUTPUT_BAM_PREFIX.filtered.renamed.bam -g $TMPDIR/chrom.sizes > $TMPDIR/$OUTPUT_BAM_PREFIX.bedGraph
 
 	echo "`${NOW}` translate bedGraph to BigWig"
-	/groupvol/cgi/software/ucsc/bedGraphToBigWig $TMPDIR/$OUTPUT_BAM_PREFIX.bedGraph $TMPDIR/chrom.sizes $TMPDIR/$OUTPUT_BAM_PREFIX.bw
+	/project/tgu/software/ucsc/bedGraphToBigWig $TMPDIR/$OUTPUT_BAM_PREFIX.bedGraph $TMPDIR/chrom.sizes $TMPDIR/$OUTPUT_BAM_PREFIX.bw
 	cp $TMPDIR/$OUTPUT_BAM_PREFIX.bw $PATH_OUTPUT_DIR
 
 fi

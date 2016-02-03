@@ -9,7 +9,7 @@
 #PBS -l place=excl
 
 #PBS -m ea
-#PBS -M cgi@imperial.ac.uk
+#PBS -M igf@imperial.ac.uk
 #PBS -j oe
 
 #PBS -q pqcgi

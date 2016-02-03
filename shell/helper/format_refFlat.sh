@@ -5,7 +5,7 @@
 #PBS -l walltime=72:00:00
 #PBS -l select=1:ncpus=1:mem=10gb
 
-#PBS -M cgi@imperial.ac.uk
+#PBS -M igf@imperial.ac.uk
 #PBS -m bea
 #PBS -j oe
 
@@ -13,7 +13,7 @@
 
 cp $GFF $TMPDIR/tmp.gff
 
-/groupvol/cgi/software/ucsc/ldHgGene -out=$TMPDIR/tmp.genePred null null $TMPDIR/tmp.gff
+/project/tgu/software/ucsc/ldHgGene -out=$TMPDIR/tmp.genePred null null $TMPDIR/tmp.gff
 cp $TMPDIR/tmp.genePred $RF.genePred
 chmod 550 $RF.genePred
 

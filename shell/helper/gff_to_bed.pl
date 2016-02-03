@@ -5,9 +5,6 @@
 use strict;
 use warnings;
 
-#$gff="/groupvol/cgi/resources/annotations/bowtie2_indexed/Homo_sapiens.GRCh37.74.gff";
-#$gene_bed="/groupvol/cgi/resources/annotations/eukaryote/human/GRCh37/GRCh37.74.gene.bed";
-
 if ($#ARGV != 1 ) {
 	print "usage: perl gff_to_bed.pl input_GFF_file output_bed_file\n";
 	exit;

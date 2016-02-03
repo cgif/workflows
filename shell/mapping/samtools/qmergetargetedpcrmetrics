@@ -9,7 +9,6 @@
 #CONFIGURATION
 ##############
 
-GROUPVOL_CGI=/groupvol/cgi
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 
 USAGE="$BASEDIR/qmergetargetedpcrmetrics.usage"

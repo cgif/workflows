@@ -18,7 +18,7 @@ BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 GROUP_VOL=/project/tgu
 QUEUE=pqcgi
 
-VCF=/groupvol/cgi/resources/verifyBamID/Omni25_genotypes_1525_samples_v2.b37.PASS.ALL.sites.vcf
+VCF=/project/tgu/resources/verifyBamID/Omni25_genotypes_1525_samples_v2.b37.PASS.ALL.sites.vcf
 TARGETED=FALSE
 
 USAGE="USAGE: qverifyBamID -i <input_dir> -n <project_name> -v <vcf_file> -t <targeted: TRUE or FALSE>"
@@ -45,7 +45,7 @@ then
 
 fi
 
-if [ $TARGETED == TRUE ] && [ VCF == /groupvol/cgi/resources/verifyBamID/Omni25_genotypes_1525_samples_v2.b37.PASS.ALL.sites.vcf ]
+if [ $TARGETED == TRUE ] && [ VCF == /project/tgu/resources/verifyBamID/Omni25_genotypes_1525_samples_v2.b37.PASS.ALL.sites.vcf ]
 then
 
     echo "For targeted sequencing, it is important to sub-select markers that are included in the targeted region"

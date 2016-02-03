@@ -3,7 +3,7 @@
 # creates and submits scripts to remove unmapped, unpaired, duplicated and low quality reads from bam files
 
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
-GROUP_VOL_CGI=/groupvol/cgi
+GROUP_VOL_TGU=/project/tgu
 
 #now
 NOW="date +%Y-%m-%d%t%T%t"
@@ -35,11 +35,11 @@ then
 
 fi
 
-mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/mergetag/$TODAY
-chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/mergetag/$TODAY
+mkdir -p $GROUP_VOL_TGU/analysis/$PROJECT/mergetag/$TODAY
+chmod 770 $GROUP_VOL_TGU/analysis/$PROJECT/mergetag/$TODAY
 
-mkdir -p $GROUP_VOL_CGI/results/$PROJECT/mergetag/$TODAY
-chmod 770 $GROUP_VOL_CGI/results/$PROJECT/mergetag/$TODAY
+mkdir -p $GROUP_VOL_TGU/results/$PROJECT/mergetag/$TODAY
+chmod 770 $GROUP_VOL_TGU/results/$PROJECT/mergetag/$TODAY
 
 for SAMPLE in `ls --color=never $INPUT_PATH`
 do
@@ -49,16 +49,16 @@ do
 
 	echo "`${NOW}`processing sample $SAMPLE..."
 
-	mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/mergetag/$TODAY/$SAMPLE
-	chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/mergetag/$TODAY/$SAMPLE
+	mkdir -p $GROUP_VOL_TGU/analysis/$PROJECT/mergetag/$TODAY/$SAMPLE
+	chmod 770 $GROUP_VOL_TGU/analysis/$PROJECT/mergetag/$TODAY/$SAMPLE
 
-	mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/mergetag/$TODAY/$SAMPLE/run
-	chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/mergetag/$TODAY/$SAMPLE/run
-	PATH_RUN_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/mergetag/$TODAY/$SAMPLE/run
+	mkdir -p $GROUP_VOL_TGU/analysis/$PROJECT/mergetag/$TODAY/$SAMPLE/run
+	chmod 770 $GROUP_VOL_TGU/analysis/$PROJECT/mergetag/$TODAY/$SAMPLE/run
+	PATH_RUN_DIR=$GROUP_VOL_TGU/analysis/$PROJECT/mergetag/$TODAY/$SAMPLE/run
 
-	mkdir -p $GROUP_VOL_CGI/results/$PROJECT/mergetag/$TODAY/$SAMPLE/
-	chmod 770 $GROUP_VOL_CGI/results/$PROJECT/mergetag/$TODAY/$SAMPLE/
-	RESULTS_DIR=$GROUP_VOL_CGI/results/$PROJECT/mergetag/$TODAY/$SAMPLE/
+	mkdir -p $GROUP_VOL_TGU/results/$PROJECT/mergetag/$TODAY/$SAMPLE/
+	chmod 770 $GROUP_VOL_TGU/results/$PROJECT/mergetag/$TODAY/$SAMPLE/
+	RESULTS_DIR=$GROUP_VOL_TGU/results/$PROJECT/mergetag/$TODAY/$SAMPLE/
 
         for BAM_PATH in `ls --color=never $INPUT_PATH/$SAMPLE/*.bam`
 	do

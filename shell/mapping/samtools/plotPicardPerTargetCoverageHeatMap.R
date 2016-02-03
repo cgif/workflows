@@ -5,8 +5,8 @@ input <- #input
 output <- #output
 
 #for testing
-#input <- "/groupvol/cgi/results/mergetag/project/aitman_fh/multisample/2013-06-12/aitman_fh.2013-06-12.perTargetCoverage.mean_coverage"
-#output <- "/groupvol/cgi/results/mergetag/project/aitman_fh/multisample/2013-06-12/aitman_fh.2013-06-12.perTargetCoverage.mean_coverage.png"
+#input <- "/project/tgu/results/mergetag/project/aitman_fh/multisample/2013-06-12/aitman_fh.2013-06-12.perTargetCoverage.mean_coverage"
+#output <- "/project/tgu/results/mergetag/project/aitman_fh/multisample/2013-06-12/aitman_fh.2013-06-12.perTargetCoverage.mean_coverage.png"
 
 target.names <- as.vector(read.delim(pipe(paste("head -n 1",input)), as.is=T, header=F))
 target.names <- target.names[c(2:length(target.names))]

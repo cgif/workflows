@@ -2,9 +2,9 @@ USAGE
 
 	qrins -i <reads_fastq_directory_path> 
 	      -t <read1_tag, default '_R1_'>
-              -p <read2_tag, default '_R2_'>
+          -p <read2_tag, default '_R2_'>
 	      -n <project_name>
-	      -a <actions_file, default /groupvol/cgi/src/pathogen/trunk/imsa/actions.txt>
+	      -a <actions_file>
 	      -w <bowtie_indexed_human_reference, default /ax3-cgi/resources/reference/eukaryote/human/hs37d5/bowtie_indexed/hs37d5>
 	      -o <blat_indexed_human_reference, default /ax3-cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.2bit>
 	      -O <ooc_file_for_human_reference, default /ax3-cgi/resources/reference/eukaryote/human/hs37d5/blat_indexed/hs37d5.11.ooc>

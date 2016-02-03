@@ -20,10 +20,10 @@ DISPERSION=maximum
 SUBFOLDER=""
 FILTERING_STATS=max
 FILTERING_CUTOFF=0.4
-GFF_PATH="/groupvol/cgi/resources/annotations/bowtie2_indexed/Homo_sapiens.GRCh37.75.gff"
-GO_PATH="/groupvol/cgi/resources/annotations/Homo_sapiens.GRCh37.75.GOterms.txt"
-GENE_GCCONT="/groupvol/cgi/resources/annotations/Homo_sapiens.GRCh37.75.gene_GCcontent.txt"
-GENE_LENGTH="/groupvol/cgi/resources/annotations/Homo_sapiens.GRCh37.75.gene_length.txt"
+GFF_PATH="/project/tgu/resources/reference/hsapiens/GRCh37/annotation/GRCh37.transcripts.gff"
+GO_PATH="/project/tgu/resources/reference/hsapiens/GRCh37/annotation/GRCh37.go.txt"
+GENE_GCCONT="/project/tgu/resources/reference/hsapiens/GRCh37/annotation/GRCh37.genegc.txt"
+GENE_LENGTH="/project/tgu/resources/reference/hsapiens/GRCh37/annotation/GRCh37.genelen.txt"
 
 #COMMAND LINE ARGS
 ####################

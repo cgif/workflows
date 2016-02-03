@@ -16,7 +16,6 @@ TODAY=`date +%Y-%m-%d`
 
 #returns absolute path to qfastqc directory, not changing your current directory
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
-GROUP_VOL_CGI=/groupvol/cgi
 GROUP_VOL_TGU=/project/tgu
 DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
 DEPLOYMENT_BASE_DIR=/www/html/report
@@ -31,7 +30,7 @@ USAGE="$BASEDIR/qbwape.usage"
 
 READS_PER_RUN=10000000
 THREADS_PER_RUN=2
-PATH_REFERENCE_FASTA=$GROUP_VOL_TGU/resources/reference/eukaryote/hsapiens/hs37d5/fasta/hs37d5.fa
+PATH_REFERENCE_FASTA=$GROUP_VOL_TGU/resources/reference/hsapiens/hs37d5/fasta/hs37d5.fa
 MULT_READS=F
 PATTERN_READ_1='_R1_'
 PATTERN_READ_2='_R2_'
@@ -319,17 +318,17 @@ if [ -d $INPUT_PATH ]; then
 	PATH_REFERENCE_IDX_DIR=$PATH_REFERENCE_PARENTDIR/index/bwa
 
     #create and set permissions for analysis project parent directory
-    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT
-    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT
+    mkdir -p $GROUP_VOL_TGU/analysis/$PROJECT
+    chmod 770 $GROUP_VOL_TGU/analysis/$PROJECT
 
-    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/bwa
-    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/bwa
+    mkdir -p $GROUP_VOL_TGU/analysis/$PROJECT/bwa
+    chmod 770 $GROUP_VOL_TGU/analysis/$PROJECT/bwa
 
-    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/bwa/$TODAY
-    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/bwa/$TODAY
+    mkdir -p $GROUP_VOL_TGU/analysis/$PROJECT/bwa/$TODAY
+    chmod 770 $GROUP_VOL_TGU/analysis/$PROJECT/bwa/$TODAY
 
-    mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/bwa/$TODAY/multisample
-    chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/bwa/$TODAY/multisample
+    mkdir -p $GROUP_VOL_TGU/analysis/$PROJECT/bwa/$TODAY/multisample
+    chmod 770 $GROUP_VOL_TGU/analysis/$PROJECT/bwa/$TODAY/multisample
 
     #create and set permissions for runs project parent directory
     mkdir -p $GROUP_VOL_TGU/runs/$PROJECT
@@ -351,7 +350,7 @@ if [ -d $INPUT_PATH ]; then
     mkdir -p $GROUP_VOL_TGU/results/$PROJECT/bwa/$TODAY
     chmod 770 $GROUP_VOL_TGU/results/$PROJECT/bwa/$TODAY
 
-    SUMMARY_RESULTS=$GROUP_VOL_CGI/analysis/$PROJECT/bwa/$TODAY/multisample
+    SUMMARY_RESULTS=$GROUP_VOL_TGU/analysis/$PROJECT/bwa/$TODAY/multisample
     SUMMARY_DEPLOYMENT=$DEPLOYMENT_BASE_DIR/project/$PROJECT/bwa/$TODAY
     ssh $DEPLOYMENT_SERVER "mkdir -p -m 775 $SUMMARY_DEPLOYMENT" > /dev/null 2>&1
     #make sure the project and analysis directory have group rwx and worl r-x access
@@ -378,8 +377,8 @@ if [ -d $INPUT_PATH ]; then
 			echo "`$NOW`processing directory $SAMPLE..."
 
 			#create and set permissions for analysis sample parent directory
-			mkdir -p $GROUP_VOL_CGI/analysis/$PROJECT/bwa/$TODAY/$SAMPLE
-			chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT/bwa/$TODAY/$SAMPLE
+			mkdir -p $GROUP_VOL_TGU/analysis/$PROJECT/bwa/$TODAY/$SAMPLE
+			chmod 770 $GROUP_VOL_TGU/analysis/$PROJECT/bwa/$TODAY/$SAMPLE
 
  			#create and set permissions for results sample parent directory
    			mkdir -p $GROUP_VOL_TGU/results/$PROJECT/bwa/$TODAY/$SAMPLE
@@ -390,7 +389,7 @@ if [ -d $INPUT_PATH ]; then
     			chmod 770 $GROUP_VOL_TGU/runs/$PROJECT/bwa/$TODAY/$SAMPLE
 
         	#...create output directory
-			PATH_ANALYSIS_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/bwa/$TODAY/$SAMPLE
+			PATH_ANALYSIS_DIR=$GROUP_VOL_TGU/analysis/$PROJECT/bwa/$TODAY/$SAMPLE
 			PATH_RUN_DIR=$GROUP_VOL_TGU/runs/$PROJECT/bwa/$TODAY/$SAMPLE 
 			PATH_OUT_DIR=$GROUP_VOL_TGU/results/$PROJECT/bwa/$TODAY/$SAMPLE      
 	

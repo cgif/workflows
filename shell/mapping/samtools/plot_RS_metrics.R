@@ -69,13 +69,13 @@ dev.off()
 
 #plot normalized read counts per chromosome
 
-if (ref.file != "/groupvol/cgi/resources/reference/eukaryote/human/GRCh37/GRCh37.fa") { stop() }
+if (ref.file != "/project/tgu/resources/reference/hsapiens/GRCh37/fasta/GRCh37.fa") { stop() }
 
 counts <- read.delim(counts.file, as.is=T, header=FALSE, skip=1)
 titles <- read.delim(counts.file, as.is=T, header=FALSE, nrows=1)
 colnames(counts) <- as.vector(as.matrix(titles))
 
-lengths.file <- "/groupvol/cgi/resources/annotations/Homo_sapiens.GRCh37.75.transcript_per_chrom_length"
+lengths.file <- "/project/tgu/resources/annotations/Homo_sapiens.GRCh37.75.transcript_per_chrom_length"
 transcript.length <- read.delim(lengths.file, row.names=1, as.is=T, header=FALSE, skip=1)
 
 sample.name <- counts$sample

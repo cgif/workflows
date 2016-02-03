@@ -9,7 +9,6 @@
 #CONFIGURATION
 ##############
 
-GROUPVOL_CGI=/groupvol/cgi
 GROUPVOL_TGU=/project/tgu
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
@@ -261,7 +260,7 @@ chmod 770 $PATH_RUN_DIR_PREFIX/$TODAY
 mkdir -p $PATH_RUN_DIR_PREFIX/$TODAY/multisample
 chmod 770 $PATH_RUN_DIR_PREFIX/$TODAY/multisample
 
-PATH_ANALYSIS_DIR_PREFIX=$GROUPVOL_CGI/analysis/$PROJECT/mergetag	
+PATH_ANALYSIS_DIR_PREFIX=$GROUP_VOL_TGU/analysis/$PROJECT/mergetag	
 mkdir -p $PATH_ANALYSIS_DIR_PREFIX
 chmod 770 $PATH_ANALYSIS_DIR_PREFIX
 

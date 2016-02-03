@@ -9,7 +9,6 @@ QUEUE=pqcgi
 USAGE="USAGE: qsplitfastq -i <path_to_fastq> -o <path_to_output_directory> -r <reads_per_chunk>"
 
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
-GROUP_VOL_CGI=/groupvol/cgi
 PATH_SCRIPTS_DIR=$PWD
 
 SPLITFASTQ_WALLTIME_HOURS=72

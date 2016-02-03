@@ -5,7 +5,7 @@
 #PBS -l walltime=72:00:00
 #PBS -l select=1:ncpus=1:mem=10gb
 
-#PBS -M cgi@imperial.ac.uk
+#PBS -M igf@imperial.ac.uk
 #PBS -m bea
 #PBS -j oe
 
@@ -13,7 +13,7 @@
 
 cp $GFF $TMPDIR/tmp.gff
 
-perl /groupvol/cgi/src/helper/make_gene_length.pl $TMPDIR
+perl /project/tgu/src/helper/make_gene_length.pl $TMPDIR
 
 cp $TMPDIR/tmp.length $LF
 chmod 770 $LF

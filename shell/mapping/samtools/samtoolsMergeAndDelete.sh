@@ -22,8 +22,6 @@ module load picard/1.85
 #now
 NOW="date +%Y-%m-%d%t%T%t"
 
-GROUP_VOL_CGI=/groupvol/cgi
-
 OUTPUT_PREFIX=outputPrefix
 PATH_OUTPUT_DIR=pathOutputDir
 INPUT_DIR=inputDir
