@@ -2,15 +2,13 @@ USAGE
 
 	qtophat2 -i <reads_fastq_directory_path> 
    		 -n <project_name>
-           	[-r <reference_fasta_file, default /project/tgu/resources/reference/hsapiens/GRCh37/fasta/GRCh37.fa>]
-		[-a <transcriptome_GFF_file, default /project/tgu/resources/reference/hsapiens/GRCh37/annotation/GRCh37.transcripts.gff>]
 		[-s <species, default hsapiens>]
-		[-b <assembly, default GRCh37>]
+		[-a <assembly, default GRCh37>]
            	[-t <read1_tag, default '_R1_'>]
            	[-p <read2_tag, default '_R2_'>]
            	[-m <report_multiple_alignments, default FALSE>]
                 [-d <realign_reads_with_edit_distance_above_0, default FALSE>]
-		[-l <library_type, default NONE, available options NONE, UNSTRANDED, STRANDED>] 
+		[-l <library_type, default fr-firststrand, available options fr-unstranded, fr-firststrand, fr-secondstrand>] 
                 
 	
 DESCRIPTION
@@ -23,19 +21,14 @@ DESCRIPTION
 
 	-n	Project name.
 
-	-r	Absolute path to the Bowtie indexed reference sequence fasta file,
-		default /project/tgu/resources/reference/hsapiens/GRCh37/fasta/GRCh37.fa
-
-	-a	Absolute path to the Bowtie indexed 
-		GTF 2.2 or GFF3 file of known transcripts
-		default /project/tgu/resources/reference/hsapiens/GRCh37/annotation/GRCh37.transcripts.gff
-
-	-s	Species [mmusculus|phix|hsapiens|rnorvegicus]
-		default hsapiens
-
-	-b	Assembly
-		default GRCh37
-
+	-s	Species, default hsapiens
+                The reference directory structure for the specified species needs to 
+                exist in /project/tgu/resources/reference.
+		
+	-b	Assembly, default GRCh37
+                The reference files for the specified assembly need to 
+                exist in /project/tgu/resources/reference/<species>  
+	
 	-t	The tag of the fastq file containing read1
 		sequences, default is  _R1_.
 
@@ -47,11 +40,13 @@ DESCRIPTION
 	-d	Map every read in all the mapping steps (transcriptome, genome, and splice variants detected by TopHat) unless alignment is perfect. 
                 Report the best possible alignment. By default TopHat will not try to realign reads already mapped in earlier steps with edit distance <= 2. 
 
-	-l 	Take into account RNA-seq library type. UNSTRANDED corresponds to TopHat option fr-unstranded and means that reads from the left-most end of 
-		the fragment (in transcript coordinates) map to the transcript strand, and the right-most end maps to the opposite strand (recommended for 
-		the TruSeq RNA Sample Prep Kit). STRANDED corresponds to TopHat option fr-firststrand and enforces the rule that the right-most end of the 
-		fragment (in transcript coordinates) is the first sequenced (or only sequenced for single-end reads). Equivalently, it is assumed that only 
-		the strand generated during first strand synthesis is sequenced (recommended for the TruSeq RNA Stranded Sample Prep Kit).
+	-l 	The RNA-seq library type. fr-unstranded and means that reads from the left-most end of 
+		the fragment (in transcript coordinates) map to the transcript strand, and the right-most 
+                end maps to the opposite strand. Use this option for the TruSeq non-stranded RNA libraries. 
+                fr-firststrand enforces the rule that the right-most end of the	fragment (in transcript coordinates)
+                is the first sequenced (or only sequenced for single-end reads). Equivalently, it is assumed
+                that only the strand generated during first strand synthesis is sequenced. Use this option for Illumina
+                TruSeq stranded RNA libraries.
 
 	-h	Display help and exit.
 

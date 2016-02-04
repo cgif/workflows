@@ -13,7 +13,6 @@ NOW="date +%Y-%m-%d%t%T%t"
 
 #today
 TODAY=`date +%Y-%m-%d`
-#TODAY=2015-09-09
 
 #returns absolute path to qfastqc directory, not changing your current directory
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
@@ -22,10 +21,10 @@ DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
 DEPLOYMENT_BASE_DIR=/www/html/report
 
 QUEUE=pqcgi
+THREADS_PER_RUN=16
 WALLTIME_HOURS_PER_RUN=72
-
-#trhreads per run
-THREADS_PER_RUN=4
+MEMORY_PER_RUN=20gb
+TMPSPACE_PER_RUN=25gb
 
 USAGE="$BASEDIR/qtophat2.usage"
 
@@ -40,7 +39,7 @@ PATTERN_READ1='_R1_'
 PATTERN_READ2='_R2_'
 MULT_READS=F
 EDIT_DIST0=F
-LIBRARY_TYPE=NONE
+LIBRARY_TYPE=fr-firststrand
 
 SPECIES=hsapiens
 ASSEMBLY=GRCh37
@@ -51,16 +50,12 @@ PATH_DICTIONARY=/project/tgu/resources/reference/$SPECIES/$ASSEMBLY/dict/$ASSEMB
 
 #COMMAND LINE ARGS
 ##################
-while getopts "i:r:a:s:b:I:D:t:p:n:l:hmd" option; do
+while getopts "i:s:a:t:p:n:l:hmd" option; do
     case "$option" in
 	
 	i) INPUT_PATH="$OPTARG";;
 	s) SPECIES="$OPTARG";;
-	b) ASSEMBLY="$OPTARG";;
-	r) PATH_REFERENCE_FASTA="$OPTARG";;
-	a) PATH_ANNOTATION_GFF="$OPTARG";;
-	I) PATH_BOWTIE2_INDEX="$OPTARG";;
-	D) PATH_DICTIONARY="$OPTARG";;
+	a) ASSEMBLY="$OPTARG";;
 	t) PATTERN_READ1="$OPTARG";;
 	p) PATTERN_READ2="$OPTARG";;
 	n) PROJECT="$OPTARG";;
@@ -74,8 +69,6 @@ esac
 done
 
 if [ -z $INPUT_PATH ] || \
-    [ -z $SPECIES ] || \
-    [ -z $ASSEMBLY ] || \
     [ -z $PATH_REFERENCE_FASTA ] || \
     [ -z $PATH_ANNOTATION_GFF ] || \
     [ -z $PATH_BOWTIE2_INDEX ] || \
@@ -86,6 +79,32 @@ if [ -z $INPUT_PATH ] || \
     then
     cat $USAGE
     exit 1
+fi
+
+if [ -n $SPECIES ] && [ -n $ASSEMBLY ]
+then
+	if [ ! -d /project/tgu/resources/reference/$SPECIES ]
+	then
+		echo "Reference for $SPECIES does not exist in /project/tgu/resources/reference."
+		echo "Create reference and try again."
+		exit 1
+	fi
+
+	if [ ! -d /project/tgu/resources/reference/$SPECIES ]
+	then
+		echo "Assembly $ASSEMBLY does not exist for $SPECIES in /project/tgu/resources/reference/$SPECIES."
+		echo "Create reference and try again."
+		exit 1
+	fi
+
+	PATH_REFERENCE_FASTA=/project/tgu/resources/reference/$SPECIES/$ASSEMBLY/fasta/$ASSEMBLY.fa
+	PATH_BOWTIE2_INDEX=/project/tgu/resources/reference/$SPECIES/$ASSEMBLY/index/bowtie2/$ASSEMBLY
+	PATH_ANNOTATION_GFF=/project/tgu/resources/reference/$SPECIES/$ASSEMBLY/annotation/$ASSEMBLY.transcripts.gff
+	PATH_DICTIONARY=/project/tgu/resources/reference/$SPECIES/$ASSEMBLY/dict/$ASSEMBLY.dict
+
+else
+	echo "Species AND assembly have to be specified."
+	cat $USAGE
 fi
 
 
@@ -118,10 +137,6 @@ function submitJobs {
 	echo -n "" > $job_id_list
 	chmod 660 $job_id_list
 
-	PATH_REFERENCE_FASTA=/project/tgu/resources/reference/$species/$assembly/fasta/$assembly.fa
-	PATH_BOWTIE2_INDEX=/project/tgu/resources/reference/$species/$assembly/index/bowtie2/$assembly
-	PATH_ANNOTATION_GFF=/project/tgu/resources/reference/$species/$assembly/annotation/$assembly.transcripts.gff
-	PATH_DICTIONARY=/project/tgu/resources/reference/$species/$assembly/dict/$assembly.dict
 	for fastq_read1 in `ls --color=never $path_reads_directory/*.f*q*.gz | grep $pattern_read1`
 	do
  
@@ -162,6 +177,8 @@ function submitJobs {
 		sed -i -e "s/#picardVersion/$PICARD_VERSION/" $script_path
 		sed -i -e "s/#walltimeHours/$walltime_hours_per_run/" $script_path
 		sed -i -e "s/#threads/$threads_per_run/" $script_path
+		sed -i -e "s/#memory/$MEMORY_PER_RUN/" $script_path
+		sed -i -e "s/#tmpspc/$TMPSPACE_PER_RUN/" $script_path		
 		sed -i -e "s/#outputPrefix/$output_prefix/" $script_path
 		sed -i -e "s/#multReads/$mult_reads/" $script_path
 		sed -i -e "s/#editDist0/$edit_dist0/" $script_path
