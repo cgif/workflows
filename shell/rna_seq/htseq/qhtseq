@@ -30,7 +30,7 @@ QUEUE=pqcgi
 WALLTIME_HOURS_PER_RUN=72
 
 #default parameters
-PATH_ANNOTATION_GFF=$GROUPVOL_CGI/resources/annotations/bowtie2_indexed/Homo_sapiens.GRCh37.75.gff
+PATH_ANNOTATION_GFF=/project/tgu/resources/reference/hsapiens/GRCh37/annotation/GRCh37.transcripts.gff
 FEATURE=gene_id
 STRAND=no
 
@@ -38,10 +38,11 @@ STRAND=no
 ##################
 
 #parse command line args
-while getopts "i:g:f:s:h" option; do
+while getopts "i:n:g:f:s:h" option; do
     case "$option" in
 	
 	i) PATH_INPUT_DIR="$OPTARG";;
+	n) PROJECT_NAME="$OPTARG";;
 	g) PATH_ANNOTATION_GFF="$OPTARG";;
 	f) FEATURE="$OPTARG";;
 	s) STRAND="$OPTARG";;
@@ -74,8 +75,8 @@ then
 fi
 
 #parse project name from input directory
-PROJECT=`echo $PATH_INPUT_DIR | perl -e 'while(<>){ chop(); @tokens=split(/\//); $retval=@tokens[@tokens-3]; print $retval;  }'`
-
+#PROJECT=`echo $PATH_INPUT_DIR | perl -e 'while(<>){ chop(); @tokens=split(/\//); $retval=@tokens[@tokens-3]; print $retval;  }'`
+PROJECT=$PROJECT_NAME
 ########################
 
 echo "`${NOW}`Counting reads from files in $PATH_INPUT_DIR"

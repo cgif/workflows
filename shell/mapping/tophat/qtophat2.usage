@@ -25,7 +25,7 @@ DESCRIPTION
                 The reference directory structure for the specified species needs to 
                 exist in /project/tgu/resources/reference.
 		
-	-b	Assembly, default GRCh37
+	-a	Assembly, default GRCh37
                 The reference files for the specified assembly need to 
                 exist in /project/tgu/resources/reference/<species>  
 	

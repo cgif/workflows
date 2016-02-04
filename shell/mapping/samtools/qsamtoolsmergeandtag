@@ -33,36 +33,33 @@ TODAY=`date +%Y-%m-%d`
 QUEUE=pqcgi
 
 #default parameters
-ORGANISM=hsapiens
+SPECIES=hsapiens
 ASSEMBLY=GRCh37
 METRIC=NONE
 MARK_DUPLICATES=TRUE
 METRIC_LEVEL=S
 SAMPLE_STATUS=none
-MAKE_BW=FALSE
+MAKE_BW=TRUE
 PATH_NON_OVERLAPPING_INTERVALS=none
 
 #COMMAND LINE ARGS
 ##################
 
 #parse command line args
-while getopts "i:n:o:y:r:d:s:m:b:t:l:p:a:f:q:c:wh" option; do
+while getopts "i:n:s:a:r:d:s:m:b:t:l:q:c:wh" option; do
     case "$option" in
 	
 	i) PATH_INPUT_DIR="$OPTARG";;
 	n) PROJECT_NAME="$OPTARG";;
-	o) PATH_READ_GROUP_INFO="$OPTARG";;
-	y) PATH_READ_GROUP_INFO="$OPTARG";;
+	s) SPECIES="$OPTARG";;
+	a) ASSEMBLY="$OPTARG";;
 	r) PATH_READ_GROUP_INFO="$OPTARG";;
 	d) MARK_DUPLICATES="$OPTARG";;
-	s) PATH_HEADER="$OPTARG";;
+#	s) PATH_HEADER="$OPTARG";;
 	m) METRIC="$OPTARG";;
 	b) PATH_BAIT_AMPLICON_INTERVALS="$OPTARG";;
 	t) PATH_TARGET_INTERVALS="$OPTARG";;
 	l) PATH_NON_OVERLAPPING_INTERVALS="$OPTARG";;
-	p) PATH_RIBOSOMAL_RNA_INTERVALS="$OPTARG";;
-	a) PATH_ANNOTATION_REFFLAT="$OPTARG";;
-	f) PATH_REFERENCE_FASTA="$OPTARG";;
 	q) METRIC_LEVEL="$OPTARG";;
 	c) SAMPLE_STATUS="$OPTARG";;
 	w) MAKE_BW=TRUE;;
@@ -72,31 +69,32 @@ while getopts "i:n:o:y:r:d:s:m:b:t:l:p:a:f:q:c:wh" option; do
 esac
 done
 
-#set default values
-if [ -z $PATH_BAIT_AMPLICON_INTERVALS ]
-then
-	PATH_BAIT_AMPLICON_INTERVALS=$GROUPVOL_TGU/resources/reference/$ORGANISM/$ASSEMBLY/target/agilent_sureselect_human_all_exon_v5_utr.probes.intList
-fi
 
-if [ -z $PATH_TARGET_INTERVALS ]
-then
-	PATH_TARGET_INTERVALS=$GROUPVOL_TGU/resources/reference/$ORGANISM/$ASSEMBLY/target/agilent_sureselect_human_all_exon_v5_utr.targets.intList
-fi
 
-if [ -z $PATH_RIBOSOMAL_RNA_INTERVALS ]
+if [ -n $SPECIES ] && [ -n $ASSEMBLY ]
 then
+
+	if [ ! -d /project/tgu/resources/reference/$SPECIES ]
+	then
+		echo "Reference for $SPECIES does not exist in /project/tgu/resources/reference."
+		echo "Create reference and try again."
+		exit 1
+	fi
+
+	if [ ! -d /project/tgu/resources/reference/$SPECIES ]
+	then
+		echo "Assembly $ASSEMBLY does not exist for $SPECIES in /project/tgu/resources/reference/$SPECIES."
+		echo "Create reference and try again."
+		exit 1
+	fi
+
 	PATH_RIBOSOMAL_RNA_INTERVALS=$GROUPVOL_TGU/resources/reference/$ORGANISM/$ASSEMBLY/annotation/$ASSEMBLY.rrna.intList
-fi
-
-if [ -z $PATH_ANNOTATION_REFFLAT ]
-then
 	PATH_ANNOTATION_REFFLAT=$GROUPVOL_TGU/resources/reference/$ORGANISM/$ASSEMBLY/annotation/$ASSEMBLY.genes.refFlat
+	PATH_REFERENCE_FASTA=$GROUPVOL_TGU/resources/reference/eukaryote/$ORGANISM/$ASSEMBLY/fasta/$ASSEMBLY.fa
+
 fi
 
-if [ -z $PATH_REFERENCE_FASTA ]
-then
-	PATH_REFERENCE_FASTA=$GROUPVOL_TGU/resources/reference/eukaryote/$ORGANISM/$ASSEMBLY/fasta/$ASSEMBLY.fa
-fi
+
 
 # check for presence of required input parameters
 if [ -z $PATH_INPUT_DIR ] || \
