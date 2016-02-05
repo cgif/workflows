@@ -90,7 +90,7 @@ then
 
 	PATH_RIBOSOMAL_RNA_INTERVALS=$GROUPVOL_TGU/resources/reference/$ORGANISM/$ASSEMBLY/annotation/$ASSEMBLY.rrna.intList
 	PATH_ANNOTATION_REFFLAT=$GROUPVOL_TGU/resources/reference/$ORGANISM/$ASSEMBLY/annotation/$ASSEMBLY.genes.refFlat
-	PATH_REFERENCE_FASTA=$GROUPVOL_TGU/resources/reference/eukaryote/$ORGANISM/$ASSEMBLY/fasta/$ASSEMBLY.fa
+	PATH_REFERENCE_FASTA=$GROUPVOL_TGU/resources/reference/$ORGANISM/$ASSEMBLY/fasta/$ASSEMBLY.fa
 
 fi
 
@@ -118,12 +118,6 @@ then
         exit 1
 fi
 
-if [[ ! -f $PATH_REFERENCE_FASTA ]]
-then
-        echo "`$NOW`ERROR: reference sequence fasta file does not exist: $PATH_REFERENCE_FASTA"
-        exit 1
-fi
-
 REFERENCE_NAME=`basename $PATH_REFERENCE_FASTA .gz`
 REFERENCE_NAME=`basename $REFERENCE_NAME .fa`
 
@@ -144,14 +138,6 @@ if [[ -z "$PATH_HEADER" ]]
 then
 PATH_HEADER=$PATH_REFERENCE_DICT
 fi
-
-if [[ ! -f $PATH_REFERENCE_DICT ]]
-then
-        echo "`$NOW`ERROR: reference sequence dictionary file does not exist: $PATH_REFERENCE_DICT"
-        exit 1
-fi
-
-
 
 if [ "$MARK_DUPLICATES" != "TRUE" ] && \
    [ "$MARK_DUPLICATES" != "FALSE" ]
@@ -224,11 +210,7 @@ if [[ "$METRIC" != "NONE" ]]; then
 		echo "`${NOW}`generating Targeted PCR metrics from merged file"
 		echo "`${NOW}`using amplicon coordinates: $PATH_BAIT_AMPLICON_INTERVALS"
 		echo "`${NOW}`using target coordinates  : $PATH_TARGET_INTERVALS"
-	elif [[ "$METRIC" == "RS" ]]; then
-		if [[ ! -f $PATH_RIBOSOMAL_RNA_INTERVALS ]] || [[ ! -f $PATH_ANNOTATION_REFFLAT ]]; then
-			echo "`${NOW}`ribosomal RNA coordinates file or annotation refFlat file is missing"
-			exit 1
-		fi
+	
 	echo "`${NOW}`generating RNA-seq metrics from merged file"
 		echo "`${NOW}`using ribosomal RNA coordinates: $PATH_RIBOSOMAL_RNA_INTERVALS"
 		echo "`${NOW}`using annotation refFlat file: $PATH_ANNOTATION_REFFLAT"
@@ -786,6 +768,6 @@ echo -n "" > $LOG_OUTPUT_PATH
 chmod 660 $LOG_OUTPUT_PATH
 
 echo "`$NOW`submitting last summary script: $SCRIPT_PATH"
-SUM_JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH -j oe -W depend=$METRIC_MERGING_DEPENDECIES -M cgi@imperial.ac.uk $SCRIPT_PATH` 
+SUM_JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH -j oe -W depend=$METRIC_MERGING_DEPENDECIES -M igf@imperial.ac.uk $SCRIPT_PATH` 
 echo "`$NOW`job ID: $SUM_JOB_ID"
 echo "`$NOW`progress and summary can be seen at $DEPLOYMENT_SERVER/report/project/$PROJECT/mergetag/$TODAY"
