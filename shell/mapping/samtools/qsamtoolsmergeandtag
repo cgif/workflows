@@ -88,9 +88,9 @@ then
 		exit 1
 	fi
 
-	PATH_RIBOSOMAL_RNA_INTERVALS=$GROUPVOL_TGU/resources/reference/$ORGANISM/$ASSEMBLY/annotation/$ASSEMBLY.rrna.intList
-	PATH_ANNOTATION_REFFLAT=$GROUPVOL_TGU/resources/reference/$ORGANISM/$ASSEMBLY/annotation/$ASSEMBLY.genes.refFlat
-	PATH_REFERENCE_FASTA=$GROUPVOL_TGU/resources/reference/$ORGANISM/$ASSEMBLY/fasta/$ASSEMBLY.fa
+	PATH_RIBOSOMAL_RNA_INTERVALS=$GROUPVOL_TGU/resources/reference/$SPECIES/$ASSEMBLY/annotation/$ASSEMBLY.rrna.intList
+	PATH_ANNOTATION_REFFLAT=$GROUPVOL_TGU/resources/reference/$SPECIES/$ASSEMBLY/annotation/$ASSEMBLY.transcripts.refFlat
+	PATH_REFERENCE_FASTA=$GROUPVOL_TGU/resources/reference/$SPECIES/$ASSEMBLY/fasta/$ASSEMBLY.fa
 
 fi
 
@@ -241,7 +241,7 @@ chmod 770 $PATH_RUN_DIR_PREFIX/$TODAY
 mkdir -p $PATH_RUN_DIR_PREFIX/$TODAY/multisample
 chmod 770 $PATH_RUN_DIR_PREFIX/$TODAY/multisample
 
-PATH_ANALYSIS_DIR_PREFIX=$GROUP_VOL_TGU/analysis/$PROJECT/mergetag	
+PATH_ANALYSIS_DIR_PREFIX=$GROUPVOL_TGU/analysis/$PROJECT/mergetag	
 mkdir -p $PATH_ANALYSIS_DIR_PREFIX
 chmod 770 $PATH_ANALYSIS_DIR_PREFIX
 
@@ -473,7 +473,7 @@ do
 		sed -i -e "s/metricLevel/$METRIC_LEVEL/" $SCRIPT_PATH
 		sed -i -e "s/collectMetric/$METRIC/" $SCRIPT_PATH
 		sed -i -e "s/ucscAssemblyID/$UCSC_ASSEMBLY_ID/" $SCRIPT_PATH
-sed -i -e "s/ucscOrganismName/$UCSC_ORGANISM_NAME/" $SCRIPT_PATH
+		sed -i -e "s/ucscOrganismName/$UCSC_ORGANISM_NAME/" $SCRIPT_PATH
 
         	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.pl/\.log/g'`
 		echo -n "" > $LOG_OUTPUT_PATH
