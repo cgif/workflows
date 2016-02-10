@@ -8,7 +8,7 @@
 NOW="date +%Y-%m-%d%t%T%t"
 
 
-GROUP_VOL_CGI=/groupvol/cgi
+GROUP_VOL_TGU=/project/tgu
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 
 #path to text file containing usage information
@@ -50,7 +50,7 @@ then
         exit 1
 fi
 
-ANALYSIS_DIR_PATH="/groupvol/cgi/analysis/$PROJECT_TAG/gatk2/$RUN_DATE"
+ANALYSIS_DIR_PATH="$GROUP_VOL_TGU/analysis/$PROJECT_TAG/gatk2/$RUN_DATE"
 
 #check if input directory exists
 if [[ ! -e $ANALYSIS_DIR_PATH ]]

@@ -5,7 +5,7 @@
 #PBS -l walltime=1:00:00
 #PBS -l select=1:ncpus=1:mem=5gb
 
-#PBS -M cgi@imperial.ac.uk
+#PBS -M igf@imperial.ac.uk
 #PBS -m ea
 #PBS -j oe
 
@@ -14,7 +14,7 @@
 # load modules
 module load java/sun-jdk-1.6.0_19
 
-NXTGENUTILS_HOME=/groupvol/cgi/bin/nxtgen-utils-0.12.3
+NXTGENUTILS_HOME=/project/tgu/bin/nxtgen-utils-0.12.3
 
 JAVA_XMX=4G
 

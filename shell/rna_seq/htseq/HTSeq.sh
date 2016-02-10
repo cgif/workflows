@@ -44,9 +44,3 @@ chmod 0660 $htseq_dir/*
 
 ls -l 
 
-
-
-
-
-
-

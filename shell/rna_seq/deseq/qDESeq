@@ -24,10 +24,10 @@ SUBFOLDER=""
 DISPERSION=maximum
 FILTERING_CUTOFF=0
 FILTERING_STATS=max
-GFF_PATH="/groupvol/cgi/resources/annotations/bowtie2_indexed/Homo_sapiens.GRCh37.75.gff"
-GO_PATH="/groupvol/cgi/resources/annotations/Homo_sapiens.GRCh37.75.GOterms.txt"
-GENE_GCCONT="/groupvol/cgi/resources/annotations/Homo_sapiens.GRCh37.75.gene_GCcontent.txt"
-GENE_LENGTH="/groupvol/cgi/resources/annotations/Homo_sapiens.GRCh37.75.gene_length.txt"
+GFF_PATH="/project/tgu/resources/reference/hsapiens/GRCh37/annotation/GRCh37.transcripts.gff"
+GO_PATH="/project/tgu/resources/reference/hsapiens/GRCh37/annotation/GRCh37.go.txt" 
+GENE_GCCONT="/project/tgu/resources/reference/hsapiens/GRCh37/annotation/GRCh37.genegc.txt"
+GENE_LENGTH="/project/tgu/resources/reference/hsapiens/GRCh37/annotation/GRCh37.genelen.txt"
 PAIRED=FALSE
 
 
@@ -39,7 +39,7 @@ while getopts "i:f:tn:o:d:s:u:a:g:c:l:p:h" option; do
 	i) COUNTS_TABLE="$OPTARG";;
 	f) DESIGN_FILE="$OPTARG";;
 	t) HTSEQ=T;;
-        n) PROJECT="$OPTARG";;
+    n) PROJECT="$OPTARG";;
 	o) SUBFOLDER="$OPTARG";;
 	d) DISPERSION="$OPTARG";;
 	s) FILTERING_STATS="$OPTARG";;

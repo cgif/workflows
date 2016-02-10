@@ -4,20 +4,19 @@
 # need to provide analysis date and project as variables
 
 # analysis directory path structure 
-# /groupvol/cgi/analysis/<project>/gatk2/<analysis_date>
+# /project/tgu/analysis/<project>/gatk2/<analysis_date>
 
-#e.g /groupvol/cgi/analysis/aitman_raremendelian/gatk2/2014-02-18
+#e.g /project/tgu/analysis/aitman_raremendelian/gatk2/2014-02-18
 
 # results analysis structure
-# /groupvol/cgi/results/<project>/gatk2/<analysis_date>
+# /project/tgu/results/<project>/gatk2/<analysis_date>
 
-#e.g /groupvol/cgi/results/aitman_raremendelian/gatk2/2014-02-18
+#e.g /project/tgu/results/aitman_raremendelian/gatk2/2014-02-18
 
 #now
 NOW="date +%Y-%m-%d%t%T%t"
 
 
-GROUP_VOL_CGI=/groupvol/cgi
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 
 #path to text file containing usage information
@@ -58,8 +57,8 @@ then
         exit 1
 fi
 
-ANALYSIS_DIR="/groupvol/cgi/analysis/$PROJECT_TAG/gatk2/$RUN_DATE"
-RESULTS_DIR="/groupvol/cgi/results/$PROJECT_TAG/gatk2/$RUN_DATE"
+ANALYSIS_DIR="/project/tgu/analysis/$PROJECT_TAG/gatk2/$RUN_DATE"
+RESULTS_DIR="/project/tgu/results/$PROJECT_TAG/gatk2/$RUN_DATE"
 
 #check that directories exist
 if [[ ! -e $ANALYSIS_DIR ]]

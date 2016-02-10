@@ -5,7 +5,7 @@
 #PBS -l walltime=1:00:00
 #PBS -l select=1:ncpus=1:mem=800mb
 
-#PBS -M cgi@imperial.ac.uk
+#PBS -M igf@imperial.ac.uk
 #PBS -m ea
 #PBS -j oe
 
@@ -17,7 +17,7 @@ NOW="date +%Y-%m-%d%t%T%t"
 module load java/#javaVersion
 
 NXTGENUTILS_VERSION=#nxtGenUtilsVersion
-NXTGENUTILS_HOME=/groupvol/cgi/bin/nxtgen-utils-${NXTGENUTILS_VERSION}
+NXTGENUTILS_HOME=/project/tgu/bin/nxtgen-utils-${NXTGENUTILS_VERSION}
 
 
 RECALIBRATION_REPORTS="#recalibrationReports"
