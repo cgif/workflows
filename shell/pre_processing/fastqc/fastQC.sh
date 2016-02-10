@@ -86,7 +86,7 @@ elif [[ "$SINGLE_READS" == "F" ]]; then
 			echo "`${NOW}`running FastQC..."
 			$FASTQC_HOME/bin/fastqc -o $TMPDIR/qc --noextract --nogroup  $TMPDIR/$FASTQ_READ1
 			$FASTQC_HOME/bin/fastqc -o $TMPDIR/qc --noextract --nogroup  $TMPDIR/$FASTQ_READ2
-
+			
 		fi	
 	fi
 else
@@ -96,6 +96,16 @@ else
 
 fi
 
+# if Undetermined fastq file
+if [[ $FASTQ_READ1 == *"Undetermined"* ]]
+then 
+#try to find the correct barcode
+	echo "Undetermined file"
+	barcodes=`echo $FASTQ_READ1 | perl -pe 's/_R1//g'`
+	gunzip -c $TMPDIR/$FASTQ_READ1 | awk 'NR == 1 || (NR-1) % 4 == 0' | cut -d":" -f10 | sort -r | uniq -c | sort -nrk1,1 > $TMPDIR/qc/${barcodes}.txt
+	#copies barcode file in the results directory
+	cp $TMPDIR/qc/${barcodes}.txt $PATH_QC_REPORT_DIR
+fi
 
 #copy results to output folder
 echo "`${NOW}`copying zipped QC report to $PATH_QC_REPORT_DIR..."
@@ -111,6 +121,18 @@ do
         echo "`${NOW}`uncompressing QC report zip archive $ZIP..."
 	unzip $ZIP
 	REPORT_DIR=`basename $ZIP .zip`	
+	
+	#add to the report the link to the list of samples
+	sed -i 's/<ul>/<ul><li><a href=\"\.\.\/\.\.\/\">Home<\/a><\/li>/g' $REPORT_DIR/fastqc_report.html
+	#remove the semaphore images from the report
+	sed -i 's/<img src=\"[^"]*" alt=\"\[PASS\]\"\/>\|<img src=\"[^"]*" alt=\"\[OK\]\"\/>\|<img src=\"[^"]*" alt=\"\[WARN\]\"\/>\|<img src=\"[^"]*" alt=\"\[WARNING\]\"\/>\|<img src=\"[^"]*" alt=\"\[FAIL\]\"\/>//g' $REPORT_DIR/fastqc_report.html
+	#if udetermined fastq file add a link in the report to the files listing possible indexes
+	if [[ $ZIP == *"Undetermined"* ]]
+	then
+		#copies barcode file in the report directory
+		cp $TMPDIR/qc/${barcodes}.txt $REPORT_DIR
+		sed -i 's/<\/ul>/<li><a href=\"'${barcodes}'\.txt">Barcode<\/a><\/li><\/ul>/g' $REPORT_DIR/fastqc_report.html
+	fi
 		
 	echo "`${NOW}`deploying $REPORT_DIR report directory to $DEPLOYMENT_SERVER:$DEPLOYMENT_PATH..."
 	scp -r $TMPDIR/$REPORT_DIR $DEPLOYMENT_SERVER:$DEPLOYMENT_PATH/  < /dev/null 
@@ -118,14 +140,10 @@ do
 	ssh $DEPLOYMENT_SERVER "chmod 775 $DEPLOYMENT_PATH/$REPORT_DIR/*"  < /dev/null
 	ssh $DEPLOYMENT_SERVER "chmod 664 $DEPLOYMENT_PATH/$REPORT_DIR/*/*"  < /dev/null
 
-    echo "`${NOW}`copying unzipped QC report to $PATH_QC_REPORT_DIR/$REPORT_DIR"
+        echo "`${NOW}`copying unzipped QC report to $PATH_QC_REPORT_DIR/$REPORT_DIR"
 	mkdir -p -m 770 $PATH_QC_REPORT_DIR/$REPORT_DIR
 	cp $TMPDIR/$REPORT_DIR/*.txt  $PATH_QC_REPORT_DIR/$REPORT_DIR
 	chmod 660 $PATH_QC_REPORT_DIR/$REPORT_DIR/*.txt
 
 done
-
-
-
-  
 

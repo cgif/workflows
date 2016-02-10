@@ -7,7 +7,7 @@
 #PBS -l select=1:ncpus=1:mem=20gb:tmpspace=50gb
 
 #PBS -m bea
-#PBS -M cgi@imperial.ac.uk
+#PBS -M igf@imperial.ac.uk
 #PBS -j oe
 
 #PBS -q pqcgi
@@ -43,4 +43,3 @@ cp $TMPDIR/nameSrt.fixmate.bam $htseq_dir/nameSrt.fixmate.bam
 chmod 0660 $htseq_dir/*
 
 ls -l 
-

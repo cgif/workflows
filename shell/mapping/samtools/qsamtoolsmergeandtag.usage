@@ -3,17 +3,13 @@ USAGE
 
 	qsamtoolsmergeandtag -i <path_to_reads_bam_directory> 
                          -r <path_to_read_group_info_file>
-                        [-o <organism, default is hsapiens]
-                        [-y <assembly_name, default is GRCh37]
+                        [-s <species, default is hsapiens]
+                        [-a <assembly_name, default is GRCh37]
                         [-d <mark_duplicates TRUE|FALSE, default is TRUE>]
-                        [-s <path_to_sam_header, THIS OPTION IS CURRENTLY NOT SUPPORTED>]
                         [-m <metrics_to_collect HS|TP|RS, default is NONE >]
                         [-b <path_to_bait_or_amplicon_interval_list_file for HS/TP metrics, default for HS metrics /project/tgu/resources/reference/hsapiens/GRCh37/target/agilent_sureselect_human_all_exon_v5_utr.probes.intList>]
                         [-t <path_to_target_interval_list_file for HS/TP metrics, default for HS metrics /project/tgu/resources/reference/hsapiens/GRCh37/target/agilent_sureselect_human_all_exon_v5_utr.targets.intList>]
                         [-l <path to interval list for non-overlapping amplicon intervals>, can only be used for amplicon sequencing, default "none"]
-                        [-p <path_to_ribosomal_rna_interval_list_file for RS metrics, default /project/tgu/resources/reference/hsapiens/GRCh37/annotation/GRCh37.rrna.intList>]
-                        [-a <path_to_anotation_flat_file for RS metrics, default /project/tgu/resources/reference/hsapiens/GRCh37/annotation/GRCh37.genes.refFlat>]
-                        [-f <path_to_reference_sequence_fasta_file, default /project/tgu/resources/reference/hsapiens/GRCh37/fasta/GRCh37.fa>]
                         [-q <qc_metrics_accumulation_level RG|L|S, default S>]
                         [-c <sample status file for amplicon sequencing>]
                         [-w <produce coverage bigwig tracks for UCSC genome browser if TRUE, default is FALSE>]
@@ -81,17 +77,12 @@ DESCRIPTION
 												column in both paired-reads (1,2) or just 
 												a single read (e.g. 1)
 
-	-o  the reference organism
+	-s      the reference species
 	
-	-y  the reference assembly name
+	-a      the reference assembly name
 
 	-d	Mark PCR duplicates (default is TRUE)
         
-	-s	Absolut path to SAM header to be used in the merged BAM file.
-		!!!THIS OPTION IS NOT SUPPORTED!!! 
-		At present header dictionary is collected from the last BAM file 
-		to be merged in the library and the RG header entries are appended.  
-
 	-m	The metrics to collect from the merged BAM file with Picard tools.
 		(Valid values: HS for hybrid sequencing,
 		TP for targeted PCR, RS of RNA-seq) 
@@ -108,14 +99,9 @@ DESCRIPTION
 		The file needs to be in interval list format.
 		(see http://picard.sourceforge.net/javadoc/net/sf/picard/util/IntervalList.html)
 
-	-p 	Absolute path to ribosomal RNA coordinates (required if collecting
-                RNA-seq metrics). See also -m option.
-
 	-a	Absolute path to gene annotations in refFlat format (required if collecting 
 		RNA-seq metrics). See also -m option. Format described here: 
 		http://genome.ucsc.edu/goldenPath/gbdDescriptionsOld.html#RefFlat. 
-
-	-f	Absolute path to reference sequence fasta file.
 
 	-q	The level at which to accumulate metrics. RG - read group, L - library, S - sample. 
 		More than one level can be specified in a coma-separated list.

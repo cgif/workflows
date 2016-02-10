@@ -33,35 +33,33 @@ TODAY=`date +%Y-%m-%d`
 QUEUE=pqcgi
 
 #default parameters
-ORGANISM=hsapiens
+SPECIES=hsapiens
 ASSEMBLY=GRCh37
 METRIC=NONE
 MARK_DUPLICATES=TRUE
 METRIC_LEVEL=S
 SAMPLE_STATUS=none
-MAKE_BW=FALSE
+MAKE_BW=TRUE
 PATH_NON_OVERLAPPING_INTERVALS=none
 
 #COMMAND LINE ARGS
 ##################
 
 #parse command line args
-while getopts "i:o:y:r:d:s:m:b:t:l:p:a:f:q:c:wh" option; do
+while getopts "i:n:s:a:r:d:s:m:b:t:l:q:c:wh" option; do
     case "$option" in
 	
 	i) PATH_INPUT_DIR="$OPTARG";;
-	o) PATH_READ_GROUP_INFO="$OPTARG";;
-	y) PATH_READ_GROUP_INFO="$OPTARG";;
+	n) PROJECT_NAME="$OPTARG";;
+	s) SPECIES="$OPTARG";;
+	a) ASSEMBLY="$OPTARG";;
 	r) PATH_READ_GROUP_INFO="$OPTARG";;
 	d) MARK_DUPLICATES="$OPTARG";;
-	s) PATH_HEADER="$OPTARG";;
+#	s) PATH_HEADER="$OPTARG";;
 	m) METRIC="$OPTARG";;
 	b) PATH_BAIT_AMPLICON_INTERVALS="$OPTARG";;
 	t) PATH_TARGET_INTERVALS="$OPTARG";;
 	l) PATH_NON_OVERLAPPING_INTERVALS="$OPTARG";;
-	p) PATH_RIBOSOMAL_RNA_INTERVALS="$OPTARG";;
-	a) PATH_ANNOTATION_REFFLAT="$OPTARG";;
-	f) PATH_REFERENCE_FASTA="$OPTARG";;
 	q) METRIC_LEVEL="$OPTARG";;
 	c) SAMPLE_STATUS="$OPTARG";;
 	w) MAKE_BW=TRUE;;
@@ -71,31 +69,32 @@ while getopts "i:o:y:r:d:s:m:b:t:l:p:a:f:q:c:wh" option; do
 esac
 done
 
-#set default values
-if [ -z $PATH_BAIT_AMPLICON_INTERVALS ]
+
+
+if [ -n $SPECIES ] && [ -n $ASSEMBLY ]
 then
-	PATH_BAIT_AMPLICON_INTERVALS=$GROUPVOL_TGU/resources/reference/$ORGANISM/$ASSEMBLY/target/agilent_sureselect_human_all_exon_v5_utr.probes.intList
+
+	if [ ! -d /project/tgu/resources/reference/$SPECIES ]
+	then
+		echo "Reference for $SPECIES does not exist in /project/tgu/resources/reference."
+		echo "Create reference and try again."
+		exit 1
+	fi
+
+	if [ ! -d /project/tgu/resources/reference/$SPECIES ]
+	then
+		echo "Assembly $ASSEMBLY does not exist for $SPECIES in /project/tgu/resources/reference/$SPECIES."
+		echo "Create reference and try again."
+		exit 1
+	fi
+
+	PATH_RIBOSOMAL_RNA_INTERVALS=$GROUPVOL_TGU/resources/reference/$SPECIES/$ASSEMBLY/annotation/$ASSEMBLY.rrna.intList
+	PATH_ANNOTATION_REFFLAT=$GROUPVOL_TGU/resources/reference/$SPECIES/$ASSEMBLY/annotation/$ASSEMBLY.transcripts.refFlat
+	PATH_REFERENCE_FASTA=$GROUPVOL_TGU/resources/reference/$SPECIES/$ASSEMBLY/fasta/$ASSEMBLY.fa
+
 fi
 
-if [ -z $PATH_TARGET_INTERVALS ]
-then
-	PATH_TARGET_INTERVALS=$GROUPVOL_TGU/resources/reference/$ORGANISM/$ASSEMBLY/target/agilent_sureselect_human_all_exon_v5_utr.targets.intList
-fi
 
-if [ -z $PATH_RIBOSOMAL_RNA_INTERVALS ]
-then
-	PATH_RIBOSOMAL_RNA_INTERVALS=$GROUPVOL_TGU/resources/reference/$ORGANISM/$ASSEMBLY/annotation/$ASSEMBLY.rrna.intList
-fi
-
-if [ -z $PATH_ANNOTATION_REFFLAT ]
-then
-	PATH_ANNOTATION_REFFLAT=$GROUPVOL_TGU/resources/reference/$ORGANISM/$ASSEMBLY/annotation/$ASSEMBLY.genes.refFlat
-fi
-
-if [ -z $PATH_REFERENCE_FASTA ]
-then
-	PATH_REFERENCE_FASTA=$GROUPVOL_TGU/resources/reference/eukaryote/$ORGANISM/$ASSEMBLY/fasta/$ASSEMBLY.fa
-fi
 
 # check for presence of required input parameters
 if [ -z $PATH_INPUT_DIR ] || \
@@ -119,12 +118,6 @@ then
         exit 1
 fi
 
-if [[ ! -f $PATH_REFERENCE_FASTA ]]
-then
-        echo "`$NOW`ERROR: reference sequence fasta file does not exist: $PATH_REFERENCE_FASTA"
-        exit 1
-fi
-
 REFERENCE_NAME=`basename $PATH_REFERENCE_FASTA .gz`
 REFERENCE_NAME=`basename $REFERENCE_NAME .fa`
 
@@ -145,14 +138,6 @@ if [[ -z "$PATH_HEADER" ]]
 then
 PATH_HEADER=$PATH_REFERENCE_DICT
 fi
-
-if [[ ! -f $PATH_REFERENCE_DICT ]]
-then
-        echo "`$NOW`ERROR: reference sequence dictionary file does not exist: $PATH_REFERENCE_DICT"
-        exit 1
-fi
-
-
 
 if [ "$MARK_DUPLICATES" != "TRUE" ] && \
    [ "$MARK_DUPLICATES" != "FALSE" ]
@@ -225,11 +210,7 @@ if [[ "$METRIC" != "NONE" ]]; then
 		echo "`${NOW}`generating Targeted PCR metrics from merged file"
 		echo "`${NOW}`using amplicon coordinates: $PATH_BAIT_AMPLICON_INTERVALS"
 		echo "`${NOW}`using target coordinates  : $PATH_TARGET_INTERVALS"
-	elif [[ "$METRIC" == "RS" ]]; then
-		if [[ ! -f $PATH_RIBOSOMAL_RNA_INTERVALS ]] || [[ ! -f $PATH_ANNOTATION_REFFLAT ]]; then
-			echo "`${NOW}`ribosomal RNA coordinates file or annotation refFlat file is missing"
-			exit 1
-		fi
+	
 	echo "`${NOW}`generating RNA-seq metrics from merged file"
 		echo "`${NOW}`using ribosomal RNA coordinates: $PATH_RIBOSOMAL_RNA_INTERVALS"
 		echo "`${NOW}`using annotation refFlat file: $PATH_ANNOTATION_REFFLAT"
@@ -237,8 +218,8 @@ if [[ "$METRIC" != "NONE" ]]; then
 fi
 
 #parse project name from input directory
-PROJECT=`echo $PATH_INPUT_DIR | perl -e 'while(<>){ chop(); @tokens=split(/\//); $retval=@tokens[@tokens-2]; print $retval;  }'`
-
+#PROJECT=`echo $PATH_INPUT_DIR | perl -e 'while(<>){ chop(); @tokens=split(/\//); $retval=@tokens[@tokens-2]; print $retval;  }'`
+PROJECT=$PROJECT_NAME
 PATH_OUT_DIR_PREFIX=$GROUPVOL_TGU/results/$PROJECT/mergetag
 mkdir -p $PATH_OUT_DIR_PREFIX
 chmod 770 $PATH_OUT_DIR_PREFIX
@@ -260,7 +241,7 @@ chmod 770 $PATH_RUN_DIR_PREFIX/$TODAY
 mkdir -p $PATH_RUN_DIR_PREFIX/$TODAY/multisample
 chmod 770 $PATH_RUN_DIR_PREFIX/$TODAY/multisample
 
-PATH_ANALYSIS_DIR_PREFIX=$GROUP_VOL_TGU/analysis/$PROJECT/mergetag	
+PATH_ANALYSIS_DIR_PREFIX=$GROUPVOL_TGU/analysis/$PROJECT/mergetag	
 mkdir -p $PATH_ANALYSIS_DIR_PREFIX
 chmod 770 $PATH_ANALYSIS_DIR_PREFIX
 
@@ -492,7 +473,7 @@ do
 		sed -i -e "s/metricLevel/$METRIC_LEVEL/" $SCRIPT_PATH
 		sed -i -e "s/collectMetric/$METRIC/" $SCRIPT_PATH
 		sed -i -e "s/ucscAssemblyID/$UCSC_ASSEMBLY_ID/" $SCRIPT_PATH
-sed -i -e "s/ucscOrganismName/$UCSC_ORGANISM_NAME/" $SCRIPT_PATH
+		sed -i -e "s/ucscOrganismName/$UCSC_ORGANISM_NAME/" $SCRIPT_PATH
 
         	LOG_OUTPUT_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.pl/\.log/g'`
 		echo -n "" > $LOG_OUTPUT_PATH
@@ -787,6 +768,6 @@ echo -n "" > $LOG_OUTPUT_PATH
 chmod 660 $LOG_OUTPUT_PATH
 
 echo "`$NOW`submitting last summary script: $SCRIPT_PATH"
-SUM_JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH -j oe -W depend=$METRIC_MERGING_DEPENDECIES -M cgi@imperial.ac.uk $SCRIPT_PATH` 
+SUM_JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH -j oe -W depend=$METRIC_MERGING_DEPENDECIES -M igf@imperial.ac.uk $SCRIPT_PATH` 
 echo "`$NOW`job ID: $SUM_JOB_ID"
 echo "`$NOW`progress and summary can be seen at $DEPLOYMENT_SERVER/report/project/$PROJECT/mergetag/$TODAY"

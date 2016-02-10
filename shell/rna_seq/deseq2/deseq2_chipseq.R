@@ -30,7 +30,7 @@ dds <- dds[ rowSums(counts(dds)) > 1, ]
 
 
 #differential expression analysis using 'DESeq' function
-dds <- DESeq(dds, betaPrior=FALSE))
+dds <- DESeq(dds, betaPrior=FALSE)
 #get normalized counts and write to file
 normalizedCounts<-as.data.frame(counts(dds, normalized = TRUE))
 write.table(normalizedCounts, file = paste(results.dir, "normalizedCounts.tsv", sep="/"), sep = "\t", row.names = TRUE, col.names = NA, quote = FALSE)

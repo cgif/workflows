@@ -31,6 +31,7 @@ WALLTIME_HOURS_PER_RUN=72
 
 #default parameters
 PATH_ANNOTATION_GFF=$GROUPVOL_TGU/resources/reference/hsapiens/GRCh37/annotation/GRCh37.transcripts.gff
+
 FEATURE=gene_id
 #yes/no/reverse
 #reverse for Illumina TruSeq stranded libraries
@@ -40,10 +41,11 @@ STRAND=reverse
 ##################
 
 #parse command line args
-while getopts "i:g:f:s:h" option; do
+while getopts "i:n:g:f:s:h" option; do
     case "$option" in
 	
 	i) PATH_INPUT_DIR="$OPTARG";;
+	n) PROJECT_NAME="$OPTARG";;
 	g) PATH_ANNOTATION_GFF="$OPTARG";;
 	f) FEATURE="$OPTARG";;
 	s) STRAND="$OPTARG";;
@@ -76,8 +78,8 @@ then
 fi
 
 #parse project name from input directory
-PROJECT=`echo $PATH_INPUT_DIR | perl -e 'while(<>){ chop(); @tokens=split(/\//); $retval=@tokens[@tokens-3]; print $retval;  }'`
-
+#PROJECT=`echo $PATH_INPUT_DIR | perl -e 'while(<>){ chop(); @tokens=split(/\//); $retval=@tokens[@tokens-3]; print $retval;  }'`
+PROJECT=$PROJECT_NAME
 ########################
 
 echo "`${NOW}`Counting reads from files in $PATH_INPUT_DIR"
