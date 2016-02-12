@@ -1215,7 +1215,7 @@ function submitMergeAndPlotMetricsJob {
 
 	local summary_log_path=`echo $summary_script_path | perl -pe 's/\.pl/\.log/g'`
 	echo "`$NOW`$summary_script_path"
-	local sum_job_id=`qsub -q $QUEUE -o $summary_log_path -j oe -W depend=afterany:$job_id -M cgi@imperial.ac.uk $summary_script_path` 
+	local sum_job_id=`qsub -q $QUEUE -o $summary_log_path -j oe -W depend=afterany:$job_id -M igf@imperial.ac.uk $summary_script_path` 
 	echo "`$NOW`job ID: $sum_job_id"
 	echo "`$NOW`-------------------------------------------------------------------------------------"
 

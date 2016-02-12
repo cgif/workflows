@@ -9,7 +9,7 @@
 #PBS -l select=1:ncpus=threads:mem=7800mb:tmpspace=50gb
 
 #PBS -m ea
-#PBS -M cgi@imperial.ac.uk
+#PBS -M igf@imperial.ac.uk
 #PBS -j oe
 
 #PBS -q pqcgi

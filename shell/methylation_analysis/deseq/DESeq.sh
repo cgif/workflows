@@ -8,7 +8,7 @@
 #PBS -l ncpus=1
 #PBS -l mem=50gb
 
-#PBS -M cgi@imperial.ac.uk
+#PBS -M igf@imperial.ac.uk
 #PBS -m bea
 #PBS -j oe
 

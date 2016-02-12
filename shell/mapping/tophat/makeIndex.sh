@@ -6,7 +6,7 @@
 
 #PBS -l walltime=72:00:00
 #PBS -l select=1:ncpus=16:mem=25gb:tmpspace=50gb
-#PBS -M cgi@imperial.ac.uk
+#PBS -M igf@imperial.ac.uk
 #PBS -m bea
 #PBS -j oe
 #PBS -q pqcgi

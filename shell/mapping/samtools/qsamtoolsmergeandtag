@@ -480,7 +480,7 @@ do
 		chmod 660 $LOG_OUTPUT_PATH
 
 		echo "`${NOW}`submitting summary script $SCRIPT_PATH "
-        	SUM_JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH -j oe -W depend=afterany:$JOB_ID -M cgi@imperial.ac.uk $SCRIPT_PATH` 
+        	SUM_JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH -j oe -W depend=afterany:$JOB_ID -M igf@imperial.ac.uk $SCRIPT_PATH` 
 		echo "`$NOW`job ID: $SUM_JOB_ID"
 
 		METRIC_MERGING_DEPENDECIES="$METRIC_MERGING_DEPENDECIES:$SUM_JOB_ID"

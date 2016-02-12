@@ -142,7 +142,7 @@ echo -n "" > $SUMMARY_LOG_OUTPUT_PATH
 chmod 660 $SUMMARY_LOG_OUTPUT_PATH
 
 echo "`$NOW`submitting summary script: $SUMMARY_SCRIPT_PATH"
-SUM_JOB_ID=`qsub -q $QUEUE -o $SUMMARY_LOG_OUTPUT_PATH -j oe -W depend=$MEDIPS_DEPENDECIES -M cgi@imperial.ac.uk $SUMMARY_SCRIPT_PATH` 
+SUM_JOB_ID=`qsub -q $QUEUE -o $SUMMARY_LOG_OUTPUT_PATH -j oe -W depend=$MEDIPS_DEPENDECIES -M igf@imperial.ac.uk $SUMMARY_SCRIPT_PATH` 
 echo "`$NOW`job ID: $SUMMARY_SUM_JOB_ID"
 
 echo "`$NOW`###########################################################################################"
@@ -182,7 +182,7 @@ echo "`${NOW}`job ID: $JOB_ID"
 MEDIPS_DEPENDECIES="$MEDIPS_DEPENDECIES:$JOB_ID"
 
 echo "`$NOW`submitting summary script: $SUMMARY_SCRIPT_PATH"
-SUM_JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH -j oe -W depend=$MEDIPS_DEPENDECIES -M cgi@imperial.ac.uk $SUMMARY_SCRIPT_PATH` 
+SUM_JOB_ID=`qsub -q $QUEUE -o $LOG_OUTPUT_PATH -j oe -W depend=$MEDIPS_DEPENDECIES -M igf@imperial.ac.uk $SUMMARY_SCRIPT_PATH` 
 echo "`$NOW`job ID: $SUM_JOB_ID"
 
 echo "`$NOW`progress and summary can be seen at $DEPLOYMENT_SERVER/report/project/$PROJECT/medips-QC/$TODAY"

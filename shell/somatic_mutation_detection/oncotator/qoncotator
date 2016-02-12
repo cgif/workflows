@@ -202,5 +202,5 @@ sed -i -e "s/#summaryDeployment/${SUMMARY_DEPLOYMENT//\//\\/}/" $SCRIPT_PATH
 LOG_PATH=`echo $SCRIPT_PATH | perl -pe 's/\.sh/\.log/g'`
 echo "`$NOW`$SCRIPT_PATH"
 
-JOB_ID=`qsub -M cgi@imperial.ac.uk -m ea -j oe -q $QUEUE -W depend=afterany:$JOB_ID -o $LOG_PATH $SCRIPT_PATH`  
+JOB_ID=`qsub -M igf@imperial.ac.uk -m ea -j oe -q $QUEUE -W depend=afterany:$JOB_ID -o $LOG_PATH $SCRIPT_PATH`  
 echo "`$NOW`job ID: $JOB_ID" 

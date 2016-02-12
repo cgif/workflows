@@ -282,7 +282,7 @@ for JOB_ID in `cut -f 1 $ANALYSIS_DIR_MSVC/merge_dependency.tsv`; do
         MERGE_DEPENDENCY="$MERGE_DEPENDENCY:$JOB_ID"
 done
 
-JOB_ID=`qsub -M cgi@imperial.ac.uk -m ea -j oe -W depend=$MERGE_DEPENDENCY -o $LOG_PATH $SCRIPT_PATH`
+JOB_ID=`qsub -M igf@imperial.ac.uk -m ea -j oe -W depend=$MERGE_DEPENDENCY -o $LOG_PATH $SCRIPT_PATH`
 echo "`$NOW`job ID: $JOB_ID"
   
 	    

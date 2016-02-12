@@ -23,7 +23,7 @@ leftlane_filename = #tmpRead1
 rightlane_filename = #tmpRead2
 
 # email notification
-mailto = cgi@imperial.ac.uk
+mailto = igf@imperial.ac.uk
 
 # reference files
 blat_reference = $TMPDIR/#tmpFastaViral

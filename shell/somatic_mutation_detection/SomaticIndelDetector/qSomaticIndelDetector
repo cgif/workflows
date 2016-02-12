@@ -313,7 +313,7 @@ function submitSomaticIndelDetector {
 	echo "`$NOW`Submitting summary script"
 	echo "`$NOW`$summary_script_path"
 	summary_log_path=`echo $summary_script_path | perl -pe 's/\.pl/\.log/g'`
-	job_id=`qsub -q $QUEUE -o $summary_log_path -j oe -W depend=afterany:$job_id -M cgi@imperial.ac.uk $summary_script_path`
+	job_id=`qsub -q $QUEUE -o $summary_log_path -j oe -W depend=afterany:$job_id -M igf@imperial.ac.uk $summary_script_path`
 	echo "`$NOW`job ID: $job_id"
 
 	#change permissions on all directories/files created

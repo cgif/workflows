@@ -6,7 +6,7 @@
 #PBS -l select=1:ncpus=2:mem=4gb
 
 #PBS -m bea
-#PBS -M cgi@imperial.ac.uk
+#PBS -M igf@imperial.ac.uk
 #PBS -j oe
 
 #PBS -q pqcgi

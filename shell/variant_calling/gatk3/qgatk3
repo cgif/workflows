@@ -937,7 +937,7 @@ function submitRealignmentAndRecalibrationJobs {
 #
 #	log_output_path=`echo $script_path | perl -pe 's/\.pl/\.log/g'`
 #	echo "`$NOW`$script_path"
-#	local sum_job_id=`qsub -q $QUEUE -o $log_output_path -j oe -W depend=afterany:$job_id -M cgi@imperial.ac.uk $script_path`
+#	local sum_job_id=`qsub -q $QUEUE -o $log_output_path -j oe -W depend=afterany:$job_id -M igf@imperial.ac.uk $script_path`
 #	echo "`$NOW`job ID: $sum_job_id"
 
 
@@ -1261,7 +1261,7 @@ function submitGenotypeGVCFsJobs {
 #
 #	log_output_path=`echo $script_path | perl -pe 's/\.pl/\.log/g'`
 #	echo "`$NOW`$script_path"
-#	local sum_job_id=`qsub -q $QUEUE -o $log_output_path -j oe -W depend=afterany:$job_id -M cgi@imperial.ac.uk $script_path` 
+#	local sum_job_id=`qsub -q $QUEUE -o $log_output_path -j oe -W depend=afterany:$job_id -M igf@imperial.ac.uk $script_path` 
 #	echo "`$NOW`job ID: $sum_job_id"        
 
 	#change permissions on all directories/files created
@@ -1721,7 +1721,7 @@ function submitPostProcessingJobs {
 #	script_path=$run_dir/summary_gatk.$sample.pl
 #	log_output_path=`echo $script_path | perl -pe 's/\.pl/\.log/g'`
 #	echo "`$NOW`$script_path"
-#	local sum_job_id=`qsub -q $QUEUE -o $log_output_path -j oe -W depend=afterany:$job_id -M cgi@imperial.ac.uk $script_path` 
+#	local sum_job_id=`qsub -q $QUEUE -o $log_output_path -j oe -W depend=afterany:$job_id -M igf@imperial.ac.uk $script_path` 
 #	echo "`$NOW`job ID: $sum_job_id"
 
 
@@ -1833,7 +1833,7 @@ function submitCompUse {
 #	script_path=$ANALYSIS_DIR_MSVC/run/summary_gatk.${PROJECT}_multisample.pl
 #	log_output_path=`echo $script_path | perl -pe 's/\.pl/\.log/g'`
 #	echo "`$NOW`$script_path"
-#	local sum_job_id=`qsub -q $QUEUE -o $log_output_path -j oe -W depend=afterany:$job_id -M cgi@imperial.ac.uk $script_path` 
+#	local sum_job_id=`qsub -q $QUEUE -o $log_output_path -j oe -W depend=afterany:$job_id -M igf@imperial.ac.uk $script_path` 
 #	echo "`$NOW`job ID: $sum_job_id"
 
 }

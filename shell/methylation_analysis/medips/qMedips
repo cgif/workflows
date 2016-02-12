@@ -149,7 +149,7 @@ echo -n "" > $SUMMARY_LOG_OUTPUT_PATH
 chmod 660 $SUMMARY_LOG_OUTPUT_PATH
 
 echo "`$NOW`submitting summary script: $SUMMARY_SCRIPT_PATH"
-SUM_JOB_ID=`qsub -q $QUEUE -o $SUMMARY_LOG_OUTPUT_PATH -j oe -W depend=$MEDIPS_DEPENDECIES -M cgi@imperial.ac.uk $SUMMARY_SCRIPT_PATH` 
+SUM_JOB_ID=`qsub -q $QUEUE -o $SUMMARY_LOG_OUTPUT_PATH -j oe -W depend=$MEDIPS_DEPENDECIES -M igf@imperial.ac.uk $SUMMARY_SCRIPT_PATH` 
 echo "`$NOW`job ID: $SUM_JOB_ID"
 
 

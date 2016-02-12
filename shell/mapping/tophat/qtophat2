@@ -219,7 +219,7 @@ function submitJobs {
 	echo "`$NOW`with dependency $SUMMARY_JOB_DEPENDENCY" >> $setup_log
 	echo -n "`$NOW`" >> $setup_log
 	local summary_log=$path_scripts_dir/summary.log
-	local sum_job_id=`qsub -q $QUEUE -o $summary_log -j oe -W depend=$SUMMARY_JOB_DEPENDENCY -M cgi@imperial.ac.uk $summary_script_path`
+	local sum_job_id=`qsub -q $QUEUE -o $summary_log -j oe -W depend=$SUMMARY_JOB_DEPENDENCY -M igf@imperial.ac.uk $summary_script_path`
 	echo $sum_job_id >> $setup_log
 	echo "`$NOW`for details look at $setup_log"
        

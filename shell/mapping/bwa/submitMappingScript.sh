@@ -197,6 +197,6 @@ echo "`$NOW`submitting summary script:"
 echo "`$NOW`$SUMMARY_SCRIPT"
 echo -n "`$NOW`"
 
-SUM_JOB_ID=`qsub -q $QUEUE -o $SUMMARY_LOG  -j oe -W depend=$SUM_DEPENDENCIES -M cgi@imperial.ac.uk $SUMMARY_SCRIPT`	
+SUM_JOB_ID=`qsub -q $QUEUE -o $SUMMARY_LOG  -j oe -W depend=$SUM_DEPENDENCIES -M igf@imperial.ac.uk $SUMMARY_SCRIPT`	
 echo $SUM_JOB_ID
 
