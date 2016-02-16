@@ -2,9 +2,13 @@ library("ggplot2")
 library("scales")
 library(RColorBrewer)
 
+species <- "#species"
+assembly <- "#assembly"
 metrics.file <- "#metricsSummary"
 counts.file <- "#countsFile"
-ref.file <- "#refFile"
+ref.file <- paste("/project/tgu/resources/reference/", species , "/", assembly, "/fasta/" , assembly, ".fa", sep="")
+lengths.file <- paste("/project/tgu/resources/reference/", species, "/", assembly, "/annotation/", assembly, ".transcript_per_chrom_length.tsv")
+
 
 #metrics.file <- "/project/tgu/results/standfield_claudication/mergetag/2015-07-27/multisample/standfield_claudication.2015-07-27.RnaSeqMetrics"
 #counts.file <- "/project/tgu/results/standfield_claudication/mergetag/2015-07-27/multisample/standfield_claudication.2015-07-27.readCounts"
@@ -69,13 +73,12 @@ dev.off()
 
 #plot normalized read counts per chromosome
 
-if (ref.file != "/project/tgu/resources/reference/hsapiens/GRCh37/fasta/GRCh37.fa") { stop() }
+#if (ref.file != "/project/tgu/resources/reference/hsapiens/GRCh37/fasta/GRCh37.fa") { stop() }
 
 counts <- read.delim(counts.file, as.is=T, header=FALSE, skip=1)
 titles <- read.delim(counts.file, as.is=T, header=FALSE, nrows=1)
 colnames(counts) <- as.vector(as.matrix(titles))
 
-lengths.file <- "/project/tgu/resources/annotations/Homo_sapiens.GRCh37.75.transcript_per_chrom_length"
 transcript.length <- read.delim(lengths.file, row.names=1, as.is=T, header=FALSE, skip=1)
 
 sample.name <- counts$sample

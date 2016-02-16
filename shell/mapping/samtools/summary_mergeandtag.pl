@@ -19,7 +19,7 @@ my $multisample = "multisample_no";
 my $make_bw = "makeBW";
 my $ucsc_assembly_id= "ucscAssemblyId";
 my $ucsc_organism_name= "ucscOrganismName";
-my $coverage_bw_browser_position = "chr1:1-10,000"
+my $coverage_bw_browser_position = "chr1:1-10,000";
 
 #create deployment directory for pdf files
 system("ssh $deployment_server mkdir $summary_deployment/pdf > /dev/null 2>&1");
