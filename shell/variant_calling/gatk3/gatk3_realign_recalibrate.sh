@@ -21,7 +21,7 @@ module load R/#rVersion
 module load java/#javaVersion
 
 NXTGENUTILS_VERSION=#nxtGenUtilsVersion
-NXTGENUTILS_HOME=/groupvol/cgi/bin/nxtgen-utils-${NXTGENUTILS_VERSION}
+NXTGENUTILS_HOME=/project/tgu/bin/nxtgen-utils-${NXTGENUTILS_VERSION}
 
 NOW="date +%Y-%m-%d%t%T%t"
 JAVA_XMX=4800M

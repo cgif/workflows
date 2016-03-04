@@ -20,7 +20,8 @@ module load java/#javaVersion
 
 #NxtGenUtils path
 NXTGENUTILS_VERSION=#nxtGenUtilsVersion
-NXTGENUTILS_HOME=/groupvol/cgi/bin/nxtgen-utils-${NXTGENUTILS_VERSION}
+#NXTGENUTILS_HOME=/groupvol/cgi/bin/nxtgen-utils-${NXTGENUTILS_VERSION}
+NXTGENUTILS_HOME=/project/tgu/bin/nxtgen-utils-${NXTGENUTILS_VERSION}
 
 #Java max. memory
 JAVA_XMX=4G

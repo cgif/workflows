@@ -21,7 +21,8 @@ module load gatk/#gatkVersion
 #TABIX module not installed properly...
 #module load tabix/0.2.6
 #...use own copy for the time being
-TABIX_HOME=/groupvol/cgi/bin/tabix-#tabixVersion
+#TABIX_HOME=/groupvol/cgi/bin/tabix-#tabixVersion
+TABIX_HOME=/project/tgu/bin/tabix-#tabixVersion
 
 NOW="date +%Y-%m-%d%t%T%t"
 JAVA_XMX=4G

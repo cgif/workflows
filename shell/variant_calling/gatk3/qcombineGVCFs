@@ -31,8 +31,8 @@ GVCF_SPLIT_MAX_THREADS=16
 
 # default values for input arguments
 REFERENCE_DIR=/project/tgu/resources/reference
-REFERENCE_FASTA=$REFERENCE_DIR/fasta/eukaryote/hsapiens/hs37d5/hs37d5.fa
-REFERENCE_CHUNKS=$REFERENCE_DIR/chunk/eukaryote/human/hs37d5/hs37d5.chunks.combine.exome.full.chromosomes.v3.bed
+REFERENCE_FASTA=$REFERENCE_DIR/hsapiens/hs37d5/fasta/hs37d5.fa
+REFERENCE_CHUNKS=$REFERENCE_DIR/hsapiens/hs37d5/chunk/hs37d5.chunks.combine.exome.full.chromosomes.v3.bed
 
 USAGE="USAGE: qcombineGVCFs -s <GVCFs list> -p <output prefix> -n <project (for output and run folders)> -c <reference chunks, default /project/tgu/resources/reference/chunk/eukaryote/human/hs37d5/hs37d5.chunks.combine.exome.full.chromosomes.v3.bed> -r <reference fasta, default /project/tgu/resources/reference/fasta/eukaryote/hsapiens/hs37d5/hs37d5.fa>"
 
@@ -101,7 +101,8 @@ else
 fi
 
 RESULTS_DIR=$PROJECT_TGU/results/$PROJECT/combinedGVCF/$TODAY/multisample
-ANALYSIS_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/combinedGVCF/$TODAY
+#ANALYSIS_DIR=$GROUP_VOL_CGI/analysis/$PROJECT/combinedGVCF/$TODAY
+ANALYSIS_DIR=$PROJECT_TGU/analysis/$PROJECT/combinedGVCF/$TODAY
 RUN_DIR=$PROJECT_TGU/runs/$PROJECT/combinedGVCF/$TODAY
 OUT_GVCF=$RESULTS_DIR/$OUTPUT_PREFIX.combined.genomic.vcf
 ANALYSIS_DIR_MSVC=$ANALYSIS_DIR/multisample
@@ -114,8 +115,10 @@ mkdir -p $ANALYSIS_DIR_MSVC
 mkdir -p $RUN_DIR_MSVC
 chmod -R 770 $PROJECT_TGU/results/$PROJECT/combinedGVCF
 chmod -R 770 $PROJECT_TGU/runs/$PROJECT/combinedGVCF/
-chmod -R 770 $GROUP_VOL_CGI/analysis/$PROJECT/combinedGVCF
-chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT
+#chmod -R 770 $GROUP_VOL_CGI/analysis/$PROJECT/combinedGVCF
+chmod -R 770 $PROJECT_TGU/analysis/$PROJECT/combinedGVCF
+chmod 770 $PROJECT_TGU/analysis/$PROJECT
+#chmod 770 $GROUP_VOL_CGI/analysis/$PROJECT
 
 SETUP_LOG=$ANALYSIS_DIR_MSVC/setup.log
 

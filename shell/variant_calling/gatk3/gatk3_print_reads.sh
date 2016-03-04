@@ -18,7 +18,8 @@ module load gatk/#gatkVersion
 module load samtools/#samtoolsVersion
 module load java/#javaVersion
 
-NXTGENUTILS_HOME=/groupvol/cgi/bin/nxtgen-utils-#nextGenUtilsVersion
+#NXTGENUTILS_HOME=/groupvol/cgi/bin/nxtgen-utils-#nextGenUtilsVersion
+NXTGENUTILS_HOME=/project/tgu/bin/nxtgen-utils-#nextGenUtilsVersion
 
 JAVA_XMX=24G
 NCT=#nctThreads

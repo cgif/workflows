@@ -5,7 +5,7 @@
 
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 GATK_DIR=$BASEDIR/../../variant_calling/gatk3
-IMAGE_DIR=/groupvol/cgi/src/workflows-1.2.1/shell/resources/images
+IMAGE_DIR=/project/tgu/src/workflows-1.2.1/shell/resources/images
 
 GATK_VERSION=3.2-2
 SAMTOOLS_VERSION=0.1.18
@@ -24,14 +24,15 @@ TODAY=`date +%Y-%m-%d`
 #TODAY="2014-10-29"
 
 #get the directory this script resides in
-GROUP_VOL_CGI=/groupvol/cgi
+#GROUP_VOL_CGI=/groupvol/cgi
+GROUP_VOL_CGI=/project/tgu
 DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
 DEPLOYMENT_BASE_DIR=/www/html/report
 QUEUE=pqcgi
 
 #GATK configuration
 #resources
-BUNDLE=/groupvol/cgi/resources/GATK_resource_bundle/2.8/b37
+BUNDLE=$GROUP_VOL_CGI/resources/GATK_resource_bundle/2.8/b37
 INDELS_1000G=$BUNDLE/1000G_phase1.indels.b37.vcf
 INDELS_GOLDSTD=$BUNDLE/Mills_and_1000G_gold_standard.indels.b37.vcf
 DBSNP=$BUNDLE/dbsnp_138.b37.vcf
@@ -59,19 +60,20 @@ PR_CPUTHREADS=$PR_DATATHREADS
 USAGE="$BASEDIR/mutect.usage"
 
 # default values for input arguments
-REFERENCE_DIR=$GROUP_VOL_CGI/resources/reference/eukaryote/human/hs37d5
-REFERENCE_FASTA=$REFERENCE_DIR/hs37d5.fa
-REFERENCE_DICT=$REFERENCE_DIR/hs37d5.dict
-REFERENCE_CHUNKS_GENOME=$REFERENCE_DIR/hs37d5.chunks.genome.SM.bed
-REFERENCE_CHUNKS_EXOME=$REFERENCE_DIR/hs37d5.chunks.exome.bed
-REFERENCE_CHUNKS_TARGETED=$REFERENCE_DIR/hs37d5.chunks.targeted.bed
+REFERENCE_DIR=$GROUP_VOL_CGI/resources/reference/hsapiens/hs37d5
+REFERENCE_FASTA=$REFERENCE_DIR/fasta/hs37d5.fa
+REFERENCE_DICT=$REFERENCE_DIR/dict/hs37d5.dict
+#REFERENCE_CHUNKS_GENOME=$REFERENCE_DIR/chunk/hs37d5.chunks.genome.SM.bed
+REFERENCE_CHUNKS_GENOME=$REFERENCE_DIR/chunk/hs37d5.chunks.genome.bed
+REFERENCE_CHUNKS_EXOME=$REFERENCE_DIR/chunk/hs37d5.chunks.exome.bed
+REFERENCE_CHUNKS_TARGETED=$REFERENCE_DIR/chunk/hs37d5.chunks.targeted.bed
 REFERENCE_CHUNKS_USER=""
 TARGET_INTERVALS_BED=""
 TYPE="WGS"
 PRIMER_COORD_BED=""
 PRIMER_COORD_OFFSET=10
-MUTECT_COSMIC=/groupvol/cgi/resources/annotations/Cosmic_v70_hs37d5.vcf
-MUTECT_DBSNP=/groupvol/cgi/resources/annotations/dbsnp_b142_GRCh37p13.vcf
+MUTECT_COSMIC=$GROUP_VOL_CGI/resources/annotations/Cosmic_v70_hs37d5.vcf
+MUTECT_DBSNP=$GROUP_VOL_CGI/resources/annotations/dbsnp_b142_GRCh37p13.vcf
 
 
 #parse command line args

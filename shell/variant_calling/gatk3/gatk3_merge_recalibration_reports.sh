@@ -17,7 +17,8 @@ NOW="date +%Y-%m-%d%t%T%t"
 module load java/#javaVersion
 
 NXTGENUTILS_VERSION=#nxtGenUtilsVersion
-NXTGENUTILS_HOME=/groupvol/cgi/bin/nxtgen-utils-${NXTGENUTILS_VERSION}
+#NXTGENUTILS_HOME=/groupvol/cgi/bin/nxtgen-utils-${NXTGENUTILS_VERSION}
+NXTGENUTILS_HOME=/project/tgu/bin/nxtgen-utils-${NXTGENUTILS_VERSION}
 
 
 RECALIBRATION_REPORTS="#recalibrationReports"

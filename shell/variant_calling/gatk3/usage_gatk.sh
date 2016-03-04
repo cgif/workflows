@@ -29,7 +29,7 @@ do
         env MAILRC=/dev/null \
         password-igf@exchange.imperial.ac.uk='weDDel15e' \
         ssl-verify=ignore \
-        nss-config-dir=/groupvol/cgi/resources/mailsert/ \
+        nss-config-dir=/project/tgu/resources/mailsert/ \
         nail -n -N -R -f imaps://igf@exchange.imperial.ac.uk/21_PBS/cx1 <<EOF > $TMPDIR/usage 2>&1
         print (subject $JOB_ID)
 EOF
