@@ -37,7 +37,8 @@ LOG_DEBUG="`$NOW`DEBUG $SCRIPT_CODE"
 #REALIGNED_RECALIBRATED_BAM=#reaglignedRecalibratedBam
 SAMPLE=#sample
 REFERENCE_FASTA=#referenceFasta
-REFRENCE_SEQ_DICT=`echo $REFERENCE_FASTA | perl -pe 's/\.fa/\.dict/'`
+#REFRENCE_SEQ_DICT=`echo $REFERENCE_FASTA | perl -pe 's/\.fa/\.dict/'`
+REFERENCE_SEQ_DICT=#referenceSeqDict
 ANALYSIS_DIR=#analysisDir
 RESULTS_DIR=#resultsDir
 REALIGNED_RECALIBRATED_BAM=$RESULTS_DIR/recalibration/$SAMPLE.bam
@@ -56,7 +57,7 @@ RUN_LOG=#runLog
 echo "`${NOW}`copying reference fasta and indexto tmp directory..."
 cp $REFERENCE_FASTA $TMPDIR/reference.fa
 cp $REFERENCE_FASTA.fai $TMPDIR/reference.fa.fai
-cp $REFRENCE_SEQ_DICT $TMPDIR/reference.dict
+cp $REFERENCE_SEQ_DICT $TMPDIR/reference.dict
 
 echo "`${NOW}`copying realigned BAM to tmp directory..."
 BAM_NAME=`basename $REALIGNED_RECALIBRATED_BAM`

@@ -41,7 +41,7 @@ LOG_DEBUG="`${NOW}`DEBUG $SCRIPT_CODE"
 INPUT_BAM=#inputBam
 INPUT_BAM_NAME=`basename $INPUT_BAM .bam`
 REFERENCE_FASTA=#referenceFasta
-REFRENCE_SEQ_DICT=`echo $REFERENCE_FASTA | perl -pe 's/\.fa/\.dict/'`
+REFERENCE_SEQ_DICT=#referenceSeqDict
 ANALYSIS_DIR=#analysisDir
 FRAGMENT=#fragmentName
 RTC_DATA_THREADS=#rtcDataThreads
@@ -86,7 +86,7 @@ cp $INPUT_BAM.bai $TMPDIR/chunk.bam.bai
 echo "`${NOW}`INFO $SCRIPT_CODE copying reference fasta and indexto tmp directory..."
 cp $REFERENCE_FASTA $TMPDIR/reference.fa
 cp $REFERENCE_FASTA.fai $TMPDIR/reference.fa.fai
-cp $REFRENCE_SEQ_DICT $TMPDIR/reference.dict
+cp $REFERENCE_SEQ_DICT $TMPDIR/reference.dict
 
 
 
@@ -156,7 +156,7 @@ java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME
    -knownSites $INDELS_1000G_FILENAME \
    -knownSites $INDELS_GOLDSTD_FILENAME \
    -o ${SAMPLE}.${FRAGMENT}.realigned.recal_data.grp \
-   -L $TMPDIR/target.intervals \
+   -L $TMPDIR/target.intervals  \
    -rf BadCigar
 
 echo "`${NOW}`INFO $SCRIPT_CODE copying recalibration report to $ANALYSIS_DIR/recalibration/reports/pre/..."

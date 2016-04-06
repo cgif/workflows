@@ -44,7 +44,7 @@ IN_GVCFS="#genomicVCFs"
 INPUT_DIR_GVCF=#inputDirGVCF
 PATH_OUTPUT_DIR_GVCF=#pathOutputDirGVCF
 REFERENCE_FASTA=#referenceFasta
-REFRENCE_SEQ_DICT=`echo $REFERENCE_FASTA | perl -pe 's/\.fa/\.dict/'`
+REFERENCE_SEQ_DICT=#referenceSeqDict
 PROJECT=#projectName
 CAPTURE=#captureKit
 GVCF_LIST=#gvcfList
@@ -57,7 +57,7 @@ GVCF_LIST=#gvcfList
 echo "`${NOW}`INFO $SCRIPT_CODE copying reference fasta and index to tmp directory..."
 cp $REFERENCE_FASTA $TMPDIR/reference.fa
 cp $REFERENCE_FASTA.fai $TMPDIR/reference.fa.fai
-cp $REFRENCE_SEQ_DICT $TMPDIR/reference.dict
+cp $REFERENCE_SEQ_DICT $TMPDIR/reference.dict
 
 # make tmp folder for temporary java files
 mkdir $TMPDIR/tmp

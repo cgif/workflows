@@ -35,6 +35,7 @@ LOG_DEBUG="`$NOW`DEBUG $SCRIPT_CODE"
 INPUT_BAM=#inputBam
 INPUT_BAM_NAME=`basename $INPUT_BAM .bam`
 REFERENCE_FASTA=#referenceFasta
+REFERENCE_SEQ_DICT=#referenceSeqDict
 FRAGMENT_FILE=#fragmentFile
 FRAGMENT=#fragmentName
 SAMPLE=#sample
@@ -74,8 +75,8 @@ cp $FRAGMENT_FILE $TMPDIR/fragment.intervals
 echo "`${NOW}`copying reference fasta and indexto tmp directory..."
 cp $REFERENCE_FASTA $TMPDIR/reference.fa
 cp $REFERENCE_FASTA.fai $TMPDIR/reference.fa.fai
-REFRENCE_SEQ_DICT=`echo $REFERENCE_FASTA | perl -pe 's/\.fa/\.dict/'`
-cp $REFRENCE_SEQ_DICT $TMPDIR/reference.dict
+#REFRENCE_SEQ_DICT=`echo $REFERENCE_FASTA | perl -pe 's/\.fa/\.dict/'`
+cp $REFERENCE_SEQ_DICT $TMPDIR/reference.dict
 
 # step 4: run GATK BaseRecalibrator to generate recalibration plots
 # see http://gatkforums.broadinstitute.org/discussion/1539/baserecalibrator-plots

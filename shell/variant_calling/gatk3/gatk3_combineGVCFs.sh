@@ -22,7 +22,7 @@ JAVA_XMX=15G
 # define variables
 
 REFERENCE_FASTA=#referenceFasta
-REFERENCE_SEQ_DICT=`echo $REFERENCE_FASTA | perl -pe 's/\.fa/\.dict/'`
+REFERENCE_SEQ_DICT=#referenceSeqDict
 ANALYSIS_DIR=#analysisDir
 PREFIX=#prefixName		### prefix for output file
 FRAGMENT=#fragmentName

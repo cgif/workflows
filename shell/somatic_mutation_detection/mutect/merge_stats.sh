@@ -24,14 +24,14 @@ SAMPLE=`basename $RESULTS_DIR`
 RAW_STATS_PATH="#rawStatsFiles"
 IN_VCF="#rawVcfFiles"
 REFERENCE_FASTA=#referenceFasta
-REFRENCE_SEQ_DICT=`echo $REFERENCE_FASTA | perl -pe 's/\.fa/\.dict/'`
+REFERENCE_SEQ_DICT=#referenceSeqDict
 
 SUMMARY_SCRIPT_PATH=#summaryScriptPath
 
 #copy reference to $TMP
 cp $REFERENCE_FASTA $TMPDIR/reference.fa
 cp $REFERENCE_FASTA.fai $TMPDIR/reference.fa.fai
-cp $REFRENCE_SEQ_DICT $TMPDIR/reference.dict
+cp $REFERENCE_SEQ_DICT $TMPDIR/reference.dict
 
 # make tmp folder for temporary java files
 mkdir $TMPDIR/tmp

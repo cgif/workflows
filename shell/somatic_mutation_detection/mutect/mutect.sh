@@ -21,7 +21,7 @@ JAVA_XMX=4G
 # define variables
 ANALYSIS_FILE=#analysisFile
 REFERENCE_FASTA=#referenceFasta
-REFERENCE_DICT=#referenceDict
+REFERENCE_SEQ_DICT=#referenceSeqDict
 MUTECT_COSMIC=#mutectCosmic
 MUTECT_DBSNP=#mutectDBsnp
 NORMAL_BAM=#normalBam
@@ -33,7 +33,7 @@ SUMMARY_SCRIPT_PATH=#summaryScriptPath
 echo "`${NOW}` copying files to tmp directory..."
 cp $REFERENCE_FASTA $TMPDIR/ref.fasta
 cp $REFERENCE_FASTA.fai $TMPDIR/ref.fasta.fai
-cp $REFERENCE_DICT $TMPDIR/ref.dict
+cp $REFERENCE_SEQ_DICT $TMPDIR/ref.dict
 cp $MUTECT_COSMIC $TMPDIR/cosmic.vcf
 cp $MUTECT_DBSNP $TMPDIR/dbsnp.vcf
 cp $NORMAL_BAM $TMPDIR/normal.bam

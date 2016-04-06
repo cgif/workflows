@@ -5,7 +5,7 @@
 
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 GATK_DIR=$BASEDIR/../../variant_calling/gatk3
-IMAGE_DIR=/project/tgu/src/workflows-1.2.1/shell/resources/images
+IMAGE_DIR=/home/ksannare/git/workflows/shell/resources/images
 
 GATK_VERSION=3.2-2
 SAMTOOLS_VERSION=0.1.18
@@ -15,6 +15,7 @@ NXTGENUTILS_VERSION=0.13.0
 JAVA_VERSION=jdk-7u25
 JAVA_VERSION_MUTECT=sun-jdk-1.6.0_19
 MUTECT_VERSION=1.1.4
+module load bedtools/2.25
 
 #now
 NOW="date +%Y-%m-%d%t%T%t"
@@ -62,7 +63,7 @@ USAGE="$BASEDIR/mutect.usage"
 # default values for input arguments
 REFERENCE_DIR=$GROUP_VOL_CGI/resources/reference/hsapiens/hs37d5
 REFERENCE_FASTA=$REFERENCE_DIR/fasta/hs37d5.fa
-REFERENCE_DICT=$REFERENCE_DIR/dict/hs37d5.dict
+REFERENCE_SEQ_DICT=$REFERENCE_DIR/dict/hs37d5.dict
 #REFERENCE_CHUNKS_GENOME=$REFERENCE_DIR/chunk/hs37d5.chunks.genome.SM.bed
 REFERENCE_CHUNKS_GENOME=$REFERENCE_DIR/chunk/hs37d5.chunks.genome.bed
 REFERENCE_CHUNKS_EXOME=$REFERENCE_DIR/chunk/hs37d5.chunks.exome.bed
@@ -83,7 +84,7 @@ while getopts "n:s:r:d:u:a:t:p:o:c:m:" OPTION; do
 	n) PROJECT="$OPTARG";;
 	s) SAMPLE_LIST="$OPTARG";;
 	r) REFERENCE_FASTA="$OPTARG";;
-	d) REFERENCE_DICT="$OPTARG";;
+	d) REFERENCE_SEQ_DICT="$OPTARG";;
 	u) REFERENCE_CHUNKS_USER="$OPTARG";;
 	a) TARGET_INTERVALS_BED="$OPTARG";;
 	t) TYPE="$OPTARG";;
@@ -101,7 +102,7 @@ done
 if [[ -z $PROJECT ]] || \
    [[ -z $SAMPLE_LIST ]] || \
    [[ -z $REFERENCE_FASTA ]] || \
-   [[ -z $REFERENCE_DICT ]] || \
+   [[ -z $REFERENCE_SEQ_DICT ]] || \
    [[ -z $TYPE ]] || \
    [[ -z $MUTECT_COSMIC ]] || \
    [[ -z $MUTECT_DBSNP ]]
@@ -134,8 +135,8 @@ if [[ ! -e $REFERENCE_FASTA ]]; then
 fi
 
 #check if reference dictionary exists
-if [[ ! -e $REFERENCE_DICT ]]; then
-        echo "`$NOW`ERROR: reference dictionary file does not exist: $REFERENCE_DICT"
+if [[ ! -e $REFERENCE_SEQ_DICT ]]; then
+        echo "`$NOW`ERROR: reference dictionary file does not exist: $REFERENCE_SEQ_DICT"
         exit 1
 fi
 
@@ -506,12 +507,14 @@ ls -l\n \
 			sed -i -e "s/#inputBam/${chunk_bam//\//\\/}/" $script_path
 			sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
 			sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+			sed -i -e "s/#referenceSeqDict/${REFERENCE_SEQ_DICT//\//\\/}/" $script_path
 			sed -i -e "s/#analysisDir/${analysis_dir//\//\\/}/" $script_path
 			sed -i -e "s/#fragmentName/$chunk/" $script_path
 			sed -i -e "s/#dataThreads/$RR_DATATHREADS/" $script_path   
 			sed -i -e "s/#rtcDataThreads/$RTC_DATATHREADS/" $script_path
 			sed -i -e "s/#sample/$sample/" $script_path
 			sed -i -e "s/#includesUnmapped/$includes_unmapped/" $script_path
+			sed -i -e "s/#targetFile/${TARGET_INTERVALS_BED//\//\\/}/" $script_path
 			sed -i -e "s/#primerCoordBed/${PRIMER_COORD_BED//\//\\/}/" $script_path
 			sed -i -e "s/#primerCoordOffset/$PRIMER_COORD_OFFSET/" $script_path
 			sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $script_path
@@ -519,7 +522,8 @@ ls -l\n \
 			if [[ $TARGET_INTERVALS_BED != ""  ]]
 			then
 				target_int=$ANALYSIS_DIR_MSVC/chunk_${chunk_name}_target_intervals.int
-				sed -i -e "s/#fragmentFile/${target_int//\//\\/}/" $script_path
+				sed -i -e "s/#fragmentFile/${target_int//\//\\/}/" $script_path	
+				#sed -i -e "s/#targetFile/${target_int//\//\\/}/" $script_path
 			else
 				sed -i -e "s/#fragmentFile/${chunk_int//\//\\/}/" $script_path
 			fi
@@ -642,6 +646,7 @@ ls -l\n \
 			sed -i -e "s/#nctThreads/$PR_DATATHREADS/" $script_path
 			sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
 			sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+			sed -i -e "s/#referenceSeqDict/${REFERENCE_SEQ_DICT//\//\\/}/" $script_path
 			sed -i -e "s/#analysisDir/${analysis_dir//\//\\/}/" $script_path
 			sed -i -e "s/#sample/$sample/" $script_path
 			sed -i -e "s/#fragmentName/$chunk/" $script_path
@@ -654,7 +659,7 @@ ls -l\n \
 			if [[ $TARGET_INTERVALS_BED != ""  ]]
 			then
 				target_int=$ANALYSIS_DIR_MSVC/chunk_${chunk_name}_target_intervals.int
-				sed -i -e "s/#fragmentFile/${target_int//\//\\/}/" $script_path
+				sed -i -e "s/#fragmentFile/${target_int//\//\\/}/" $script_path	
 			else
 				sed -i -e "s/#fragmentFile/${chunk_int//\//\\/}/" $script_path
 			fi
@@ -806,7 +811,7 @@ function submitMuTect {
     	  		sed -i -e "s/#tmpSpaceMb/$tmp_space_mb/g" $script_path
 			sed -i -e "s/#analysisFile/${analysis_file//\//\\/}/" $script_path
 			sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
-			sed -i -e "s/#referenceDict/${REFERENCE_DICT//\//\\/}/" $script_path
+			sed -i -e "s/#referenceSeqDict/${REFERENCE_SEQ_DICT//\//\\/}/" $script_path
 			sed -i -e "s/#mutectCosmic/${MUTECT_COSMIC//\//\\/}/" $script_path
 			sed -i -e "s/#mutectDBsnp/${MUTECT_DBSNP//\//\\/}/" $script_path
 			sed -i -e "s/#normalBam/${normal_bam//\//\\/}/" $script_path
@@ -817,7 +822,7 @@ function submitMuTect {
 			then
 				
 			        target_int=$ANALYSIS_DIR_MSVC/chunk_${chunk_name}_target_intervals.int
-				sed -i -e "s/#intervalsFilee/${target_int//\//\\/}/" $script_path
+				sed -i -e "s/#intervalsFile/${target_int//\//\\/}/" $script_path
 			        
 			else
 				
@@ -858,6 +863,7 @@ function submitMuTect {
 	sed -i -e "s/#gatkVersion/$GATK_VERSION/" $script_path
 	sed -i -e "s/#javaVersion/$JAVA_VERSION/" $script_path
 	sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+	sed -i -e "s/#referenceSeqDict/${REFERENCE_SEQ_DICT//\//\\/}/" $script_path
  	sed -i -e "s/#results_dir/${results_dir//\//\\/}/" $script_path
 	sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $script_path
 
@@ -1013,6 +1019,7 @@ function submitPostProcessingJobs {
 			sed -i -e "s/#inputBam/${chunk_bam//\//\\/}/" $script_path
 			sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
 			sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+			sed -i -e "s/#referenceSeqDict/${REFERENCE_SEQ_DICT//\//\\/}/" $script_path
 			sed -i -e "s/#analysisDir/${analysis_dir//\//\\/}/" $script_path
 			sed -i -e "s/#resultsDir/${results_dir//\//\\/}/" $script_path	
 			sed -i -e "s/#fragmentName/$chunk/" $script_path
@@ -1020,10 +1027,10 @@ function submitPostProcessingJobs {
 			sed -i -e "s/#preRecalibrationReport/${chunk_pre_recalibration_report//\//\\/}/" $script_path
 
 			#remove bam original chunk and realigned chunk
-			local chunk_bam_original=`echo $chunk_bam|sed -e 's/realignment/chunks/'|sed -e 's/realigned\.//'`
-			local string_gatk="#logging"
-			local string_mutect="rm $chunk_bam $chunk_bam.bai $chunk_bam_original $chunk_bam_original.bai\n\n #logging"
-			sed -i -e "s/$string_gatk/${string_mutect//\//\\/}/" $script_path
+			#local chunk_bam_original=`echo $chunk_bam|sed -e 's/realignment/chunks/'|sed -e 's/realigned\.//'`
+			#local string_gatk="#logging"
+			#local string_mutect="rm $chunk_bam $chunk_bam.bai $chunk_bam_original $chunk_bam_original.bai\n\n #logging"
+			#sed -i -e "s/$string_gatk/${string_mutect//\//\\/}/" $script_path
 
 			if [[ $TARGET_INTERVALS_BED != ""  ]]
 			then
@@ -1091,6 +1098,7 @@ function submitPostProcessingJobs {
 
  	sed -i -e "s/#reaglignedRecalibratedBam/${recalibrated_merged_bam//\//\\/}/" $script_path
  	sed -i -e "s/#sample/$sample/" $script_path
+	sed -i -e "s/#referenceSeqDict/${REFERENCE_SEQ_DICT//\//\\/}/" $script_path
  	sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
 
 	sed -i -e "s/#mergedPreRecalibrationReport/${merged_pre_recal_report//\//\\/}/" $script_path
@@ -1345,6 +1353,7 @@ if [[ $TARGET_INTERVALS_BED != ""  ]]; then
 	#converting to chr:start-end format instead of tab delimited format 
 	#as GATK started to refuse parsing tab delimited format for some reason	
 	cat $TARGET_INTERVALS_BED | awk '/^\s*$/ {next;} { print $1 ":" $2+1 "-" $3 }' > $TARGET_INTERVALS_INT
+	#cp $TARGET_INTERVALS_BED $TARGET_INTERVALS_INT
 		
 	#create chunk target intervals
        	for CHUNK_NAME in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`; do
@@ -1495,7 +1504,3 @@ submitCompUse
 echo "`$NOW`"
 echo "`$NOW`"
 echo "`$NOW`Jobs status can be monitored at $DEPLOYMENT_SERVER/report/project/$PROJECT/mutect/$TODAY"
-		                          
-
-
-

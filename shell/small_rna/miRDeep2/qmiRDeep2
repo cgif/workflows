@@ -42,7 +42,7 @@ USAGE="USAGE: qmiRDeep2 -i <input_path> \n
 #COMMAND LINE ARGS
 ##################
 
-while getopts "i:a:m:p:r:h" option; do
+while getopts "i:a:m:p:r:b:h" option; do
     case "$option" in
 
 	i) INPUT_PATH="$OPTARG";;
