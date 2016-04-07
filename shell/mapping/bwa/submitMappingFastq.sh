@@ -89,16 +89,16 @@ do
 	sequence_type=`echo $sample_sheet_row | cut -f4 -d ',' | cut -f3 -d ':' | perl -pe 's/\s//g'`
         # echo " XXXXX sequence_type $sequence_type"
 
-	reference_fasta=$DATA_VOL_IGF/resources/reference/eukaryote/$species/$assembly/fasta/$assembly.fa
+	reference_fasta=$DATA_VOL_IGF/resources/reference/$species/$assembly/fasta/$assembly.fa
         # echo " XXXXX reference_fasta $reference_fasta"
         reference_fasta_name=`basename $reference_fasta`
         path_reference_fasta_no_ext=`basename $reference_fasta_name .fa`
-        reference_dict=$DATA_VOL_IGF/resources/reference/eukaryote/$species/$assembly/dict/$assembly.dict
-	path_reference_idx_dir=$DATA_VOL_IGF/resources/reference/eukaryote/$species/$assembly/index/bwa
-	if [[ $sequence_type = "rna" ]]
-	then
-		path_reference_idx_dir=$DATA_VOL_IGF/resources/reference/eukaryote/$species/$assembly/index/bowtie2
-	fi
+        reference_dict=$DATA_VOL_IGF/resources/reference/$species/$assembly/dict/$assembly.dict
+	path_reference_idx_dir=$DATA_VOL_IGF/resources/reference/$species/$assembly/index/bwa
+	#if [[ $sequence_type = "rna" ]]
+	#then
+	#	path_reference_idx_dir=$DATA_VOL_IGF/resources/reference/eukaryote/$species/$assembly/index/bowtie2
+	#fi
 
         echo "`$NOW`creating and submitting job scripts:"
 
@@ -272,34 +272,35 @@ echo -n "" > $log_output_path
 echo -n "`$NOW`submitting tarresult job: " 
 echo "$deploy_irods_bam_script"
 
-job_id=`qsub -q $QUEUE -W depend=$bam_dependencies -o $log_output_path -j oe $deploy_irods_bam_script`
-echo "qsub -q $QUEUE -W depend=$bam_dependencies -o $log_output_path -j oe $deploy_irods_bam_script"
-echo "`$NOW`Job ID:$job_id"
-chmod 660 $log_output_path
+## deploy of BAM files
+#job_id=`qsub -q $QUEUE -W depend=$bam_dependencies -o $log_output_path -j oe $deploy_irods_bam_script`
+#echo "qsub -q $QUEUE -W depend=$bam_dependencies -o $log_output_path -j oe $deploy_irods_bam_script"
+#echo "`$NOW`Job ID:$job_id"
+#chmod 660 $log_output_path
 
 ##############################################################################
 ###       configure script that tar cram files and deployes in irods      ####
 ##############################################################################
-deploy_irods_cram_script=$path_to_bwa_dir/irods_deploy_cram.${PROJECT_TAG}.sh
+#deploy_irods_cram_script=$path_to_bwa_dir/irods_deploy_cram.${PROJECT_TAG}.sh
 
-cp $BWA_SCRIPTS_DIR/irods_deploy_cram.sh $deploy_irods_cram_script
-chmod 770 $deploy_irods_cram_script
-path_project_tag_dir=$DATA_VOL_IGF/rawdata/$PROJECT_TAG/cram
-sed -i -e "s/#seqRunDate/$SEQ_RUN_DATE/" $deploy_irods_cram_script
-sed -i -e "s/#seqRunName/$SEQ_RUN_NAME/" $deploy_irods_cram_script
-sed -i -e "s/#runDirBcl2Fastq/${path_to_bwa_dir//\//\\/}/" $deploy_irods_cram_script
-sed -i -e "s/#customerFilePath/${INPUT_SEQRUN_DIR//\//\\/}/" $deploy_irods_cram_script
-sed -i -e "s/#projectTag/$PROJECT_TAG/" $deploy_irods_cram_script
-sed -i -e "s/#mailTemplatePath/${template_path//\//\\/}/" $deploy_irods_cram_script
-sed -i -e "s/#pathToDestination/${path_project_tag_dir//\//\\/}/" $deploy_irods_cram_script
-
-#submit job 
-log_output_path=`echo $deploy_irods_cram_script | perl -pe 's/\.sh/\.log/g'`
-echo -n "" > $log_output_path
-echo -n "`$NOW`submitting tarresult job: " 
-echo "$deploy_irods_cram_script"
-
-job_id=`qsub -q $QUEUE -W depend=$cram_dependencies -o $log_output_path -j oe $deploy_irods_cram_script`
-echo "qsub -q $QUEUE -W depend=$cram_dependencies -o $log_output_path -j oe $deploy_irods_cram_script"
-echo "`$NOW`Job ID:$job_id"
-chmod 660 $log_output_path
+#cp $BWA_SCRIPTS_DIR/irods_deploy_cram.sh $deploy_irods_cram_script
+#chmod 770 $deploy_irods_cram_script
+#path_project_tag_dir=$DATA_VOL_IGF/rawdata/$PROJECT_TAG/cram
+#sed -i -e "s/#seqRunDate/$SEQ_RUN_DATE/" $deploy_irods_cram_script
+##sed -i -e "s/#seqRunName/$SEQ_RUN_NAME/" $deploy_irods_cram_script
+#sed -i -e "s/#runDirBcl2Fastq/${path_to_bwa_dir//\//\\/}/" $deploy_irods_cram_script
+#sed -i -e "s/#customerFilePath/${INPUT_SEQRUN_DIR//\//\\/}/" $deploy_irods_cram_script
+#sed -i -e "s/#projectTag/$PROJECT_TAG/" $deploy_irods_cram_script
+#sed -i -e "s/#mailTemplatePath/${template_path//\//\\/}/" $deploy_irods_cram_script
+#sed -i -e "s/#pathToDestination/${path_project_tag_dir//\//\\/}/" $deploy_irods_cram_script
+#
+##submit job 
+#log_output_path=`echo $deploy_irods_cram_script | perl -pe 's/\.sh/\.log/g'`
+#echo -n "" > $log_output_path
+#echo -n "`$NOW`submitting tarresult job: " 
+#echo "$deploy_irods_cram_script"
+#
+#job_id=`qsub -q $QUEUE -W depend=$cram_dependencies -o $log_output_path -j oe $deploy_irods_cram_script`
+#echo "qsub -q $QUEUE -W depend=$cram_dependencies -o $log_output_path -j oe $deploy_irods_cram_script"
+#echo "`$NOW`Job ID:$job_id"
+#chmod 660 $log_output_path

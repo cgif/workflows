@@ -139,6 +139,7 @@ cp $BWA_SCRIPTS_DIR/submitMappingFastq.sh $mapping_script_path
 chmod 770 $mapping_script_path
 
 #set variables 
+sed -i -e "s/#mfastqGenDate/$TODAY/" $mapping_script_path
 sed -i -e "s/#mdataVolIgf/${DATA_VOL_IGF//\//\\/}/" $mapping_script_path
 sed -i -e "s/#mpathSampleSheetReformatted/${PATH_SAMPLE_SHEET_REFORMATTED//\//\\/}/" $mapping_script_path
 sed -i -e "s/#mpathProjectTagDir/${PATH_PROJECT_TAG_DIR//\//\\/}/" $mapping_script_path

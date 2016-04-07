@@ -5,7 +5,7 @@
 #
 
 #PBS -l walltime=#walltimeHours:00:00
-#PBS -l select=1:ncpus=#threads:mem=#memorygb:tmpspace=#tmpspcgb
+#PBS -l select=1:ncpus=#threads:mem=#memory:tmpspace=#tmpspc
 #PBS -M igf@imperial.ac.uk
 #PBS -m ea
 #PBS -j oe

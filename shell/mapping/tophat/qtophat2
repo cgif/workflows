@@ -90,7 +90,7 @@ then
 		exit 1
 	fi
 
-	if [ ! -d /project/tgu/resources/reference/$SPECIES ]
+	if [ ! -d /project/tgu/resources/reference/$SPECIES/$ASSEMBLY ]
 	then
 		echo "Assembly $ASSEMBLY does not exist for $SPECIES in /project/tgu/resources/reference/$SPECIES."
 		echo "Create reference and try again."
