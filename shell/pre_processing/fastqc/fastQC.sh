@@ -125,7 +125,7 @@ do
 	#add to the report the link to the list of samples
 	sed -i 's/<ul>/<ul><li><a href=\"\.\.\/\.\.\/\">Home<\/a><\/li>/g' $REPORT_DIR/fastqc_report.html
 	#remove the semaphore images from the report
-	sed -i 's/<img src=\"[^"]*" alt=\"\[PASS\]\"\/>\|<img src=\"[^"]*" alt=\"\[OK\]\"\/>\|<img src=\"[^"]*" alt=\"\[WARN\]\"\/>\|<img src=\"[^"]*" alt=\"\[WARNING\]\"\/>\|<img src=\"[^"]*" alt=\"\[FAIL\]\"\/>//g' $REPORT_DIR/fastqc_report.html
+	#sed -i 's/<img src=\"[^"]*" alt=\"\[PASS\]\"\/>\|<img src=\"[^"]*" alt=\"\[OK\]\"\/>\|<img src=\"[^"]*" alt=\"\[WARN\]\"\/>\|<img src=\"[^"]*" alt=\"\[WARNING\]\"\/>\|<img src=\"[^"]*" alt=\"\[FAIL\]\"\/>//g' $REPORT_DIR/fastqc_report.html
 	#if udetermined fastq file add a link in the report to the files listing possible indexes
 	if [[ $ZIP == *"Undetermined"* ]]
 	then
