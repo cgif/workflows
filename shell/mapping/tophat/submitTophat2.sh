@@ -45,14 +45,15 @@ SEQ_RUN_DATE=#mseqRunDate
 SEQ_RUN_NAME=#mseqRunName
 PROJECT_TAG=#mprojectTag
 TOPHAT_SCRIPTS_DIR=#TophatScriptDir
-DEPLOYMENT_SERVER=#deploymentServer
+DEPLOYMENT_SERVER=#sdeploymentServer
 DEPLOYMENT_BASE_DIR=#deploymentBaseDir
 QUEUE=#queue
 INPUT_SEQRUN_DIR=#inputSeqrunDir
 
 template_path=$TOPHAT_SCRIPTS_DIR/../../../../data-management/templates
 
-bam_dependencies=afterok
+#bam_dependencies=afterok
+bam_dependencies=""
 cram_dependencies=afterok
 for sample_name in `ls --color=never $PATH_PROJECT_TAG_DIR/fastq/$SEQ_RUN_DATE/`
 do
@@ -94,8 +95,8 @@ do
                 mkdir -m 770 -p $path_results_dir_cram
         fi
 
-        path_to_tophat_dir=$DATA_VOL_IGF/analysis/$PROJECT_TAG/tophat/$FASTQ_GEN_DATE
-        path_run_dir=$DATA_VOL_IGF/analysis/$PROJECT_TAG/tophat/$FASTQ_GEN_DATE/$sample_name
+        path_to_tophat_dir=$DATA_VOL_IGF/runs/$PROJECT_TAG/tophat/$FASTQ_GEN_DATE
+        path_run_dir=$DATA_VOL_IGF/runs/$PROJECT_TAG/tophat/$FASTQ_GEN_DATE/$sample_name
         path_scripts_dir=$path_run_dir/run
         path_mapping_dir=$path_run_dir/mapping
         path_tmp_dir=$path_run_dir/tmp
@@ -201,33 +202,34 @@ do
         echo "`$NOW`bam2cram.$output_prefix.sh"
         echo -n "`$NOW`"
 
-        cram_job_id=`qsub -q $QUEUE -W depend=$bam_dependencies -o $LOG_PATH $bam2cram_script_path`
+        cram_job_id=`qsub -q $QUEUE -W depend=afterok${bam_dependencies} -o $LOG_PATH $bam2cram_script_path`
+        echo "qsub -q $QUEUE -W depend=$bam_dependencies -o $LOG_PATH $bam2cram_script_path"
         echo $cram_job_id
 
-
-	#summary script
-        tophat_summary_results=$DATA_VOL_IGF/analysis/$PROJECT_TAG/tophat/$FASTQ_GEN_DATE
-        tophat_summary_deployment=$DEPLOYMENT_BASE_DIR/project/$PROJECT_TAG/tophat/$FASTQ_GEN_DATE
-        SUMMARY_SCRIPT=$path_scripts_dir/summary_tophat2.$output_prefix.pl
-        cp $TOPHAT_SCRIPTS_DIR/summary_tophat2.pl $SUMMARY_SCRIPT
-        chmod 770 $SUMMARY_SCRIPT
-
-        sed -i -e "s/#projectDirAnalysis/${path_run_dir//\//\\/}/" $SUMMARY_SCRIPT
-        sed -i -e "s/#projectDirResults/${path_results_dir//\//\\/}/" $SUMMARY_SCRIPT
-        sed -i -e "s/#deploymentServer/$DEPLOYMENT_SERVER/" $SUMMARY_SCRIPT
-        sed -i -e "s/#summaryDeployment/${tophat_summary_deployment//\//\\/}/" $SUMMARY_SCRIPT
-        sed -i -e "s/#summaryResults/${tophat_summary_results//\//\\/}/" $SUMMARY_SCRIPT
-
-        SUM_DEPENDENCIES=afterany:$bam_dependencies
-        SUMMARY_LOG=`echo $SUMMARY_SCRIPT | perl -pe 's/\.pl/\.log/g'`
-        echo "`$NOW`submitting summary script:"
-        echo "`$NOW`$SUMMARY_SCRIPT"
-        echo -n "`$NOW`"
-
-        SUM_JOB_ID=`qsub -q $QUEUE -o $SUMMARY_LOG  -j oe -W depend=$SUM_DEPENDENCIES -M igf@imperial.ac.uk $SUMMARY_SCRIPT`
-        echo $SUM_JOB_ID
-
 done
+
+#summary script
+tophat_summary_results=$DATA_VOL_IGF/runs/$PROJECT_TAG/tophat/$FASTQ_GEN_DATE
+tophat_summary_deployment=$DEPLOYMENT_BASE_DIR/project/$PROJECT_TAG/tophat/$FASTQ_GEN_DATE
+SUMMARY_SCRIPT=$path_to_tophat_dir/summary_tophat2.$output_prefix.pl
+cp $TOPHAT_SCRIPTS_DIR/summary_tophat2.pl $SUMMARY_SCRIPT
+chmod 770 $SUMMARY_SCRIPT
+
+sed -i -e "s/#projectDirAnalysis/${path_run_dir//\//\\/}/" $SUMMARY_SCRIPT
+sed -i -e "s/#projectDirResults/${path_results_dir//\//\\/}/" $SUMMARY_SCRIPT
+sed -i -e "s/#deploymentServer/$DEPLOYMENT_SERVER/" $SUMMARY_SCRIPT
+sed -i -e "s/#summaryDeployment/${tophat_summary_deployment//\//\\/}/" $SUMMARY_SCRIPT
+sed -i -e "s/#summaryResults/${tophat_summary_results//\//\\/}/" $SUMMARY_SCRIPT
+
+SUM_DEPENDENCIES=afterany${bam_dependencies}
+SUMMARY_LOG=`echo $SUMMARY_SCRIPT | perl -pe 's/\.pl/\.log/g'`
+echo "`$NOW`submitting summary script:"
+echo "`$NOW`$SUMMARY_SCRIPT"
+echo -n "`$NOW`"
+
+SUM_JOB_ID=`qsub -q $QUEUE -o $SUMMARY_LOG  -j oe -W depend=$SUM_DEPENDENCIES -M igf@imperial.ac.uk $SUMMARY_SCRIPT`
+echo "qsub -q $QUEUE -o $SUMMARY_LOG  -j oe -W depend=$SUM_DEPENDENCIES -M igf@imperial.ac.uk $SUMMARY_SCRIPTr"
+echo $SUM_JOB_ID
 
 #############################################################################
 ###       configure script that tar bam files and  deploys in irods      ####

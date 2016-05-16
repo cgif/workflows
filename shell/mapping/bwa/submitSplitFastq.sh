@@ -77,8 +77,8 @@ do
 
         echo "`$NOW`creating and submitting job scripts:"
 
-	 path_to_bwa_dir=$DATA_VOL_IGF/analysis/$PROJECT_TAG/bwa/$TODAY 
-         path_run_dir=$DATA_VOL_IGF/analysis/$PROJECT_TAG/bwa/$TODAY/$sample_name
+	 path_to_bwa_dir=$DATA_VOL_IGF/runs/$PROJECT_TAG/bwa/$TODAY 
+         path_run_dir=$DATA_VOL_IGF/runs/$PROJECT_TAG/bwa/$TODAY/$sample_name
          path_scripts_dir=$path_run_dir/run
          path_tmp_dir=$path_run_dir/tmp
 

@@ -115,8 +115,8 @@ do
         fi
 	
 
-	 path_to_bwa_dir=$DATA_VOL_IGF/analysis/$PROJECT_TAG/bwa/$FASTQ_GEN_DATE
-         path_run_dir=$DATA_VOL_IGF/analysis/$PROJECT_TAG/bwa/$FASTQ_GEN_DATE/$sample_name
+	 path_to_bwa_dir=$DATA_VOL_IGF/runs/$PROJECT_TAG/bwa/$FASTQ_GEN_DATE
+         path_run_dir=$DATA_VOL_IGF/runs/$PROJECT_TAG/bwa/$FASTQ_GEN_DATE/$sample_name
          path_scripts_dir=$path_run_dir/run
          path_mapping_dir=$path_run_dir/mapping
          path_tmp_dir=$path_run_dir/tmp
@@ -225,30 +225,28 @@ do
         echo $cram_job_id
 
 	cram_dependencies=$cram_dependencies:$cram_job_id
-
-	#summary script
-	bwa_summary_results=$DATA_VOL_IGF/analysis/$PROJECT_TAG/bwa/$FASTQ_GEN_DATE
-        bwa_summary_deployment=$DEPLOYMENT_BASE_DIR/project/$PROJECT_TAG/bwa/$FASTQ_GEN_DATE
-	SUMMARY_SCRIPT=$path_scripts_dir/summary_bwa.$output_prefix.pl
-	cp $BWA_SCRIPTS_DIR/summary_bwa.pl $SUMMARY_SCRIPT
-	chmod 770 $SUMMARY_SCRIPT
-
-	sed -i -e "s/projectDirAnalysis/${path_run_dir//\//\\/}/" $SUMMARY_SCRIPT
-	sed -i -e "s/projectDirResults/${path_results_dir//\//\\/}/" $SUMMARY_SCRIPT
-	sed -i -e "s/deploymentServer/$DEPLOYMENT_SERVER/" $SUMMARY_SCRIPT
-	sed -i -e "s/summaryDeployment/${bwa_summary_deployment//\//\\/}/" $SUMMARY_SCRIPT
-	sed -i -e "s/summaryResults/${bwa_summary_results//\//\\/}/" $SUMMARY_SCRIPT
-
-	SUM_DEPENDENCIES=afterany:$merge_job_id									
-	SUMMARY_LOG=`echo $SUMMARY_SCRIPT | perl -pe 's/\.pl/\.log/g'`
-	echo "`$NOW`submitting summary script:"
-	echo "`$NOW`$SUMMARY_SCRIPT"
-	echo -n "`$NOW`"
-
-	SUM_JOB_ID=`qsub -q $QUEUE -o $SUMMARY_LOG  -j oe -W depend=$SUM_DEPENDENCIES -M igf@imperial.ac.uk $SUMMARY_SCRIPT`	
-	echo $SUM_JOB_ID
-
 done
+#summary script
+bwa_summary_results=$DATA_VOL_IGF/runs/$PROJECT_TAG/bwa/$FASTQ_GEN_DATE
+bwa_summary_deployment=$DEPLOYMENT_BASE_DIR/project/$PROJECT_TAG/bwa/$FASTQ_GEN_DATE
+SUMMARY_SCRIPT=$path_to_bwa_dir/summary_bwa.$output_prefix.pl
+cp $BWA_SCRIPTS_DIR/summary_bwa.pl $SUMMARY_SCRIPT
+chmod 770 $SUMMARY_SCRIPT
+
+sed -i -e "s/projectDirAnalysis/${path_run_dir//\//\\/}/" $SUMMARY_SCRIPT
+sed -i -e "s/projectDirResults/${path_results_dir//\//\\/}/" $SUMMARY_SCRIPT
+sed -i -e "s/deploymentServer/$DEPLOYMENT_SERVER/" $SUMMARY_SCRIPT
+sed -i -e "s/summaryDeployment/${bwa_summary_deployment//\//\\/}/" $SUMMARY_SCRIPT
+sed -i -e "s/summaryResults/${bwa_summary_results//\//\\/}/" $SUMMARY_SCRIPT
+
+SUM_DEPENDENCIES=afterany:$merge_job_id									
+SUMMARY_LOG=`echo $SUMMARY_SCRIPT | perl -pe 's/\.pl/\.log/g'`
+echo "`$NOW`submitting summary script:"
+echo "`$NOW`$SUMMARY_SCRIPT"
+echo -n "`$NOW`"
+
+SUM_JOB_ID=`qsub -q $QUEUE -o $SUMMARY_LOG  -j oe -W depend=$SUM_DEPENDENCIES -M igf@imperial.ac.uk $SUMMARY_SCRIPT`	
+echo $SUM_JOB_ID
 
 #############################################################################
 ###       configure script that tar bam files and  deploys in irods      ####
