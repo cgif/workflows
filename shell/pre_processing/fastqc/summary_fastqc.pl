@@ -150,10 +150,24 @@ while (defined(my $sample = readdir(PROJECT))){
 } #end of main while
 
 
+
 #print extracted data into summary file
+open (OUT, ">$ms_report_dir/index.html");
+print OUT"<html><head><title>FastQC Report</title><style type='text/css'> \@media screen {div.main {    display:block;    position:absolute;    overflow:auto;    height:auto;    width:auto;    top:4.5em;    bottom:2.3em;    left:0em;    right:0;    border-left: 1px solid #CCC;    padding:0 0 0 1em;    background-color: white;    z-index:1;  }    div.header {    background-color: #EEE;    border:0;    margin:0;    padding: 0.5em;    font-size: 200%;    font-weight: bold;    position:fixed;    width:100%;    top:0;    left:0;    z-index:2;  }  div.footer {    background-color: #EEE;    border:0;    margin:0;      padding:0.5em;    height: 1.3em;        overflow:hidden;    font-size: 100%;    font-weight: bold;    position:fixed;    bottom:0;    width:100%;    z-index:2;  }    img.indented {    margin-left: 3em;  } }  \@media print {  img {           max-width:100% !important;              page-break-inside: avoid;       }       h2, h3 {                page-break-after: avoid;        }       div.header {      background-color: #FFF;    }   }  body {      font-family: sans-serif;     color: #000;     background-color: #FFF;  border: 0;  margin: 0;  padding: 0;  }    div.header {  border:0;  margin:0;  padding: 0.5em;  font-size: 200%;  font-weight: bold;  width:100%;  }        #header_title {  display:inline-block;  float:left;  clear:left;  }  #header_filename {  display:inline-block;  float:right;  clear:right;  font-size: 50%;  margin-right:2em;  text-align: right;  }  div.header h3 {  font-size: 50%;  margin-bottom: 0;  } div.main {  background-color: white;  }        div.module {  padding-bottom:1.5em;  padding-top:1.5em;  }       div.footer {  background-color: #EEE;  border:0;  margin:0;  padding: 0.5em;  font-size: 100%;  font-weight: bold;  width:100%;  }  a {  color: #000080;  }  a:hover {  color: #800000;  }        h2 {  color: #800000;  padding-bottom: 0;  margin-bottom: 0;  clear:left;  }  table {   margin-left: 3em;  text-align: center;  }    th {   text-align: center;  background-color: #000080;  color: #FFF;  padding: 0.4em;  }          td {   font-family: monospace;   text-align: left;  background-color: #EEE;  color: #000;  padding: 0.4em;  }  img {  padding-top: 0;  margin-top: 0;  border-top: 0;  }    p {  padding-top: 0;  margin-top: 0;  }</style></head><body><div class='header'>       <div id='header_title'>         <img style='height:30px' src='igf.png' alt='IGF'/>FastQC Samples Report    </div>  <div id='header_filename'>".$run_date."<br>".$project_name."</div></div><div class='main'><div class='module'><h2 id='M0'></h2>";
+
+print OUT "<table><thead><tr>";
+print OUT "</tr></thead><tbody>";
+print OUT "<th>FastQC Report</th>";
+print OUT "<th>MultiQC Report</th>";
+print OUT "</tr></thead><tbody>";
+print OUT "<tr>";
+print OUT "<td><center><a href=multiqc.html>MultiQC</a></FONT></td>";
+print OUT "<td><center><a href=fastqc.html>FastQC</a></FONT></td>";
+print OUT "</tr>";
+print OUT "</tbody></table></div></div><div class='footer'></div></body></html>";
 
 #open output file
-open (OUT, ">$ms_report_dir/index.html");
+open (OUT, ">$ms_report_dir/fastqc.html");
 
 print OUT"<html><head><title>FastQC Report</title><style type='text/css'> \@media screen {div.main {    display:block;    position:absolute;    overflow:auto;    height:auto;    width:auto;    top:4.5em;    bottom:2.3em;    left:0em;    right:0;    border-left: 1px solid #CCC;    padding:0 0 0 1em;    background-color: white;    z-index:1;  }    div.header {    background-color: #EEE;    border:0;    margin:0;    padding: 0.5em;    font-size: 200%;    font-weight: bold;    position:fixed;    width:100%;    top:0;    left:0;    z-index:2;  }  div.footer {    background-color: #EEE;    border:0;    margin:0;      padding:0.5em;    height: 1.3em;        overflow:hidden;    font-size: 100%;    font-weight: bold;    position:fixed;    bottom:0;    width:100%;    z-index:2;  }    img.indented {    margin-left: 3em;  } }  \@media print {  img {           max-width:100% !important;              page-break-inside: avoid;       }       h2, h3 {                page-break-after: avoid;        }       div.header {      background-color: #FFF;    }   }  body {      font-family: sans-serif;     color: #000;     background-color: #FFF;  border: 0;  margin: 0;  padding: 0;  }    div.header {  border:0;  margin:0;  padding: 0.5em;  font-size: 200%;  font-weight: bold;  width:100%;  }        #header_title {  display:inline-block;  float:left;  clear:left;  }  #header_filename {  display:inline-block;  float:right;  clear:right;  font-size: 50%;  margin-right:2em;  text-align: right;  }  div.header h3 {  font-size: 50%;  margin-bottom: 0;  } div.main {  background-color: white;  }        div.module {  padding-bottom:1.5em;  padding-top:1.5em;  }       div.footer {  background-color: #EEE;  border:0;  margin:0;  padding: 0.5em;  font-size: 100%;  font-weight: bold;  width:100%;  }  a {  color: #000080;  }  a:hover {  color: #800000;  }        h2 {  color: #800000;  padding-bottom: 0;  margin-bottom: 0;  clear:left;  }  table {   margin-left: 3em;  text-align: center;  }    th {   text-align: center;  background-color: #000080;  color: #FFF;  padding: 0.4em;  }          td {   font-family: monospace;   text-align: left;  background-color: #EEE;  color: #000;  padding: 0.4em;  }  img {  padding-top: 0;  margin-top: 0;  border-top: 0;  }    p {  padding-top: 0;  margin-top: 0;  }</style></head><body><div class='header'>       <div id='header_title'>         <img style='height:30px' src='igf.png' alt='IGF'/>FastQC Samples Report    </div>  <div id='header_filename'>".$run_date."<br>".$project_name."</div></div><div class='main'><div class='module'><h2 id='M0'></h2>";
 print OUT "<table><thead><tr>";
@@ -229,7 +243,7 @@ foreach my $sample (sort {$a cmp $b} keys %sum){
 
 print OUT "</tbody></table></div></div><div class='footer'></div></body></html>";
 
-system("chmod 660 $ms_report_dir/index.html");
-system("scp -r $ms_report_dir/index.html $deployment_server:$summary_deployment/index.html");
-system("ssh $deployment_server chmod -R 664 $summary_deployment/index.html");
+system("chmod -Rf 660 $ms_report_dir/*");
+system("scp -r $ms_report_dir/* $deployment_server:$summary_deployment/");
+system("ssh $deployment_server chmod -R 664 $summary_deployment/*");
 
