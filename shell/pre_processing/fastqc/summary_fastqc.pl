@@ -157,8 +157,8 @@ print OUT"<html><head><title>FastQC Report</title><style type='text/css'> \@medi
 
 print OUT "<table><thead><tr>";
 print OUT "</tr></thead><tbody>";
-print OUT "<th>FastQC Report</th>";
 print OUT "<th>MultiQC Report</th>";
+print OUT "<th>FastQC Report</th>";
 print OUT "</tr></thead><tbody>";
 print OUT "<tr>";
 print OUT "<td><center><a href=multiqc.html>MultiQC</a></FONT></td>";
