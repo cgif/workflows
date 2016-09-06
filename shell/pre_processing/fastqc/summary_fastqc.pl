@@ -245,5 +245,5 @@ print OUT "</tbody></table></div></div><div class='footer'></div></body></html>"
 
 system("chmod -Rf 660 $ms_report_dir/*");
 system("scp -r $ms_report_dir/* $deployment_server:$summary_deployment/");
-system("ssh $deployment_server chmod -R 664 $summary_deployment/*");
+system("ssh $deployment_server chmod -R 775 $summary_deployment/*");
 

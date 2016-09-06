@@ -138,7 +138,7 @@ do
 	scp -r $TMPDIR/$REPORT_DIR $DEPLOYMENT_SERVER:$DEPLOYMENT_PATH/  < /dev/null 
 	ssh $DEPLOYMENT_SERVER "chmod 775 $DEPLOYMENT_PATH/$REPORT_DIR" < /dev/null 
 	ssh $DEPLOYMENT_SERVER "chmod 775 $DEPLOYMENT_PATH/$REPORT_DIR/*"  < /dev/null
-	ssh $DEPLOYMENT_SERVER "chmod 664 $DEPLOYMENT_PATH/$REPORT_DIR/*/*"  < /dev/null
+	ssh $DEPLOYMENT_SERVER "chmod 775 $DEPLOYMENT_PATH/$REPORT_DIR/*/*"  < /dev/null
 
         echo "`${NOW}`copying unzipped QC report to $PATH_QC_REPORT_DIR/$REPORT_DIR"
 	mkdir -p -m 770 $PATH_QC_REPORT_DIR/$REPORT_DIR
