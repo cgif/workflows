@@ -4,7 +4,7 @@
 # generates, configures and submits scripts to run FastQC on
 # a single fastq file, a set of fastq files in a directory or
 # a CGI project directory
-#
+# test
 
 USAGE="./qfastqc.usage"
 
