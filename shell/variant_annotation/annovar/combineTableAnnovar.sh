@@ -23,7 +23,7 @@ do
 	ANNOVAR_ANNOTATION_FILES="$ANNOVAR_ANNOTATION_FILES $FILE"
 done
 
-$BASEDIR/combineTableAnnovar.pl $ANNOVAR_ANNOTATION_FILES > $OUTPUT_PATH.temp
+$BASEDIR/combineTableAnnovar.pl $ANNOVAR_ANNOTATION_FILES | gzip > $OUTPUT_PATH.temp.gz
 
 #add associated gene names if Ensembl based annotation
 #if [[ GENE_TYPE == "ensgene" ]]
@@ -33,7 +33,7 @@ $BASEDIR/combineTableAnnovar.pl $ANNOVAR_ANNOTATION_FILES > $OUTPUT_PATH.temp
 #fi
 
 # add sample names columns
-$BASEDIR/addSampleColumns.pl $OUTPUT_PATH.temp $OUTPUT_PATH
+$BASEDIR/addSampleColumns.pl $OUTPUT_PATH.temp.gz $OUTPUT_PATH
 
 head -n 1 $OUTPUT_PATH > $OUTPUT_PATH_EXONIC
 grep -E "exonic|splicing" $OUTPUT_PATH >> $OUTPUT_PATH_EXONIC
@@ -44,7 +44,7 @@ gzip -f $OUTPUT_PATH_EXONIC
 chmod 660 $OUTPUT_PATH.gz
 chmod 660 $OUTPUT_PATH_EXONIC.gz
 
-rm $OUTPUT_PATH.temp
+rm $OUTPUT_PATH.temp.gz
 
 
 

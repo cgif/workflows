@@ -38,7 +38,7 @@ LOG_DEBUG="`$NOW`DEBUG $SCRIPT_CODE"
 
 # define variables
 REFERENCE_FASTA=#referenceFasta
-REFRENCE_SEQ_DICT=`echo $REFERENCE_FASTA | perl -pe 's/\.fa/\.dict/'`
+REFERENCE_SEQ_DICT=/project/tgu/resources/reference/hsapiens/hs37d5/dict/hs37d5.dict
 ANALYSIS_DIR=#analysisDir
 RESULTS_DIR=#resultsDir
 SAMPLE=#sampleName
@@ -106,7 +106,7 @@ done
 echo "`${NOW}`INFO $SCRIPT_CODE copying reference fasta and indexto tmp directory..."
 cp $REFERENCE_FASTA $TMPDIR/reference.fa
 cp $REFERENCE_FASTA.fai $TMPDIR/reference.fa.fai
-cp $REFRENCE_SEQ_DICT $TMPDIR/reference.dict
+cp $REFERENCE_SEQ_DICT $TMPDIR/reference.dict
 
 
 # make tmp folder for temporary java files

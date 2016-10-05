@@ -7,7 +7,7 @@ BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 GATK_DIR=$BASEDIR/../../variant_calling/gatk3
 IMAGE_DIR=/home/ksannare/git/workflows/shell/resources/images
 
-GATK_VERSION=3.2-2
+GATK_VERSION=3.5
 SAMTOOLS_VERSION=0.1.18
 PICARD_VERSION=1.91
 R_VERSION=3.1.0
@@ -522,8 +522,8 @@ ls -l\n \
 			if [[ $TARGET_INTERVALS_BED != ""  ]]
 			then
 				target_int=$ANALYSIS_DIR_MSVC/chunk_${chunk_name}_target_intervals.int
-				sed -i -e "s/#fragmentFile/${target_int//\//\\/}/" $script_path	
-				#sed -i -e "s/#targetFile/${target_int//\//\\/}/" $script_path
+				#sed -i -e "s/#fragmentFile/${target_int//\//\\/}/" $script_path	
+				sed -i -e "s/#targetFile/${target_int//\//\\/}/" $script_path
 			else
 				sed -i -e "s/#fragmentFile/${chunk_int//\//\\/}/" $script_path
 			fi

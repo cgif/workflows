@@ -26,7 +26,7 @@ JAVA_XMX=15G
 
 DBSNP=#dbSnp
 REFERENCE_FASTA=#referenceFasta
-REFRENCE_SEQ_DICT=`echo $REFERENCE_FASTA | perl -pe 's/\.fa/\.dict/'`
+REFERENCE_SEQ_DICT=#referenceSeqDict
 ANALYSIS_DIR=#analysisDir
 SAMPLE=#sampleName		### this is really a project name
 FRAGMENT=#fragmentName
@@ -112,7 +112,7 @@ fi
 echo "`${NOW}`INFO $SCRIPT_CODE copying reference fasta and index to tmp directory..."
 cp $REFERENCE_FASTA $TMPDIR/reference.fa
 cp $REFERENCE_FASTA.fai $TMPDIR/reference.fa.fai
-cp $REFRENCE_SEQ_DICT $TMPDIR/reference.dict
+cp $REFERENCE_SEQ_DICT $TMPDIR/reference.dict
 
 echo -e "`${NOW}` size of $TMPDIR"
 du -h $TMPDIR

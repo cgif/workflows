@@ -16,8 +16,8 @@ ANNOVAR_DATE=2015-02-17
 HGMD_RELEASE=2015_2
 GI_BED_FILE=CCDS_genic_intolerance_noNA.bed
 
-REFERENCE_FASTA=/project/tgu/resources/reference/eukaryote/hsapiens/hs37d5/fasta/hs37d5.fa
-
+REFERENCE_FASTA=/cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.fa
+REFERENCE_DICT=/cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.dict
 
 # now
 NOW="date +%Y-%m-%d%t%T%t"
@@ -157,10 +157,12 @@ chmod -R 770 $AX3_CGI/analysis/$PROJECT/annovar
 echo "`$NOW`copying reference fasta to analysis folder..."
 cp $REFERENCE_FASTA $ANALYSIS_DIR
 cp $REFERENCE_FASTA.fai $ANALYSIS_DIR
+cp $REFERENCE_DICT $ANALYSIS_DIR
 
 REFERENCE_NAME_NO_EXT=`basename $REFERENCE_FASTA .fa`
 REFERENCE_DIR=`dirname $REFERENCE_FASTA`
-cp $REFERENCE_DIR/../dict/$REFERENCE_NAME_NO_EXT.dict $ANALYSIS_DIR
+
+#cp $REFERENCE_DIR/../dict/$REFERENCE_NAME_NO_EXT.dict $ANALYSIS_DIR
 
 REFERENCE_NAME=`basename $REFERENCE_FASTA`
 REFERENCE=$ANALYSIS_DIR/$REFERENCE_NAME

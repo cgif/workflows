@@ -32,6 +32,7 @@ LOG_DEBUG="`$NOW`DEBUG $SCRIPT_CODE"
 
 # define variables
 REFERENCE_FASTA=#referenceFasta
+REFERENCE_SEQ_DICT=#referenceSeqDict
 SAMPLE=#sample
 ANALYSIS_DIR=#analysisDir
 RECALIBRATED_BAM=#recalibratedBam
@@ -51,8 +52,9 @@ cp $RECALIBRATED_BAM.bai $TMPDIR/realigned.recalibrated.bam.bai
 echo "`${NOW}`INFO $SCRIPT_CODE copying reference to tmp directory..."
 cp $REFERENCE_FASTA $TMPDIR/reference.fa
 cp $REFERENCE_FASTA.fai $TMPDIR/reference.fa.fai
-REFRENCE_SEQ_DICT=`echo $REFERENCE_FASTA | perl -pe 's/\.fa/\.dict/'`
-cp $REFRENCE_SEQ_DICT $TMPDIR/reference.dict
+#REFRENCE_SEQ_DICT=`echo $REFERENCE_FASTA | perl -pe 's/\.fa/\.dict/'`
+
+cp $REFERENCE_SEQ_DICT $TMPDIR/reference.dict
 
 cp $FRAGMENT_FILE $TMPDIR/fragment.intervals
 

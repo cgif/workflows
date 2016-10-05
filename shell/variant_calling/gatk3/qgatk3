@@ -87,7 +87,7 @@ USAGE="$BASEDIR/gatk3.usage"
 # default values for input arguments
 REFERENCE_DIR=/project/tgu/resources/reference
 REFERENCE_FASTA=$REFERENCE_DIR/hsapiens/hs37d5/fasta/hs37d5.fa
-REFERENCE_DICT=$REFERENCE_DIR/hsapiens/hs37d5/dict/hs37d5.dict
+REFERENCE_SEQ_DICT=$REFERENCE_DIR/hsapiens/hs37d5/dict/hs37d5.dict
 REFERENCE_CHUNKS_GENOME=$REFERENCE_DIR/hsapiens/hs37d5/chunk/hs37d5.chunks.genome.bed
 REFERENCE_CHUNKS_EXOME=$REFERENCE_DIR/hsapiens/hs37d5/chunk/hs37d5.chunks.exome.v2.bed
 REFERENCE_CHUNKS_TARGETED=$REFERENCE_DIR/hsapiens/hs37d5/chunk/hs37d5.chunks.targeted.bed
@@ -111,7 +111,7 @@ do
 	t) TYPE="$OPTARG";;
 	a) TARGET_INTERVALS_BED="$OPTARG";;
 	r) REFERENCE_FASTA="$OPTARG";;
-	d) REFERENCE_DICT="$OPTARG";;
+	d) REFERENCE_SEQ_DICT="$OPTARG";;
 	u) REFERENCE_CHUNKS_USER="$OPTARG";;
 	x) AUX_LIST="$OPTARG";;
 	l) OUTPUT_SAMPLE_LIST="$OPTARG";;	
@@ -132,7 +132,7 @@ done
 if [[ -z $PROJECT ]] || \
    [[ -z $SAMPLE_LIST ]] || \
    [[ -z $REFERENCE_FASTA ]] || \
-   [[ -z $REFERENCE_DICT ]] || \
+   [[ -z $REFERENCE_SEQ_DICT ]] || \
    [[ -z $TYPE ]]
 then
 
@@ -178,8 +178,8 @@ if [[ ! -e $REFERENCE_FASTA ]]; then
 fi
 
 #check if reference dictionary exists
-if [[ ! -e $REFERENCE_DICT ]]; then
-	echo "`$NOW`ERROR: reference dictionary file does not exist: $REFERENCE_DICT"
+if [[ ! -e $REFERENCE_SEQ_DICT ]]; then
+	echo "`$NOW`ERROR: reference dictionary file does not exist: $REFERENCE_SEQ_DICT"
 	exit 1
 fi
 
@@ -511,7 +511,7 @@ function submitRealignmentAndRecalibrationJobs {
 			#converting to chr:start-end format instead of tab delimited
 			#format as GATK started to refuse parsing tab delimited format for some
 			#reason
-#			cat $REFERENCE_DICT > $chunk_int
+#			cat $REFERENCE_SEQ_DICT > $chunk_int
 #			grep -P "chunk_${chunk_name}\." $REFERENCE_CHUNKS | awk '/^\s*$/ {next;} { print $1 "\t" $2+1 "\t" $3 "\t+\t" $4 }' > $chunk_int
 			grep -P "chunk_${chunk_name}\." $REFERENCE_CHUNKS | awk '/^\s*$/ {next;} { print $1 ":" $2+1 "-" $3 }' > $chunk_int
  		
@@ -567,6 +567,7 @@ function submitRealignmentAndRecalibrationJobs {
 			sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
 			sed -i -e "s/#warningLog/${WARNING_LOG//\//\\/}/" $script_path
 			sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+			sed -i -e "s/#referenceSeqDict/${REFERENCE_SEQ_DICT//\//\\/}/" $script_path
 			sed -i -e "s/#analysisDir/${analysis_dir//\//\\/}/" $script_path
 			sed -i -e "s/#fragmentName/$chunk/" $script_path
 			sed -i -e "s/#dataThreads/$RR_DATATHREADS/" $script_path   
@@ -782,6 +783,7 @@ function submitRealignmentAndRecalibrationJobs {
 			sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
 			sed -i -e "s/#warningLog/${WARNING_LOG//\//\\/}/" $script_path
 			sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+			sed -i -e "s/#referenceSeqDict/${REFERENCE_SEQ_DICT//\//\\/}/" $script_path
 			sed -i -e "s/#analysisDir/${analysis_dir//\//\\/}/" $script_path
 			sed -i -e "s/#sample/$sample/" $script_path
 			sed -i -e "s/#fragmentName/$chunk/" $script_path
@@ -860,6 +862,7 @@ function submitRealignmentAndRecalibrationJobs {
 
 			sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
 			sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+			sed -i -e "s/#referenceSeqDict/${REFERENCE_SEQ_DICT//\//\\/}/" $script_path
 			sed -i -e "s/#analysisDir/${analysis_dir//\//\\/}/" $script_path
 			sed -i -e "s/#sample/$sample/" $script_path
 			sed -i -e "s/#fragmentName/$chunk/" $script_path
@@ -1065,6 +1068,7 @@ function submitGenotypeGVCFsJobs {
 
 			sed -i -e "s/#dbSnp/${DBSNP//\//\\/}/" $script_path	
 			sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+			sed -i -e "s/#referenceSeqDict/${REFERENCE_SEQ_DICT//\//\\/}/" $script_path
 			sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
 			sed -i -e "s/#analysisDir/${analysis_dir//\//\\/}/" $script_path
 			sed -i -e "s/#sampleName/$sample/" $script_path
@@ -1368,7 +1372,7 @@ function submitPostProcessingJobs {
 	sed -i -e "s/#tabixVersion/$TABIX_VERSION/" $script_path
 	sed -i -e "s/#pathStripIndelQualsScript/${PATH_STRIP_INDEL_QUALS_SCRIPT//\//\\/}/" $script_path	
 	sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
-	
+	sed -i -e "s/#referenceSeqDict/${REFERENCE_SEQ_DICT//\//\\/}/" $script_path
 	sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
 	sed -i -e "s/#sample/$sample/" $script_path
 	sed -i -e "s/#inputDirRealigned/${realigned_input_dir//\//\\/}/" $script_path	
@@ -1548,6 +1552,7 @@ function submitPostProcessingJobs {
 			sed -i -e "s/#inputBam/${chunk_bam//\//\\/}/" $script_path
 			sed -i -e "s/#runLog/${RUN_LOG//\//\\/}/" $script_path
 			sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+			sed -i -e "s/#referenceSeqDict/${REFERENCE_SEQ_DICT//\//\\/}/" $script_path
 			sed -i -e "s/#analysisDir/${analysis_dir//\//\\/}/" $script_path
 			sed -i -e "s/#resultsDir/${results_dir//\//\\/}/" $script_path	
 			sed -i -e "s/#fragmentName/$chunk/" $script_path
@@ -1655,7 +1660,7 @@ function submitPostProcessingJobs {
 # 	sed -i -e "s/#reaglignedRecalibratedBam/${recalibrated_merged_bam//\//\\/}/" $script_path
  	sed -i -e "s/#sample/$sample/" $script_path
  	sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
-
+	sed -i -e "s/#referenceSeqDict/${REFERENCE_SEQ_DICT//\//\\/}/" $script_path
 	sed -i -e "s/#mergedPreRecalibrationReport/${merged_pre_recal_report//\//\\/}/" $script_path
  	sed -i -e "s/#recalibrationReports/${post_recalibration_reports//\//\\/}/" $script_path
  	sed -i -e "s/#mergedPostRecalibrationReport/${merged_post_recal_report//\//\\/}/" $script_path
@@ -1849,7 +1854,7 @@ DEPENDENCY_RECALIBRATE_VCF=afterok
 DEPENDENCY_COLLECT_SUMMARY_METRICS_ALL=afterok
 
 
-ANALYSIS_DIR_PROJECT=$GROUP_VOL_CGI/analysis/$PROJECT/gatk3
+ANALYSIS_DIR_PROJECT=$PROJECT_TGU/analysis/$PROJECT/gatk3
 RESULTS_DIR_PROJECT=$PROJECT_TGU/results/$PROJECT/gatk3
 SCRIPTS_DIR_PROJECT=$PROJECT_TGU/runs/$PROJECT/gatk3
 

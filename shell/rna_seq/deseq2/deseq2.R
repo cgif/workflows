@@ -6,7 +6,7 @@ library("RColorBrewer")
 results.dir = "#resultsDir"
 counts.table = "#countsTable"
 metadata.file = "#metadataFile"
-paired = "#paired"
+#paired = "#paired"
 
 #########################################################################
 #read count data from matrix and create dds
