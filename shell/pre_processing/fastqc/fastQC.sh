@@ -41,6 +41,7 @@ PATH_QC_REPORT_DIR=#pathQcReportDir
 DEPLOYMENT_SERVER=#deploymentServer
 DEPLOYMENT_PATH=#deploymentPath
 SUMMARY_PATH=#summaryPath
+NUMBER_SAMPLES_X_LANE=#numberSamplesXLane
 
 #create temporary QC report output directory
 mkdir $TMPDIR/qc
@@ -102,7 +103,7 @@ then
 #try to find the correct barcode
 	echo "Undetermined file"
 	barcodes=`echo $FASTQ_READ1 | perl -pe 's/_R1//g'`
-	gunzip -c $TMPDIR/$FASTQ_READ1 | awk 'NR == 1 || (NR-1) % 4 == 0' | cut -d":" -f10 | sort -r | uniq -c | sort -nrk1,1 > $TMPDIR/qc/${barcodes}.txt
+	gunzip -c $TMPDIR/$FASTQ_READ1 | awk 'NR == 1 || (NR-1) % 4 == 0' | cut -d":" -f10 | sort -r | uniq -c | sort -nrk1,1 | head -n $NUMBER_SAMPLES_X_LANE > $TMPDIR/qc/${barcodes}.txt
 	#copies barcode file in the results directory
 	cp $TMPDIR/qc/${barcodes}.txt $PATH_QC_REPORT_DIR
 fi
