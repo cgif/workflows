@@ -13,7 +13,8 @@ NOW="date +%Y-%m-%d%t%T%t"
 TODAY=`date +%Y-%m-%d`
 
 #get the directory this script resides in
-GROUP_VOL_CGI=/groupvol/cgi
+
+GROUP_VOL_CGI=/project/tgu
 DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
 DEPLOYMENT_BASE_DIR=/www/html/report
 QUEUE=pqcgi
@@ -23,14 +24,19 @@ USAGE="$BASEDIR/SomaticIndelDetector.usage"
 
 JAVA_VERSION=jdk-7u25
 GATK_VERSION=3.2-2
+BEDTOOLS_VERSION=2.13.3
+
+module load bedtools/$BEDTOOLS_VERSION
 
 # default values for input arguments
-REFERENCE_DIR=$GROUP_VOL_CGI/resources/reference/eukaryote/human/hs37d5
-REFERENCE_FASTA=$REFERENCE_DIR/hs37d5.fa
-REFERENCE_DICT=$REFERENCE_DIR/hs37d5.dict
-REFERENCE_CHUNKS_GENOME=$REFERENCE_DIR/hs37d5.chunks.genome.SM.bed
-REFERENCE_CHUNKS_EXOME=$REFERENCE_DIR/hs37d5.chunks.exome.bed
-REFERENCE_CHUNKS_TARGETED=$REFERENCE_DIR/hs37d5.chunks.targeted.bed
+REFERENCE_DIR=$GROUP_VOL_CGI/resources/reference/hsapiens/hs37d5
+REFERENCE_FASTA=$REFERENCE_DIR/fasta/hs37d5.fa
+REFERENCE_DICT=$REFERENCE_DIR/dict/hs37d5.dict
+#REFERENCE_CHUNKS_GENOME=$REFERENCE_DIR/hs37d5.chunks.genome.SM.bed
+## need to find or make SM chunk file, because chunks without decoy required for the whole genome
+REFERENCE_CHUNKS_GENOME=$REFERENCE_DIR/chunk/hs37d5.chunks.genome.bed
+REFERENCE_CHUNKS_EXOME=$REFERENCE_DIR/chunk/hs37d5.chunks.exome.bed
+REFERENCE_CHUNKS_TARGETED=$REFERENCE_DIR/chunk/hs37d5.chunks.targeted.bed
 REFERENCE_CHUNKS_USER=""
 TARGET_INTERVALS_BED=""
 TYPE="WGS"
@@ -247,7 +253,7 @@ function submitSomaticIndelDetector {
 			then
 				
 			        target_int=$ANALYSIS_DIR_MSVC/chunk_${chunk_name}_target_intervals.int
-				sed -i -e "s/#intervalsFilee/${target_int//\//\\/}/" $script_path
+				sed -i -e "s/#intervalsFile/${target_int//\//\\/}/" $script_path
 			        
 			else
 				
