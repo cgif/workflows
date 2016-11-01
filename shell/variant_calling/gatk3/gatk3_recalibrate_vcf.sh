@@ -176,7 +176,11 @@ then
 	# added --target_titv, which is used for plotting purposes only 
 
 	echo "`$NOW`INFO $SCRIPT_CODE building SNP recalibration model..."
-	ANNOTATIONS_SNP="-an QD -an MQ -an MQRankSum -an ReadPosRankSum -an SOR -an FS "
+#	ANNOTATIONS_SNP="-an QD -an MQ -an MQRankSum -an ReadPosRankSum -an SOR -an FS "
+
+# removed MQ annotation, because it was causing recalibration to fail due to too tight distribution
+# http://gatkforums.broadinstitute.org/gatk/discussion/4425/variant-recalibration-failing
+	ANNOTATIONS_SNP="-an QD -an MQRankSum -an ReadPosRankSum -an SOR -an FS "
 	if [[ "$SEQUENCING_TYPE" == "WGS" ]]; then
 		ANNOTATIONS_SNP="$ANNOTATIONS_SNP -an DP"
 		TARGET_TITV="2.15"
