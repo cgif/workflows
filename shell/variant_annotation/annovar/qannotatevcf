@@ -5,19 +5,19 @@
 # for each sample, and submit job for combining all samples into one table
 #
 
-module load gatk/2.6-5
+module load gatk/3.3
 module load java/jdk-7u25
 module load bcftools/2015-02-17
 
 AX3_CGI=/ax3-cgi
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 
-ANNOVAR_DATE=2015-02-17
+ANNOVAR_DATE=2016-10-25
 HGMD_RELEASE=2015_2
 GI_BED_FILE=CCDS_genic_intolerance_noNA.bed
 
-REFERENCE_FASTA=/cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.fa
-REFERENCE_DICT=/cgi/resources/reference/eukaryote/human/hs37d5/hs37d5.dict
+REFERENCE_FASTA=/project/tgu/resources/reference/hsapiens/hs37d5/fasta/hs37d5.fa
+REFERENCE_DICT=/project/tgu/resources/reference/hsapiens/hs37d5/dict/hs37d5.dict
 
 # now
 NOW="date +%Y-%m-%d%t%T%t"
