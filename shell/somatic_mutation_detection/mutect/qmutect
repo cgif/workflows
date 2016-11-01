@@ -5,9 +5,9 @@
 
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 GATK_DIR=$BASEDIR/../../variant_calling/gatk3
-IMAGE_DIR=/home/ksannare/git/workflows/shell/resources/images
+IMAGE_DIR=$BASEDIR/../../resources/images
 
-GATK_VERSION=3.5
+GATK_VERSION=3.2-2
 SAMTOOLS_VERSION=0.1.18
 PICARD_VERSION=1.91
 R_VERSION=3.1.0
@@ -15,7 +15,9 @@ NXTGENUTILS_VERSION=0.13.0
 JAVA_VERSION=jdk-7u25
 JAVA_VERSION_MUTECT=sun-jdk-1.6.0_19
 MUTECT_VERSION=1.1.4
-module load bedtools/2.25
+BEDTOOLS_VERSION=2.13.3
+
+module load bedtools/$BEDTOOLS_VERSION
 
 #now
 NOW="date +%Y-%m-%d%t%T%t"
@@ -25,7 +27,6 @@ TODAY=`date +%Y-%m-%d`
 #TODAY="2014-10-29"
 
 #get the directory this script resides in
-#GROUP_VOL_CGI=/groupvol/cgi
 GROUP_VOL_CGI=/project/tgu
 DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
 DEPLOYMENT_BASE_DIR=/www/html/report
@@ -64,7 +65,8 @@ USAGE="$BASEDIR/mutect.usage"
 REFERENCE_DIR=$GROUP_VOL_CGI/resources/reference/hsapiens/hs37d5
 REFERENCE_FASTA=$REFERENCE_DIR/fasta/hs37d5.fa
 REFERENCE_SEQ_DICT=$REFERENCE_DIR/dict/hs37d5.dict
-#REFERENCE_CHUNKS_GENOME=$REFERENCE_DIR/chunk/hs37d5.chunks.genome.SM.bed
+#REFERENCE_CHUNKS_GENOME=$REFERENCE_DIR/hs37d5.chunks.genome.SM.bed
+## need to find SM chunk file, because chunks without decoy required for the whole genome
 REFERENCE_CHUNKS_GENOME=$REFERENCE_DIR/chunk/hs37d5.chunks.genome.bed
 REFERENCE_CHUNKS_EXOME=$REFERENCE_DIR/chunk/hs37d5.chunks.exome.bed
 REFERENCE_CHUNKS_TARGETED=$REFERENCE_DIR/chunk/hs37d5.chunks.targeted.bed
@@ -514,18 +516,30 @@ ls -l\n \
 			sed -i -e "s/#rtcDataThreads/$RTC_DATATHREADS/" $script_path
 			sed -i -e "s/#sample/$sample/" $script_path
 			sed -i -e "s/#includesUnmapped/$includes_unmapped/" $script_path
-			sed -i -e "s/#targetFile/${TARGET_INTERVALS_BED//\//\\/}/" $script_path
 			sed -i -e "s/#primerCoordBed/${PRIMER_COORD_BED//\//\\/}/" $script_path
 			sed -i -e "s/#primerCoordOffset/$PRIMER_COORD_OFFSET/" $script_path
 			sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $script_path
-			
-			if [[ $TARGET_INTERVALS_BED != ""  ]]
-			then
+
+
+			## change from GATKv2 pipeline - we output all reads, not just target region
+#			if [[ $TARGET_INTERVALS_BED != ""  ]]; then
+
+#				target_int=$ANALYSIS_DIR_MSVC/chunk_${chunk_name}_target_intervals.int
+#				sed -i -e "s/#fragmentFile/${target_int//\//\\/}/" $script_path
+#			else
+				sed -i -e "s/#fragmentFile/${chunk_int//\//\\/}/" $script_path
+#			fi
+
+			## for targeted sequencing base recalibration should be done on targets only
+			## This excludes off-target sequences and sequences that may be poorly mapped, which have a higher error rate. Including them could lead to a skewed model and bad recalibration.
+			## also RealignerTargetCreator only for target regions, for speed
+			## see http://gatkforums.broadinstitute.org/discussion/4133/when-should-i-use-l-to-pass-in-a-list-of-intervals#latest
+
+			if [[ $TARGET_INTERVALS_BED != ""  ]]; then
 				target_int=$ANALYSIS_DIR_MSVC/chunk_${chunk_name}_target_intervals.int
-				#sed -i -e "s/#fragmentFile/${target_int//\//\\/}/" $script_path	
 				sed -i -e "s/#targetFile/${target_int//\//\\/}/" $script_path
 			else
-				sed -i -e "s/#fragmentFile/${chunk_int//\//\\/}/" $script_path
+				sed -i -e "s/#targetFile/${chunk_int//\//\\/}/" $script_path
 			fi
 
 			recalibration_reports="$recalibration_reports $analysis_dir/recalibration/reports/pre/$sample.$chunk.realigned.recal_data.grp"
@@ -656,14 +670,28 @@ ls -l\n \
 			sed -i -e "s/#includesUnmapped/$includes_unmapped/" $script_path
 			sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $script_path
 
-			if [[ $TARGET_INTERVALS_BED != ""  ]]
-			then
-				target_int=$ANALYSIS_DIR_MSVC/chunk_${chunk_name}_target_intervals.int
-				sed -i -e "s/#fragmentFile/${target_int//\//\\/}/" $script_path	
-			else
+			## change from GATKv2 pipeline - we output all reads, not just target region
+#			if [[ $TARGET_INTERVALS_BED != ""  ]]; then
+
+#				target_int=$ANALYSIS_DIR_MSVC/chunk_${chunk_name}_target_intervals.int
+#				sed -i -e "s/#fragmentFile/${target_int//\//\\/}/" $script_path
+#			else
 				sed -i -e "s/#fragmentFile/${chunk_int//\//\\/}/" $script_path
+#			fi
+
+			## for targeted sequencing base recalibration should be done on targets only
+			## This excludes off-target sequences and sequences that may be poorly mapped, which have a higher error rate. Including them could lead to a skewed model and bad recalibration.
+			## also RealignerTargetCreator only for target regions, for speed
+			## see http://gatkforums.broadinstitute.org/discussion/4133/when-should-i-use-l-to-pass-in-a-list-of-intervals#latest
+
+			if [[ $TARGET_INTERVALS_BED != ""  ]]; then
+				target_int=$ANALYSIS_DIR_MSVC/chunk_${chunk_name}_target_intervals.int
+				sed -i -e "s/#targetFile/${target_int//\//\\/}/" $script_path
+			else
+				sed -i -e "s/#targetFile/${chunk_int//\//\\/}/" $script_path
 			fi
-			
+
+		
 			#submit job and save job ID to dependency variable
 			log_output_path=`echo $script_path | perl -pe 's/\.sh/\.log/g'`
 
@@ -811,6 +839,7 @@ function submitMuTect {
     	  		sed -i -e "s/#tmpSpaceMb/$tmp_space_mb/g" $script_path
 			sed -i -e "s/#analysisFile/${analysis_file//\//\\/}/" $script_path
 			sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+			sed -i -e "s/#referenceDict/${REFERENCE_SEQ_DICT//\//\\/}/" $script_path
 			sed -i -e "s/#referenceSeqDict/${REFERENCE_SEQ_DICT//\//\\/}/" $script_path
 			sed -i -e "s/#mutectCosmic/${MUTECT_COSMIC//\//\\/}/" $script_path
 			sed -i -e "s/#mutectDBsnp/${MUTECT_DBSNP//\//\\/}/" $script_path
@@ -1027,19 +1056,30 @@ function submitPostProcessingJobs {
 			sed -i -e "s/#preRecalibrationReport/${chunk_pre_recalibration_report//\//\\/}/" $script_path
 
 			#remove bam original chunk and realigned chunk
-			#local chunk_bam_original=`echo $chunk_bam|sed -e 's/realignment/chunks/'|sed -e 's/realigned\.//'`
-			#local string_gatk="#logging"
-			#local string_mutect="rm $chunk_bam $chunk_bam.bai $chunk_bam_original $chunk_bam_original.bai\n\n #logging"
-			#sed -i -e "s/$string_gatk/${string_mutect//\//\\/}/" $script_path
+			local chunk_bam_original=`echo $chunk_bam|sed -e 's/realignment/chunks/'|sed -e 's/realigned\.//'`
+			local string_gatk="#logging"
+			local string_mutect="rm $chunk_bam $chunk_bam.bai $chunk_bam_original $chunk_bam_original.bai\n\n #logging"
+			sed -i -e "s/$string_gatk/${string_mutect//\//\\/}/" $script_path
 
-			if [[ $TARGET_INTERVALS_BED != ""  ]]
-			then
-			
-				target_int=$ANALYSIS_DIR_MSVC/chunk_${chunk_name}_target_intervals.int
-				sed -i -e "s/#fragmentFile/${target_int//\//\\/}/" $script_path
+			## change from GATKv2 pipeline - we output all reads, not just target region
+#			if [[ $TARGET_INTERVALS_BED != ""  ]]; then
 
-			else
+#				target_int=$ANALYSIS_DIR_MSVC/chunk_${chunk_name}_target_intervals.int
+#				sed -i -e "s/#fragmentFile/${target_int//\//\\/}/" $script_path
+#			else
 				sed -i -e "s/#fragmentFile/${chunk_int//\//\\/}/" $script_path
+#			fi
+
+			## for targeted sequencing base recalibration should be done on targets only
+			## This excludes off-target sequences and sequences that may be poorly mapped, which have a higher error rate. Including them could lead to a skewed model and bad recalibration.
+			## also RealignerTargetCreator only for target regions, for speed
+			## see http://gatkforums.broadinstitute.org/discussion/4133/when-should-i-use-l-to-pass-in-a-list-of-intervals#latest
+
+			if [[ $TARGET_INTERVALS_BED != ""  ]]; then
+				target_int=$ANALYSIS_DIR_MSVC/chunk_${chunk_name}_target_intervals.int
+				sed -i -e "s/#targetFile/${target_int//\//\\/}/" $script_path
+			else
+				sed -i -e "s/#targetFile/${chunk_int//\//\\/}/" $script_path
 			fi
 
 			post_recalibration_reports="$post_recalibration_reports $analysis_dir/recalibration/reports/post/$sample.$chunk.realigned.recalibrated.recal_data.grp"
@@ -1098,8 +1138,8 @@ function submitPostProcessingJobs {
 
  	sed -i -e "s/#reaglignedRecalibratedBam/${recalibrated_merged_bam//\//\\/}/" $script_path
  	sed -i -e "s/#sample/$sample/" $script_path
-	sed -i -e "s/#referenceSeqDict/${REFERENCE_SEQ_DICT//\//\\/}/" $script_path
  	sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
+	sed -i -e "s/#referenceSeqDict/${REFERENCE_SEQ_DICT//\//\\/}/" $script_path
 
 	sed -i -e "s/#mergedPreRecalibrationReport/${merged_pre_recal_report//\//\\/}/" $script_path
  	sed -i -e "s/#recalibrationReports/${post_recalibration_reports//\//\\/}/" $script_path
@@ -1108,6 +1148,7 @@ function submitPostProcessingJobs {
  	sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $script_path
 	sed -i -e "s/#sequencingType/$TYPE/" $script_path 	
  	
+
 	if [[ $TARGET_INTERVALS_BED != ""  ]]
 	then
 		sed -i -e "s/#targetIntervals/${TARGET_INTERVALS_INT//\//\\/}/" $script_path
@@ -1225,7 +1266,7 @@ function submitMergeAndPlotMetricsJob {
 
 	local summary_log_path=`echo $summary_script_path | perl -pe 's/\.pl/\.log/g'`
 	echo "`$NOW`$summary_script_path"
-	local sum_job_id=`qsub -q $QUEUE -o $summary_log_path -j oe -W depend=afterany:$job_id -M igf@imperial.ac.uk $summary_script_path` 
+	local sum_job_id=`qsub -q $QUEUE -o $summary_log_path -j oe -W depend=afterany:$job_id -M cgi@imperial.ac.uk $summary_script_path` 
 	echo "`$NOW`job ID: $sum_job_id"
 	echo "`$NOW`-------------------------------------------------------------------------------------"
 
@@ -1353,7 +1394,6 @@ if [[ $TARGET_INTERVALS_BED != ""  ]]; then
 	#converting to chr:start-end format instead of tab delimited format 
 	#as GATK started to refuse parsing tab delimited format for some reason	
 	cat $TARGET_INTERVALS_BED | awk '/^\s*$/ {next;} { print $1 ":" $2+1 "-" $3 }' > $TARGET_INTERVALS_INT
-	#cp $TARGET_INTERVALS_BED $TARGET_INTERVALS_INT
 		
 	#create chunk target intervals
        	for CHUNK_NAME in `cut -f 5 $REFERENCE_CHUNKS | sort -n | uniq`; do
@@ -1504,3 +1544,7 @@ submitCompUse
 echo "`$NOW`"
 echo "`$NOW`"
 echo "`$NOW`Jobs status can be monitored at $DEPLOYMENT_SERVER/report/project/$PROJECT/mutect/$TODAY"
+		                          
+
+
+
