@@ -12,7 +12,7 @@ NOW="date +%Y-%m-%d%t%T%t"
 TODAY=`date +%Y-%m-%d`
 
 #get the directory this script resides in
-GROUP_VOL_CGI=/groupvol/cgi
+GROUP_VOL_CGI=/project/tgu
 QUEUE=pqcgi
 
 #path to text file containing usage information
@@ -28,7 +28,7 @@ GATK_VERSION=3.2-2
 JAVA_VERSION=jdk-7u25
 R_VERSION=3.1.2
 
-REFERENCE_FASTA=$GROUP_VOL_CGI/resources/reference/eukaryote/human/hs37d5/hs37d5.fa
+REFERENCE_FASTA=$GROUP_VOL_CGI/resources/reference/hsapiens/hs37d5/fasta/hs37d5.fa
 ONCOTATOR_DB=/project/tgu/resources/oncotator/oncotator_v1_ds_Jan262014
 
 #parse command line args

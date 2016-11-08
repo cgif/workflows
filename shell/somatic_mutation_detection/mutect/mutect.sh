@@ -58,8 +58,15 @@ java -Xmx$JAVA_XMX -XX:+UseSerialGC -jar -Djava.io.tmpdir=$TMPDIR/tmp $MUTECT_HO
 --vcf $TMPDIR/tmp.vcf \
 -rf BadCigar
 
+#make tsv file for input into Oncotator web server (requested by customers)
+
+cat tmp.vcf | awk -F $'\t' 'BEGIN {OFS=FS} {print $1,$2,$2,$4,$5}' | sed 's/,\([ACGT]\)\t/\t\1/g' | grep -v "#" | awk 'NR==1{print "Chromosome\tStart_Position\tEnd_Position\tReference_Allele\tTumor_Seq_Allele}1' > tmp.tsv
+
+
+
 echo "`${NOW}` copying files from tmp directory..."
 cp $TMPDIR/tmp.txt $ANALYSIS_FILE.stats
 cp $TMPDIR/tmp.vcf $ANALYSIS_FILE.vcf
+cp $TMPDIR/tmp.tsv $ANALYSIS_FILE.tsv
 
 perl $SUMMARY_SCRIPT_PATH
