@@ -846,6 +846,7 @@ function submitMuTect {
 			sed -i -e "s/#normalBam/${normal_bam//\//\\/}/" $script_path
 			sed -i -e "s/#tumorBam/${tumor_bam//\//\\/}/" $script_path
 			sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $script_path
+			sed -i -e "s/#baseDir/${BASEDIR//\//\\/}/" $script_path
 
 			if [[ $TARGET_INTERVALS_BED != "" ]]
 			then

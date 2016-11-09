@@ -268,7 +268,7 @@ METRIC_MERGING_DEPENDECIES="afterany"
 # for each sample in the read group info file
 # (skips header line, extracts 2nd column, removes empty lines and outputs
 # set of unique sample names)
-for SAMPLE in `sed 1d $PATH_READ_GROUP_INFO | cut -f2 | grep -vP "^$" | uniq`
+for SAMPLE in `sed 1d $PATH_READ_GROUP_INFO | cut -f2 | grep -vP "^$" | sort | uniq`
 do
 
 	#create output dir path
