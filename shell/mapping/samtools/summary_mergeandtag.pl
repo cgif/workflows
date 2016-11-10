@@ -17,7 +17,7 @@ my $collect_metric="collectMetric";
 my $url = "http://$deployment_server/$1" if $summary_deployment =~ /html\/(.*)/;
 my $multisample = "multisample_no";
 my $make_bw = "makeBW";
-my $ucsc_assembly_id= "ucscAssemblyId";
+my $ucsc_assembly_id= "ucscAssemblyID";
 my $ucsc_organism_name= "ucscOrganismName";
 my $coverage_bw_browser_position = "chr1:1-10,000";
 
@@ -448,7 +448,7 @@ if ("$make_bw" eq "TRUE"){
 
 	}
 
-	system("scp $custom_tracs $deployment_server:$enc_dir");
+	system("scp $custom_tracs $deployment_server:$enc_dir/$project.mergetag.$date.txt");
 	$URL="http://$deployment_server/ucsc/cgi-bin/hgTracks?org=$ucsc_organism_name&db=$ucsc_assembly_id&hgct_customText=http://$custom_tracs_URL";
 	print OUT "<HR>Coverage profiles can be open in <A HREF=$URL>UCSC browser</A>";
 
