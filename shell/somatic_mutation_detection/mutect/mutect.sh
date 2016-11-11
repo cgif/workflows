@@ -28,7 +28,6 @@ NORMAL_BAM=#normalBam
 TUMOR_BAM=#tumorBam
 INTERVALS_FILE=#intervalsFile
 SUMMARY_SCRIPT_PATH=#summaryScriptPath
-BASEDIR=#baseDir
 
 #copy input files to tmp dir
 echo "`${NOW}` copying files to tmp directory..."
@@ -59,17 +58,8 @@ java -Xmx$JAVA_XMX -XX:+UseSerialGC -jar -Djava.io.tmpdir=$TMPDIR/tmp $MUTECT_HO
 --vcf $TMPDIR/tmp.vcf \
 -rf BadCigar
 
-#make tsv file for input into Oncotator web server
-echo "`${NOW}` making tsv file..."
-perl $BASEDIR/../../helper/vcf_to_oncotator_tsv.pl tmp.vcf tmp.tsv
-
-#cat tmp.vcf | awk -F $'\t' 'BEGIN {OFS=FS} {print $1,$2,$2,$4,$5}' | sed 's/,\([ACGT]\)\t/\t\1/g' | grep -v "#" | awk 'NR==1{print "Chromosome\tStart_Position\tEnd_Position\tReference_Allele\tTumor_Seq_Allele}1' > tmp.tsv
-
-
-
 echo "`${NOW}` copying files from tmp directory..."
 cp $TMPDIR/tmp.txt $ANALYSIS_FILE.stats
-cp $TMPDIR/tmp.vcf $ANALYSIS_FILE.mutect.vcf
-cp $TMPDIR/tmp.tsv $ANALYSIS_FILE.mutect.tsv
+cp $TMPDIR/tmp.vcf $ANALYSIS_FILE.vcf
 
 perl $SUMMARY_SCRIPT_PATH

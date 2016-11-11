@@ -27,6 +27,7 @@ REFERENCE_FASTA=#referenceFasta
 REFERENCE_SEQ_DICT=#referenceSeqDict
 
 SUMMARY_SCRIPT_PATH=#summaryScriptPath
+BASEDIR=#baseDir
 
 #copy reference to $TMP
 cp $REFERENCE_FASTA $TMPDIR/reference.fa
@@ -64,12 +65,19 @@ if [ $VCF_FILES_COUNT -ge 2 ]; then
 	        --assumeIdenticalSamples \
 		-o $TMPDIR/merged.vcf
 
+	#make tsv file for input into Oncotator web server
+	echo "`${NOW}` making tsv file..."
+	perl $BASEDIR/../../helper/vcf_to_oncotator_tsv.pl $TMPDIR/merged.vcf $TMPDIR/tmp.tsv
+
+
 	# get number of reads in the output GVCF file
 	VARIANT_COUNT_OUTPUT=`grep -v '#' $TMPDIR/merged.vcf | wc -l`
 	if [[ $VARIANT_COUNT_INPUT -eq $VARIANT_COUNT_OUTPUT ]]; then
 
-		cp $TMPDIR/merged.vcf $RESULTS_DIR/$SAMPLE.vcf
-		chmod 660 $RESULTS_DIR/$SAMPLE.vcf
+		cp $TMPDIR/merged.vcf $RESULTS_DIR/$SAMPLE.mutect.vcf
+		cp $TMPDIR/tmp.tsv $RESULTS_DIR/$SAMPLE.mutect.tsv
+		chmod 660 $RESULTS_DIR/$SAMPLE.mutect.vcf
+		chmod 660 $RESULTS_DIR/$SAMPLE.mutect.tsv
 
 	else
 
@@ -83,8 +91,18 @@ fi
 if [ $VCF_FILES_COUNT -eq 1 ]; then
 
 	VCF_BASENAME=`basename $IN_VCF`
-	grep -v REJECT $IN_VCF > $RESULTS_DIR/$SAMPLE.vcf
-	chmod 660 $RESULTS_DIR/$SAMPLE.vcf
+	grep -v REJECT $IN_VCF > $TMPDIR/mutect.vcf
+
+	#make tsv file for input into Oncotator web server
+	echo "`${NOW}` making tsv file..."
+	perl $BASEDIR/../../helper/vcf_to_oncotator_tsv.pl $TMPDIR/mutect.vcf $TMPDIR/tmp.tsv
+
+
+	cp $TMPDIR/mutect.vcf $RESULTS_DIR/$SAMPLE.mutect.vcf
+	chmod 660 $RESULTS_DIR/$SAMPLE.mutect.vcf
+
+	cp $TMPDIR/tmp.tsv $RESULTS_DIR/$SAMPLE.mutect.tsv
+	chmod 660 $RESULTS_DIR/$SAMPLE.mutect.tsv
 
 fi
 

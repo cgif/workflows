@@ -25,6 +25,7 @@ RAW_STATS_PATH="#rawStatsFiles"
 IN_VCF="#rawIndelFiles"
 REFERENCE_FASTA=#referenceFasta
 REFRENCE_SEQ_DICT=`echo $REFERENCE_FASTA | perl -pe 's/\.fa/\.dict/'`
+BASEDIR=#baseDir
 
 #copy reference to $TMP
 cp $REFERENCE_FASTA $TMPDIR/reference.fa
@@ -63,12 +64,20 @@ if [ $VCF_FILES_COUNT -ge 2 ]; then
 	        --assumeIdenticalSamples \
 		-o $TMPDIR/merged.vcf
 
+		#make tsv file for input into Oncotator web server
+		echo "`${NOW}` making tsv file..."
+		perl $BASEDIR/../../helper/vcf_to_oncotator_tsv.pl $TMPDIR/merged.vcf $TMPDIR/tmp.tsv
+
+
 	# get number of reads in the output GVCF file
 	VARIANT_COUNT_OUTPUT=`grep -v '#' $TMPDIR/merged.vcf | wc -l`
 	if [[ $VARIANT_COUNT_INPUT -eq $VARIANT_COUNT_OUTPUT ]]; then
 
-		cp $TMPDIR/merged.vcf $RESULTS_DIR/$SAMPLE.vcf
-		chmod 660 $RESULTS_DIR/$SAMPLE.vcf
+		cp $TMPDIR/merged.vcf $RESULTS_DIR/$SAMPLE.SomaticIndelDetector.vcf
+		chmod 660 $RESULTS_DIR/$SAMPLE.SomaticIndelDetector.vcf
+
+		cp $TMPDIR/tmp.tsv $RESULTS_DIR/$SAMPLE.SomaticIndelDetector.tsv
+		chmod 660 $RESULTS_DIR/$SAMPLE.SomaticIndelDetector.tsv
 
 	else
 
@@ -82,9 +91,16 @@ fi
 if [ $VCF_FILES_COUNT -eq 1 ]; then
 
 	VCF_BASENAME=`basename $IN_VCF`
-	grep -P '^#' $IN_VCF > $RESULTS_DIR/$SAMPLE.vcf
-	grep SOMATIC $IN_VCF >> $RESULTS_DIR/$SAMPLE.vcf
-	chmod 660 $RESULTS_DIR/$SAMPLE.vcf
+	grep -P '^#' $IN_VCF > $TMPDIR/indels.vcf
+	grep SOMATIC $IN_VCF >> $TMPDIR/indels.vcf
+	cp $TMPDIR/indels.vcf $RESULTS_DIR/$SAMPLE.SomaticIndelDetector.vcf
+	chmod 660 $RESULTS_DIR/$SAMPLE.SomaticIndelDetector.vcf
+
+	#make tsv file for input into Oncotator web server
+	echo "`${NOW}` making tsv file..."
+	perl $BASEDIR/../../helper/vcf_to_oncotator_tsv.pl $TMPDIR/indels.vcf $TMPDIR/tmp.tsv
+	cp $TMPDIR/tmp.tsv $RESULTS_DIR/$SAMPLE.SomaticIndelDetector.tsv
+	chmod 660 $RESULTS_DIR/$SAMPLE.SomaticIndelDetector.tsv
 
 fi
 

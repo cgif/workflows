@@ -24,7 +24,7 @@ my $alt;
 my $vcfRef;
 my $vcfAlt;
 
-print TSV "Chromosome\tStart_Position\tEnd_Position\tReference_Allele\tTumor_Seq_Allele\n"
+print TSV "Chromosome\tStart_Position\tEnd_Position\tReference_Allele\tTumor_Seq_Allele\n";
 
 while (my $line = <VCF> ){
 	$line =~ /^#/ and next;

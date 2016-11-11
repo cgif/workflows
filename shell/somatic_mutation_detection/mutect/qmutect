@@ -846,7 +846,7 @@ function submitMuTect {
 			sed -i -e "s/#normalBam/${normal_bam//\//\\/}/" $script_path
 			sed -i -e "s/#tumorBam/${tumor_bam//\//\\/}/" $script_path
 			sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $script_path
-			sed -i -e "s/#baseDir/${BASEDIR//\//\\/}/" $script_path
+
 
 			if [[ $TARGET_INTERVALS_BED != "" ]]
 			then
@@ -896,6 +896,7 @@ function submitMuTect {
 	sed -i -e "s/#referenceSeqDict/${REFERENCE_SEQ_DICT//\//\\/}/" $script_path
  	sed -i -e "s/#results_dir/${results_dir//\//\\/}/" $script_path
 	sed -i -e "s/#summaryScriptPath/${summary_script_path//\//\\/}/" $script_path
+	sed -i -e "s/#baseDir/${BASEDIR//\//\\/}/" $script_path
 
 	#we have to use the roundabout Perl way here as there seems to be 
         #a limit to the string length for either sed or the bash substitution 	

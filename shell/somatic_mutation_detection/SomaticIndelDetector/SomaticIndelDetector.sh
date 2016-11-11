@@ -26,7 +26,7 @@ NORMAL_BAM=#normalBam
 TUMOR_BAM=#tumorBam
 INTERVALS_FILE=#intervalsFile
 SUMMARY_SCRIPT=#summaryScriptPath
-BASEDIR=#baseDir
+
 
 #copy input files to tmp dir
 echo "`${NOW}` copying files to tmp directory..."
@@ -54,13 +54,8 @@ java -Xmx$JAVA_XMX -XX:+UseSerialGC -Djava.io.tmpdir=$TMPDIR/tmp -jar $GATK_HOME
 -ws 200 \
 -verbose $TMPDIR/tmp.stats
 
-#make tsv file for input into Oncotator web server
-echo "`${NOW}` making tsv file..."
-perl $BASEDIR/../../helper/vcf_to_oncotator_tsv.pl tmp.vcf tmp.tsv
-
 echo "`${NOW}` copying files from tmp directory..."
-cp $TMPDIR/tmp.vcf $ANALYSIS_FILE.SomaticIndelDetector.vcf
-cp $TMPDIR/tmp.tsv $ANALYSIS_FILE.SomaticIndelDetector.tsv
+cp $TMPDIR/tmp.vcf $ANALYSIS_FILE.vcf
 cp $TMPDIR/tmp.stats $ANALYSIS_FILE.stats
 
 perl $SUMMARY_SCRIPT
