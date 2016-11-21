@@ -92,7 +92,8 @@ if [ $IN_BAM_COUNT -eq 1 ]; then
    
 	#remove indel quality scores from recalibrated BAM files
 	echo "`${NOW}`copying input BAM to $TMPDIR..."
-	cp $INPUT_PATH/$IN_BAM $TMP_OUT_BAM
+	BAM_BASENAME=`basename $IN_BAM`				#to ensure no spaces before the filename left
+	cp $INPUT_PATH/$BAM_BASENAME $TMP_OUT_BAM
 
 	# get number of reads in the input bam file
 	READ_COUNT_INPUT=`samtools flagstat $TMP_OUT_BAM | head -n 1 | perl -e 'while(<>){ if(/(\d*?)\s\+\s(\d*?)\s/) { $retval=$1+$2; print "$retval\n"; }  }'`	
