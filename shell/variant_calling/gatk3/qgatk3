@@ -10,7 +10,7 @@ SAMTOOLS_VERSION=1.1
 #!!!Picard Version needs to be > 1.85 for ClipPrimerSequences 
 #in gatk3_realign_recalibrate.sh to work properly!!! 
 PICARD_VERSION=1.91
-R_VERSION=3.1.0
+R_VERSION=3.3.2
 BEDTOOLS_VERSION=2.13.3
 TABIX_VERSION=0.2.6
 NXTGENUTILS_VERSION=0.13.0
