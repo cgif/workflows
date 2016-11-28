@@ -13,7 +13,7 @@ AX3_CGI=/ax3-cgi
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 
 ANNOVAR_DATE=2016-10-25
-HGMD_RELEASE=2015_2
+HGMD_RELEASE=2016_3
 GI_BED_FILE=CCDS_genic_intolerance_noNA.bed
 
 REFERENCE_FASTA=/project/tgu/resources/reference/hsapiens/hs37d5/fasta/hs37d5.fa
