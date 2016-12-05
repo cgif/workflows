@@ -22,7 +22,6 @@ JAVA_XMX=15G
 # define variables
 
 REFERENCE_FASTA=#referenceFasta
-REFERENCE_SEQ_DICT=#referenceSeqDict
 ANALYSIS_DIR=#analysisDir
 PREFIX=#prefixName		### prefix for output file
 FRAGMENT=#fragmentName
@@ -30,8 +29,8 @@ FRAGMENT=#fragmentName
 echo "`${NOW}`INFO copying reference fasta and index to tmp directory..."
 cp $REFERENCE_FASTA $TMPDIR/reference.fa
 cp $REFERENCE_FASTA.fai $TMPDIR/reference.fa.fai
+REFERENCE_SEQ_DICT=`echo $REFERENCE_FASTA | perl -pe 's/\.fa/\.dict/'`
 cp $REFERENCE_SEQ_DICT $TMPDIR/reference.dict
-
 echo "`${NOW}`INFO copying chunk gVCF files to tmp directory..."
 
 #get analysis directory of GATK3 run

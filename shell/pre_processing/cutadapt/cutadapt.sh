@@ -13,7 +13,10 @@
 
 #PBS -q pqcgi
 
-module load cutadapt/1.0
+#module load cutadapt/1.0
+#module load python/2.6.4
+
+module load python/2.7.3    # this has cutadapt 1.7.1
 
 #now
 NOW="date +%Y-%m-%d%t%T%t"
