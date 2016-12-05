@@ -55,8 +55,10 @@ template_path=$TOPHAT_SCRIPTS_DIR/../../../../data-management/templates
 #bam_dependencies=afterok
 bam_dependencies=""
 cram_dependencies=afterok
-for sample_name in `ls --color=never $PATH_PROJECT_TAG_DIR/fastq/$SEQ_RUN_DATE/`
+for d in $PATH_PROJECT_TAG_DIR/fastq/$SEQ_RUN_DATE/*/
 do
+        sample_name=$(basename $d)
+        [[ $sample_name =~ ^(SampleSheet)$ ]] && continue
 	sample_sheet_row=`grep $sample_name $PATH_SAMPLE_SHEET_REFORMATTED`
         ## checks if there was an error 
         retval=$?
