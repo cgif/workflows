@@ -55,10 +55,7 @@ bismark --genome $TMPDIR/fasta \
 	--rg_sample $CUSTOMER_ID \
 	-o $TMPDIR/bam
 
-echo "`${NOW}`sort and index bam file"
-samtools sort $TMPDIR/bam/${SAMPLE}_pe.bam $TMPDIR/bam/${SAMPLE}_pe.sorted
-mv $TMPDIR/bam/${SAMPLE}_pe.sorted.bam $TMPDIR/bam/${SAMPLE}_pe.bam
-samtools index $TMPDIR/bam/${SAMPLE}_pe.bam
+## !! bam file needs to be unsorted for methylation extraction !!
 
 echo "`${NOW}`contents of alignment directory on $TMPDIR/bam"
 ls -al $TMPDIR/bam
