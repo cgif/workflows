@@ -1,0 +1,9 @@
+USAGE
+
+	qbismark	-n <project_name>
+			-i <input_path, the folder containign fastq reads for the project>
+			-d <samples ID file, format IGF_ID\tCustomer_ID>
+			-r <reference folder, default /project/tgu/resources/reference/hsapiens/GRCh37/bismark/fasta>
+			-t <pattern read 1, default '_R1_' >
+			-p <pattern read 2, default '_R2_' >
+			-h <display help and exit>
