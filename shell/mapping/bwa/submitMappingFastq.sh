@@ -115,6 +115,8 @@ do
         	mkdir -m 770 -p $path_results_dir
         	echo "`$NOW`creating CRAM directory $path_results_dir_cram"
                 mkdir -m 770 -p $path_results_dir_cram
+		chmod -R 770 $DATA_VOL_IGF/rawdata/$PROJECT_TAG/bam
+		chmod -R 770 $DATA_VOL_IGF/rawdata/$PROJECT_TAG/cram
         fi
 	
 
@@ -130,6 +132,7 @@ do
                 mkdir -m 770 -p $path_scripts_dir
                 mkdir -m 770 -p $path_mapping_dir
                 mkdir -m 770 -p $path_tmp_dir
+		chmod -R 770 $DATA_VOL_IGF/runs/$PROJECT_TAG
         fi
 
         SETUP_LOG=$path_scripts_dir/setup.log
