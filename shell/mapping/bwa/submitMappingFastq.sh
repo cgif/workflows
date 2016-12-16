@@ -67,7 +67,7 @@ do
         sample_name=$(basename $d)
         [[ $sample_name =~ ^(SampleSheet)$ ]] && continue
 
-	sample_sheet_row=`grep $sample_name $PATH_SAMPLE_SHEET_REFORMATTED`
+	sample_sheet_row=`grep -x $sample_name $PATH_SAMPLE_SHEET_REFORMATTED`
 	## checks if there was an error 
 	retval=$?
 	if [ $retval -ne 0 ]; then
