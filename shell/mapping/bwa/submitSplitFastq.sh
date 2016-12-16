@@ -40,6 +40,7 @@ DEPLOYMENT_SERVER=#deploymentServer
 DEPLOYMENT_BASE_DIR=#deploymentBaseDir
 QUEUE=#queue
 INPUT_SEQRUN_DIR=#inputSeqrunDir
+REMOVE_BAMS=#removeBams
 
 
 
@@ -153,6 +154,7 @@ sed -i -e "s/#mdeploymentServer/$DEPLOYMENT_SERVER/" $mapping_script_path
 sed -i -e "s/#mdeploymentBaseDir/${DEPLOYMENT_BASE_DIR//\//\\/}/" $mapping_script_path
 sed -i -e "s/#mqueue/$QUEUE/" $mapping_script_path
 sed -i -e "s/#minputSeqrunDir/${INPUT_SEQRUN_DIR//\//\\/}/" $mapping_script_path
+sed -i -e "s/#mremoveBams/$REMOVE_BAMS/" $mapping_script_path
 
 
 #submit job and save job ID to dependency variable 

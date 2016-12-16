@@ -37,6 +37,7 @@ DEPLOYMENT_SERVER=#mdeploymentServer
 DEPLOYMENT_BASE_DIR=#mdeploymentBaseDir
 QUEUE=#mqueue
 INPUT_SEQRUN_DIR=#minputSeqrunDir
+REMOVE_BAMS=#mremoveBams
 
 
 #SPLIT FASTQ
@@ -257,24 +258,24 @@ echo $SUM_JOB_ID
 #############################################################################
 ###       configure script that tar bam files and  deploys in irods      ####
 #############################################################################
-deploy_irods_bam_script=$path_to_bwa_dir/irods_deploy_bam.${PROJECT_TAG}.sh
+#deploy_irods_bam_script=$path_to_bwa_dir/irods_deploy_bam.${PROJECT_TAG}.sh
 
-cp $BWA_SCRIPTS_DIR/irods_deploy_bam.sh $deploy_irods_bam_script
-chmod 770 $deploy_irods_bam_script
-path_project_tag_dir=$DATA_VOL_IGF/rawdata/$PROJECT_TAG/bam
-sed -i -e "s/#seqRunDate/$SEQ_RUN_DATE/" $deploy_irods_bam_script
-sed -i -e "s/#seqRunName/$SEQ_RUN_NAME/" $deploy_irods_bam_script
-sed -i -e "s/#runDirBcl2Fastq/${path_to_bwa_dir//\//\\/}/" $deploy_irods_bam_script
-sed -i -e "s/#customerFilePath/${INPUT_SEQRUN_DIR//\//\\/}/" $deploy_irods_bam_script
-sed -i -e "s/#projectTag/$PROJECT_TAG/" $deploy_irods_bam_script
-sed -i -e "s/#mailTemplatePath/${template_path//\//\\/}/" $deploy_irods_bam_script
-sed -i -e "s/#pathToDestination/${path_project_tag_dir//\//\\/}/" $deploy_irods_bam_script
-
+#cp $BWA_SCRIPTS_DIR/irods_deploy_bam.sh $deploy_irods_bam_script
+#chmod 770 $deploy_irods_bam_script
+#path_project_tag_dir=$DATA_VOL_IGF/rawdata/$PROJECT_TAG/bam
+#sed -i -e "s/#seqRunDate/$SEQ_RUN_DATE/" $deploy_irods_bam_script
+#sed -i -e "s/#seqRunName/$SEQ_RUN_NAME/" $deploy_irods_bam_script
+#sed -i -e "s/#runDirBcl2Fastq/${path_to_bwa_dir//\//\\/}/" $deploy_irods_bam_script
+#sed -i -e "s/#customerFilePath/${INPUT_SEQRUN_DIR//\//\\/}/" $deploy_irods_bam_script
+#sed -i -e "s/#projectTag/$PROJECT_TAG/" $deploy_irods_bam_script
+#sed -i -e "s/#mailTemplatePath/${template_path//\//\\/}/" $deploy_irods_bam_script
+#sed -i -e "s/#pathToDestination/${path_project_tag_dir//\//\\/}/" $deploy_irods_bam_script
+#
 #submit job 
-log_output_path=`echo $deploy_irods_bam_script | perl -pe 's/\.sh/\.log/g'`
-echo -n "" > $log_output_path
-echo -n "`$NOW`submitting tarresult job: " 
-echo "$deploy_irods_bam_script"
+#log_output_path=`echo $deploy_irods_bam_script | perl -pe 's/\.sh/\.log/g'`
+#echo -n "" > $log_output_path
+#echo -n "`$NOW`submitting tarresult job: " 
+#echo "$deploy_irods_bam_script"
 
 ## deploy of BAM files
 #job_id=`qsub -q $QUEUE -W depend=$bam_dependencies -o $log_output_path -j oe $deploy_irods_bam_script`
@@ -308,3 +309,29 @@ echo "$deploy_irods_bam_script"
 #echo "qsub -q $QUEUE -W depend=$cram_dependencies -o $log_output_path -j oe $deploy_irods_cram_script"
 #echo "`$NOW`Job ID:$job_id"
 #chmod 660 $log_output_path
+
+#########################################
+###        Remove the bam files       ###
+#########################################
+if [ "$REMOVE_BAMS" = "T" ]
+then
+	remove_bam_script=$path_to_bwa_dir/remove_bam.${PROJECT_TAG}.sh
+
+	path_project_tag_dir=$DATA_VOL_IGF/rawdata/$PROJECT_TAG/bam
+	cp $BWA_SCRIPTS_DIR/remove_bam.sh $remove_bam_script
+	chmod 770 $remove_bam_script
+	sed -i -e "s/#seqRunDate/$SEQ_RUN_DATE/" $remove_bam_script
+	sed -i -e "s/#seqRunName/$SEQ_RUN_NAME/" $remove_bam_script
+	sed -i -e "s/#pathToDestination/${path_project_tag_dir//\//\\/}/" $remove_bam_script
+	#
+	##submit job 
+	log_output_path=`echo $remove_bam_script | perl -pe 's/\.sh/\.log/g'`
+	echo -n "" > $log_output_path
+	echo -n "`$NOW`removing bam files... " 
+	echo "$remove_bam_script"
+	#
+	job_id=`qsub -q $QUEUE -W depend=$cram_dependencies -o $log_output_path -j oe $remove_bam_script`
+	echo "qsub -q $QUEUE -W depend=$cram_dependencies -o $log_output_path -j oe $remove_bam_script"
+	echo "`$NOW`Job ID:$job_id"
+	chmod 660 $log_output_path
+fi
