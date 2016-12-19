@@ -6,6 +6,8 @@
 BASEDIR="$( cd "$( dirname "$0" )" && pwd )"
 GROUP_VOL_CGI=/project/tgu
 
+R_VERSION=3.3.2
+
 # now
 NOW="date +%Y-%m-%d%t%T%t"
 
@@ -154,6 +156,7 @@ SCRIPT_PATH=$MS_SCRIPT_DIR/${PROJECT}.getExonCounts.sh
 cp $BASEDIR/getExonCounts.sh $SCRIPT_PATH
 chmod 770 $SCRIPT_PATH
 
+sed -i -e "s/#Rversion/$R_VERSION/" $SCRIPT_PATH
 sed -i -e "s/#Rfunctions/${R_FUNCTIONS//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#Rscript/${MS_R_SCRIPT//\//\\/}/" $SCRIPT_PATH
 sed -i -e "s/#target/${TARGET//\//\\/}/" $SCRIPT_PATH
@@ -201,6 +204,7 @@ do
 	SCRIPT_PATH=$SCRIPT_DIR/${SAMPLE}.callCNVs.sh
 	cp $BASEDIR/callCNVs.sh $SCRIPT_PATH
 
+	sed -i -e "s/#Rversion/$R_VERSION/" $SCRIPT_PATH
 	sed -i -e "s/#Rfunctions/${R_FUNCTIONS//\//\\/}/" $SCRIPT_PATH
 	sed -i -e "s/#Rscript/${R_SCRIPT//\//\\/}/" $SCRIPT_PATH
 	sed -i -e "s/#resultsFolder/${RESULTS_DIR//\//\\/}/" $SCRIPT_PATH

@@ -11,7 +11,7 @@
 
 # load modules
 
-module load R/3.2.0
+module load R/#Rversion
 
 NOW="date +%Y-%m-%d%t%T%t"
 
