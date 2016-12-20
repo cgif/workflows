@@ -20,8 +20,8 @@ MAKE_BED=$BASEDIR/multisample_bed.pl
 combine_calls_path=$BASEDIR/combineCalls.pl
 
 
-TARGET="/groupvol/cgi/resources/annotations/Agilent_SureSelect_Human_All_Exon_V4+UTRs.targets.geneIDs.bed"
-EXONS_PATH="/groupvol/cgi/resources/annotations/eukaryote/human/GRCh37/CNV_annotations/GRCh37_Ensembl_exons_genes.txt"
+#TARGET="/groupvol/cgi/resources/annotations/Agilent_SureSelect_Human_All_Exon_V4+UTRs.targets.geneIDs.bed"
+EXONS_PATH="/project/tgu/resources/annotations/eukaryote/human/GRCh37/CNV_annotations/GRCh37_Ensembl_exons_genes.txt"
 ANNOTATIONS=$BASEDIR/annotation.txt
 BAM_SUFFIX='.bam'
 
