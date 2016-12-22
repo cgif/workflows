@@ -93,7 +93,7 @@ do
 	sequence_type=`echo $sample_sheet_row | cut -f4 -d ',' | cut -f3 -d ':' | perl -pe 's/\s//g'`
         # echo " XXXXX sequence_type $sequence_type"
 
-	if [ "$species" == "" ] || [ "$assembly == "" ] || [ "$sequence_type" == "" ]; then
+	if [ "$species" == "" ] || [ "$assembly" == "" ] || [ "$sequence_type" == "" ]; then
 		species="phix"
 		assembly="phix174"
 		sequence_type="dna"
