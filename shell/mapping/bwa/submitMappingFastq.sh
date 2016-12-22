@@ -67,7 +67,7 @@ do
         sample_name=$(basename $d)
         [[ $sample_name =~ ^(SampleSheet)$ ]] && continue
 
-	sample_sheet_row=`grep -x $sample_name $PATH_SAMPLE_SHEET_REFORMATTED`
+	sample_sheet_row=`grep  ",$sample_name," $PATH_SAMPLE_SHEET_REFORMATTED`
 	## checks if there was an error 
 	retval=$?
 	if [ $retval -ne 0 ]; then
@@ -92,6 +92,12 @@ do
         # echo " XXXXX assembly $assembly"
 	sequence_type=`echo $sample_sheet_row | cut -f4 -d ',' | cut -f3 -d ':' | perl -pe 's/\s//g'`
         # echo " XXXXX sequence_type $sequence_type"
+
+	if [ "$species" == "" ] || [ "$assembly == "" ] || [ "$sequence_type" == "" ]; then
+		species="phix"
+		assembly="phix174"
+		sequence_type="dna"
+	fi
 
 	reference_fasta=$DATA_VOL_IGF/resources/reference/$species/$assembly/fasta/$assembly.fa
         # echo " XXXXX reference_fasta $reference_fasta"
