@@ -41,6 +41,7 @@ REFERENCE_FASTA=#referenceFasta
 REFERENCE_SEQ_DICT=/project/tgu/resources/reference/hsapiens/hs37d5/dict/hs37d5.dict
 ANALYSIS_DIR=#analysisDir
 RESULTS_DIR=#resultsDir
+MULTIPROJECT_DIR=#multiprojectDir
 SAMPLE=#sampleName
 RAW_VCF_FILES="#rawVcfFiles"
 SEQUENCING_TYPE=#sequencingType
@@ -321,9 +322,9 @@ then
 	echo "`$NOW`INFO $SCRIPT_CODE indexing SNP and INDEL recalibrated VCF file for all samples..."
 	$TABIX_HOME/tabix -p vcf $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.vcf.gz
 
-	echo "`$NOW`INFO $SCRIPT_CODE copying SNP and INDEL recalibrated VCF file and index to $RESULTS_DIR..."
-	cp $SAMPLE.recalibratedSNPs.recalibratedINDELs.vcf.gz $RESULTS_DIR/$SAMPLE.recalibrated.all_samples.vcf.gz
-	cp $SAMPLE.recalibratedSNPs.recalibratedINDELs.vcf.gz.tbi $RESULTS_DIR/$SAMPLE.recalibrated.all_samples.vcf.gz.tbi
+	echo "`$NOW`INFO $SCRIPT_CODE copying SNP and INDEL recalibrated VCF file and index to $MULTIPROJECT_DIR..."
+	cp $SAMPLE.recalibratedSNPs.recalibratedINDELs.vcf.gz $MULTIPROJECT_DIR/$SAMPLE.recalibrated.all_samples.vcf.gz
+	cp $SAMPLE.recalibratedSNPs.recalibratedINDELs.vcf.gz.tbi $MULTIPROJECT_DIR/$SAMPLE.recalibrated.all_samples.vcf.gz.tbi
 
 	#logging
 	STATUS=OK
@@ -360,9 +361,9 @@ then
 	echo "`$NOW`INFO $SCRIPT_CODE indexing PASS variants VCF file..."
 	$TABIX_HOME/tabix -p vcf $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.PASS.vcf.gz
 
-	echo "`$NOW`INFO $SCRIPT_CODE copying PASS variants VCF file to $RESULTS_DIR..."
-	cp $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.PASS.vcf.gz $RESULTS_DIR/$SAMPLE.recalibrated.PASS.all_samples.vcf.gz
-	cp $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.PASS.vcf.gz.tbi $RESULTS_DIR/$SAMPLE.recalibrated.PASS.all_samples.vcf.gz.tbi
+	echo "`$NOW`INFO $SCRIPT_CODE copying PASS variants VCF file to $MULTIPROJECT_DIR..."
+	cp $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.PASS.vcf.gz $MULTIPROJECT_DIR/$SAMPLE.recalibrated.PASS.all_samples.vcf.gz
+	cp $TMPDIR/$SAMPLE.recalibratedSNPs.recalibratedINDELs.PASS.vcf.gz.tbi $MULTIPROJECT_DIR/$SAMPLE.recalibrated.PASS.all_samples.vcf.gz.tbi
 
 
 

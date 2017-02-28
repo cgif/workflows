@@ -30,6 +30,7 @@ TODAY=`date +%Y-%m-%d`
 #get the directory this script resides in
 GROUP_VOL_CGI=/groupvol/cgi
 PROJECT_TGU=/project/tgu
+MULTIPROJECT_DIR=$PROJECT_TGU/results/multiproject_vcfs/$TODAY
 DEPLOYMENT_SERVER=eliot.med.ic.ac.uk
 DEPLOYMENT_BASE_DIR=/www/html/report
 QUEUE=pqcgi
@@ -1206,6 +1207,7 @@ function submitGenotypeGVCFsJobs {
 	sed -i -e "s/#referenceFasta/${REFERENCE_FASTA//\//\\/}/" $script_path
 	sed -i -e "s/#analysisDir/${analysis_dir_vc//\//\\/}/" $script_path
 	sed -i -e "s/#resultsDir/${results_dir_vc//\//\\/}/" $script_path
+	sed -i -e "s/#multiprojectDir/${MULTIPROJECT_DIR//\//\\/}/" $script_path
 	sed -i -e "s/#sampleName/$sample/" $script_path
 	sed -i -e "s/#sampleList/${SAMPLE_LIST//\//\\/}/" $script_path
 	sed -i -e "s/#outputSampleList/${OUTPUT_SAMPLE_LIST//\//\\/}/" $script_path
@@ -1879,7 +1881,7 @@ chmod 770 $RESULTS_DIR_PROJECT/$TODAY
 
 mkdir -p $SCRIPTS_DIR_PROJECT/$TODAY
 chmod 770 $SCRIPTS_DIR_PROJECT/$TODAY
-	
+
 ANALYSIS_DIR_MSVC=$ANALYSIS_DIR_PROJECT/$TODAY/multisample
 RESULTS_DIR_MSVC=$RESULTS_DIR_PROJECT/$TODAY/multisample
 SCRIPTS_DIR_MSVC=$SCRIPTS_DIR_PROJECT/$TODAY/multisample
@@ -1899,6 +1901,11 @@ chmod 770 $SCRIPTS_DIR_MSVC
 #create and set permissions for multi-sample metrics results directory
 mkdir -p $RESULTS_DIR_MSVC/metrics
 chmod 770 $RESULTS_DIR_MSVC/metrics
+
+#create and set permissions for multiproject vcf directory
+
+mkdir $MULTIPROJECT_DIR
+chmod 770 $MULTIPROJECT_DIR
 
 #intialise log files
 RUN_LOG=$SCRIPTS_DIR_MSVC/run.log
