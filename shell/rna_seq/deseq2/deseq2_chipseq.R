@@ -7,19 +7,24 @@ results.dir = "#resultsDir"
 counts.table = "#countsTable"
 metadata.file = "#metadataFile"
 paired = "#paired"
+htseq = "#htSeq"
 
 #########################################################################
 #read count data from matrix and create dds
 #########################################################################
 
-#sampleTable = read.table(metadata.file, header=TRUE)
-#ddsHTSeq <- DESeqDataSetFromHTSeqCount(sampleTable = sampleTable,
-#directory = directory,
-#design= ~ condition)
+if (htseq == "FALSE") {
 
-countData<-read.table(counts.table, header = TRUE, row.names = 1)
-colData<-read.table(metadata.file, header = TRUE, row.names = 1)
-dds<-DESeqDataSetFromMatrix(countData = countData, colData = colData, design = ~condition)
+	countData<-read.table(counts.table, header = TRUE, row.names = 1)
+	colData<-read.table(metadata.file, header = TRUE, row.names = 1)
+	dds<-DESeqDataSetFromMatrix(countData = countData, colData = colData, design = ~condition)
+
+} else if (htseq == "TRUE") {
+
+    sampleTable = read.table(metadata.file, header=TRUE)
+    dds = DESeqDataSetFromHTSeqCount(sampleTable, directory = counts.table, design = ~condition)
+
+}
 
 #pre-filtering removing genes/rows with 0 or 1 reads
 dds <- dds[ rowSums(counts(dds)) > 1, ]
